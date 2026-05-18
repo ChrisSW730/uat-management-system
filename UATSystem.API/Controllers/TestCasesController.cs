@@ -10,7 +10,34 @@ namespace UATSystem.API.Controllers;
 public class TestCasesController : ControllerBase
 {
     private readonly UATDbContext _db;
-    public TestCasesController(UATDbContext db) => _db = db;
+    private readonly IWebHostEnvironment _env;
+    public TestCasesController(UATDbContext db, IWebHostEnvironment env)
+    {
+        _db = db;
+        _env = env;
+    }
+
+    private string UploadRoot
+    {
+        get
+        {
+            var root = _env.WebRootPath;
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                root = Path.Combine(_env.ContentRootPath, "wwwroot");
+            }
+
+            var dir = Path.Combine(root, "uploads", "testcases");
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+    }
+
+    private TestCaseAttachmentDto ToAttachmentDto(TestCaseAttachment a)
+    {
+        var fileUrl = $"{Request.Scheme}://{Request.Host}/api/testcases/{a.TestCaseId}/attachments/{a.Id}/file";
+        return new TestCaseAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl);
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
@@ -59,4 +86,101 @@ public class TestCasesController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok();
     }
+
+    [HttpGet("{id}/attachments")]
+    public async Task<IActionResult> GetAttachments(int id)
+    {
+        var exists = await _db.TestCases.AnyAsync(t => t.Id == id);
+        if (!exists) return NotFound();
+
+        var attachments = await _db.TestCaseAttachments
+            .Where(a => a.TestCaseId == id)
+            .OrderByDescending(a => a.UploadedAt)
+            .ToListAsync();
+
+        return Ok(attachments.Select(ToAttachmentDto));
+    }
+
+    [HttpPost("{id}/attachments")]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> UploadAttachments(int id, [FromForm] List<IFormFile> files)
+    {
+        var testCase = await _db.TestCases.FindAsync(id);
+        if (testCase == null) return NotFound();
+        if (files == null || files.Count == 0) return BadRequest("No files uploaded.");
+
+        var uploadedBy = Request.Headers.TryGetValue("X-User-Name", out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.ToString()
+            : "Unknown";
+
+        var created = new List<TestCaseAttachment>();
+        foreach (var file in files.Where(f => f.Length > 0))
+        {
+            var ext = Path.GetExtension(file.FileName);
+            var storedFileName = $"{Guid.NewGuid():N}{ext}";
+            var fullPath = Path.Combine(UploadRoot, storedFileName);
+
+            await using (var stream = System.IO.File.Create(fullPath))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var attachment = new TestCaseAttachment
+            {
+                TestCaseId = id,
+                FileName = file.FileName,
+                StoredFileName = storedFileName,
+                ContentType = file.ContentType ?? "application/octet-stream",
+                Size = file.Length,
+                UploadedBy = uploadedBy,
+                UploadedAt = DateTime.UtcNow,
+            };
+
+            created.Add(attachment);
+            _db.TestCaseAttachments.Add(attachment);
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(created.Select(ToAttachmentDto));
+    }
+
+    [HttpDelete("{id}/attachments/{attachmentId}")]
+    public async Task<IActionResult> DeleteAttachment(int id, int attachmentId)
+    {
+        var attachment = await _db.TestCaseAttachments
+            .FirstOrDefaultAsync(a => a.TestCaseId == id && a.Id == attachmentId);
+        if (attachment == null) return NotFound();
+
+        var fullPath = Path.Combine(UploadRoot, attachment.StoredFileName);
+        if (System.IO.File.Exists(fullPath))
+        {
+            System.IO.File.Delete(fullPath);
+        }
+
+        _db.TestCaseAttachments.Remove(attachment);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpGet("{id}/attachments/{attachmentId}/file")]
+    public async Task<IActionResult> GetAttachmentFile(int id, int attachmentId)
+    {
+        var attachment = await _db.TestCaseAttachments
+            .FirstOrDefaultAsync(a => a.TestCaseId == id && a.Id == attachmentId);
+        if (attachment == null) return NotFound();
+
+        var fullPath = Path.Combine(UploadRoot, attachment.StoredFileName);
+        if (!System.IO.File.Exists(fullPath)) return NotFound();
+
+        return PhysicalFile(fullPath, attachment.ContentType, attachment.FileName);
+    }
 }
+
+public record TestCaseAttachmentDto(
+    int Id,
+    string FileName,
+    string ContentType,
+    long Size,
+    string UploadedBy,
+    DateTime UploadedAt,
+    string Url);

@@ -14,4 +14,5 @@ public class TestCase
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<TestRunEntry> TestRunEntries { get; set; } = new List<TestRunEntry>();
+    public ICollection<TestCaseAttachment> Attachments { get; set; } = new List<TestCaseAttachment>();
 }

@@ -129,6 +129,12 @@ export default function App() {
   const [hoveredRunId, setHoveredRunId] = useState(null);
   const [commentDrafts, setCommentDrafts] = useState({});
   const [defectCommentDrafts, setDefectCommentDrafts] = useState({});
+  const [defectAttachments, setDefectAttachments] = useState({});
+  const [uploadingDefectId, setUploadingDefectId] = useState(null);
+  const [newDefAttachments, setNewDefAttachments] = useState([]);
+  const [testCaseAttachments, setTestCaseAttachments] = useState({});
+  const [uploadingTestCaseId, setUploadingTestCaseId] = useState(null);
+  const [newTCAttachments, setNewTCAttachments] = useState([]);
 
   // Modals
   const [viewTC,     setViewTC]    = useState(null);
@@ -178,6 +184,27 @@ export default function App() {
 		.finally(() => setLoading(false));
 	}, []);
 
+  useEffect(() => {
+    if (!viewDef?.id) return;
+    api.getDefectAttachments(viewDef.id)
+      .then(list => setDefectAttachments(p => ({ ...p, [viewDef.id]: list })))
+      .catch(err => console.error("Attachment load error:", err));
+  }, [viewDef?.id]);
+
+  useEffect(() => {
+    if (!viewTC?.id) return;
+    api.getTestCaseAttachments(viewTC.id)
+      .then(list => setTestCaseAttachments(p => ({ ...p, [viewTC.id]: list })))
+      .catch(err => console.error("Test case attachment load error:", err));
+  }, [viewTC?.id]);
+
+  useEffect(() => {
+    if (!editTC?.id) return;
+    api.getTestCaseAttachments(editTC.id)
+      .then(list => setTestCaseAttachments(p => ({ ...p, [editTC.id]: list })))
+      .catch(err => console.error("Edit test case attachment load error:", err));
+  }, [editTC?.id]);
+
   /* ── Filters ── */
   const filteredTC = useMemo(() => testCases.filter(tc => {
     const q = tcSearch.toLowerCase();
@@ -213,8 +240,15 @@ export default function App() {
         category: newTC.category,
         remarks: newTC.remarks,
       });
+
+      if (newTCAttachments.length > 0) {
+        const uploaded = await api.uploadTestCaseAttachments(tc.id, newTCAttachments, getCurrentUserName());
+        setTestCaseAttachments(p => ({ ...p, [tc.id]: uploaded }));
+      }
+
       setTestCases(p => [...p, tc]);
       setNewTC(blankTC);
+      setNewTCAttachments([]);
       setShowAddTC(false);
     } catch(e) { alert("Failed to add test case: " + e.message); }
   }
@@ -421,11 +455,13 @@ export default function App() {
     const tc = testCases.find(t => t.id === tcId);
     const run = runs.find(r => r.id === runId);
     setNewDef({ ...blankDef, raisedBy: run?.tester || "" });
+    setNewDefAttachments([]);
     setShowAddDef({ runId, tcId, tcName: tc?.name || tcId });
   }
 
   function createStandaloneDefect() {
     setNewDef({ ...blankDef, issueType: "Functional Issue" });
+    setNewDefAttachments([]);
     setShowAddDef({ runId: null, tcId: null, tcName: "No linked test case" });
   }
 
@@ -446,6 +482,12 @@ export default function App() {
         targetFixDate: newDef.targetFix || null,
         remarks: newDef.remarks,
       });
+
+      if (newDefAttachments.length > 0) {
+        const uploaded = await api.uploadDefectAttachments(defect.id, newDefAttachments, getCurrentUserName());
+        setDefectAttachments(p => ({ ...p, [defect.id]: uploaded }));
+      }
+
       setDefects(p => [...p, defect]);
       if (runId && tcId) {
         setRuns(p => p.map(r => r.id !== runId ? r : {
@@ -459,8 +501,30 @@ export default function App() {
         }));
       }
       setNewDef(blankDef);
+      setNewDefAttachments([]);
       setShowAddDef(null);
     } catch(e) { alert("Failed to create defect: " + e.message); }
+  }
+
+  function queueNewDefectFiles(files) {
+    const selected = Array.from(files || []).filter(f => f && f.size > 0);
+    if (selected.length === 0) return;
+    setNewDefAttachments(p => [...p, ...selected]);
+  }
+
+  function removeQueuedNewDefectFile(indexToRemove) {
+    setNewDefAttachments(p => p.filter((_, i) => i !== indexToRemove));
+  }
+
+  function onNewDefectPasteUpload(e) {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(f => f.type?.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+
+    e.preventDefault();
+    queueNewDefectFiles(imageFiles);
   }
 
   async function updateDefStatus(id, v) {
@@ -531,6 +595,109 @@ export default function App() {
       ? d
       : { ...d, comments: (d.comments || []).filter(c => c.id !== commentId) }
     );
+  }
+
+  async function uploadDefectFiles(defectId, files) {
+    const selected = Array.from(files || []).filter(f => f && f.size > 0);
+    if (selected.length === 0) return;
+
+    try {
+      setUploadingDefectId(defectId);
+      const uploaded = await api.uploadDefectAttachments(defectId, selected, getCurrentUserName());
+      setDefectAttachments(p => ({
+        ...p,
+        [defectId]: [...(p[defectId] || []), ...uploaded],
+      }));
+    } catch (e) {
+      alert("Failed to upload attachment(s): " + e.message);
+    } finally {
+      setUploadingDefectId(null);
+    }
+  }
+
+  async function deleteDefectAttachment(defectId, attachmentId) {
+    try {
+      await api.deleteDefectAttachment(defectId, attachmentId);
+      setDefectAttachments(p => ({
+        ...p,
+        [defectId]: (p[defectId] || []).filter(a => a.id !== attachmentId),
+      }));
+    } catch (e) {
+      alert("Failed to delete attachment: " + e.message);
+    }
+  }
+
+  function onDefectPasteUpload(e, defectId) {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(f => f.type?.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+
+    e.preventDefault();
+    uploadDefectFiles(defectId, imageFiles);
+  }
+
+  async function uploadTestCaseFiles(testCaseId, files) {
+    const selected = Array.from(files || []).filter(f => f && f.size > 0);
+    if (selected.length === 0) return;
+
+    try {
+      setUploadingTestCaseId(testCaseId);
+      const uploaded = await api.uploadTestCaseAttachments(testCaseId, selected, getCurrentUserName());
+      setTestCaseAttachments(p => ({
+        ...p,
+        [testCaseId]: [...(p[testCaseId] || []), ...uploaded],
+      }));
+    } catch (e) {
+      alert("Failed to upload test case attachment(s): " + e.message);
+    } finally {
+      setUploadingTestCaseId(null);
+    }
+  }
+
+  async function deleteTestCaseAttachment(testCaseId, attachmentId) {
+    try {
+      await api.deleteTestCaseAttachment(testCaseId, attachmentId);
+      setTestCaseAttachments(p => ({
+        ...p,
+        [testCaseId]: (p[testCaseId] || []).filter(a => a.id !== attachmentId),
+      }));
+    } catch (e) {
+      alert("Failed to delete test case attachment: " + e.message);
+    }
+  }
+
+  function onTestCasePasteUpload(e, testCaseId) {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(f => f.type?.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+
+    e.preventDefault();
+    uploadTestCaseFiles(testCaseId, imageFiles);
+  }
+
+  function queueNewTestCaseFiles(files) {
+    const selected = Array.from(files || []).filter(f => f && f.size > 0);
+    if (selected.length === 0) return;
+    setNewTCAttachments(p => [...p, ...selected]);
+  }
+
+  function removeQueuedNewTestCaseFile(indexToRemove) {
+    setNewTCAttachments(p => p.filter((_, i) => i !== indexToRemove));
+  }
+
+  function onNewTestCasePasteUpload(e) {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(f => f.type?.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+
+    e.preventDefault();
+    queueNewTestCaseFiles(imageFiles);
   }
 
   /* ── Run stats ── */
@@ -923,6 +1090,47 @@ export default function App() {
             <DetailBlock label="Expected Result" value={viewTC.expectedResult} accent/>
             {viewTC.remarks && <DetailBlock label="Remarks" value={viewTC.remarks}/>}
           </div>
+          <div style={{ marginTop:22, paddingTop:18, borderTop:"1.5px solid #f1f5f9" }}>
+            <div style={{ ...lbl, marginBottom:10 }}>Attachments</div>
+            <div
+              onPaste={e => onTestCasePasteUpload(e, viewTC.id)}
+              style={{ background:"#f8fafc", border:"1.5px dashed #cbd5e1", borderRadius:10, padding:"10px 12px" }}
+            >
+              <div style={{ fontSize:12, color:"#64748b", marginBottom:8 }}>
+                Paste screenshot with Ctrl+V or attach file(s)
+              </div>
+              <input
+                type="file"
+                multiple
+                onChange={e => {
+                  uploadTestCaseFiles(viewTC.id, e.target.files);
+                  e.target.value = "";
+                }}
+                style={{ ...inp, fontSize:12, padding:"8px 10px" }}
+              />
+            </div>
+
+            <div style={{ display:"grid", gap:8, marginTop:10 }}>
+              {(testCaseAttachments[viewTC.id] || []).length === 0 && (
+                <div style={{ color:"#94a3b8", fontSize:13 }}>No attachments yet.</div>
+              )}
+
+              {(testCaseAttachments[viewTC.id] || []).map(a => (
+                <div key={a.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #e2e8f0", borderRadius:8, padding:"8px 10px" }}>
+                  <a href={a.url} target="_blank" rel="noreferrer" style={{ color:"#1d4ed8", fontSize:13, fontWeight:700, textDecoration:"none", maxWidth:360, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {a.fileName}
+                  </a>
+                  <span style={{ color:"#64748b", fontSize:12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
+                  <span style={{ color:"#94a3b8", fontSize:11, marginLeft:"auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
+                  <button onClick={() => deleteTestCaseAttachment(viewTC.id, a.id)} style={{ border:"none", background:"none", color:"#ef4444", cursor:"pointer", fontSize:14 }}>✕</button>
+                </div>
+              ))}
+
+              {uploadingTestCaseId === viewTC.id && (
+                <div style={{ color:"#64748b", fontSize:12 }}>Uploading...</div>
+              )}
+            </div>
+          </div>
         </Modal>
       )}
 
@@ -1142,6 +1350,47 @@ export default function App() {
             </button>
           </div>
           <div style={{ marginTop:22, paddingTop:18, borderTop:"1.5px solid #f1f5f9" }}>
+            <div style={{ ...lbl, marginBottom:10 }}>Attachments</div>
+            <div
+              onPaste={e => onDefectPasteUpload(e, viewDef.id)}
+              style={{ background:"#f8fafc", border:"1.5px dashed #cbd5e1", borderRadius:10, padding:"10px 12px" }}
+            >
+              <div style={{ fontSize:12, color:"#64748b", marginBottom:8 }}>
+                Paste screenshot with Ctrl+V or attach file(s)
+              </div>
+              <input
+                type="file"
+                multiple
+                onChange={e => {
+                  uploadDefectFiles(viewDef.id, e.target.files);
+                  e.target.value = "";
+                }}
+                style={{ ...inp, fontSize:12, padding:"8px 10px" }}
+              />
+            </div>
+
+            <div style={{ display:"grid", gap:8, marginTop:10 }}>
+              {(defectAttachments[viewDef.id] || []).length === 0 && (
+                <div style={{ color:"#94a3b8", fontSize:13 }}>No attachments yet.</div>
+              )}
+
+              {(defectAttachments[viewDef.id] || []).map(a => (
+                <div key={a.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #e2e8f0", borderRadius:8, padding:"8px 10px" }}>
+                  <a href={a.url} target="_blank" rel="noreferrer" style={{ color:"#1d4ed8", fontSize:13, fontWeight:700, textDecoration:"none", maxWidth:360, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {a.fileName}
+                  </a>
+                  <span style={{ color:"#64748b", fontSize:12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
+                  <span style={{ color:"#94a3b8", fontSize:11, marginLeft:"auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
+                  <button onClick={() => deleteDefectAttachment(viewDef.id, a.id)} style={{ border:"none", background:"none", color:"#ef4444", cursor:"pointer", fontSize:14 }}>✕</button>
+                </div>
+              ))}
+
+              {uploadingDefectId === viewDef.id && (
+                <div style={{ color:"#64748b", fontSize:12 }}>Uploading...</div>
+              )}
+            </div>
+          </div>
+          <div style={{ marginTop:22, paddingTop:18, borderTop:"1.5px solid #f1f5f9" }}>
             <div style={{ ...lbl, marginBottom:10 }}>Comments</div>
             <div style={{ display:"grid", gap:8 }}>
               {(viewDef.comments || []).length === 0 && (
@@ -1333,6 +1582,41 @@ export default function App() {
               </div>
             </div>
             <div><label style={lbl}>Remarks</label><input value={newTC.remarks} onChange={e=>setNewTC(p=>({...p,remarks:e.target.value}))} style={inp}/></div>
+            <div style={{ marginTop:2 }}>
+              <label style={lbl}>Attachments</label>
+              <div
+                onPaste={onNewTestCasePasteUpload}
+                style={{ background:"#f8fafc", border:"1.5px dashed #cbd5e1", borderRadius:10, padding:"10px 12px" }}
+              >
+                <div style={{ fontSize:12, color:"#64748b", marginBottom:8 }}>
+                  Paste screenshot with Ctrl+V or attach file(s)
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  onChange={e => {
+                    queueNewTestCaseFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                  style={{ ...inp, fontSize:12, padding:"8px 10px" }}
+                />
+              </div>
+
+              <div style={{ display:"grid", gap:8, marginTop:10 }}>
+                {newTCAttachments.length === 0 && (
+                  <div style={{ color:"#94a3b8", fontSize:13 }}>No attachments selected yet.</div>
+                )}
+
+                {newTCAttachments.map((f, i) => (
+                  <div key={`${f.name}-${f.size}-${i}`} style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #e2e8f0", borderRadius:8, padding:"8px 10px" }}>
+                    <span style={{ color:"#1e293b", fontSize:13, fontWeight:700, maxWidth:360, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</span>
+                    <span style={{ color:"#64748b", fontSize:12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
+                    <span style={{ color:"#94a3b8", fontSize:11, marginLeft:"auto" }}>Will upload after test case is created</span>
+                    <button onClick={() => removeQueuedNewTestCaseFile(i)} style={{ border:"none", background:"none", color:"#ef4444", cursor:"pointer", fontSize:14 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
           <div style={{ display:"flex", gap:10, marginTop:22, justifyContent:"flex-end" }}>
             <button onClick={()=>setShowAddTC(false)} style={btnS}>Cancel</button>
@@ -1493,6 +1777,48 @@ export default function App() {
 			  style={inp}
 			/>
 		  </div>
+
+      <div style={{ marginTop:2 }}>
+      <label style={lbl}>Attachments</label>
+      <div
+        onPaste={e => onTestCasePasteUpload(e, editTC.id)}
+        style={{ background:"#f8fafc", border:"1.5px dashed #cbd5e1", borderRadius:10, padding:"10px 12px" }}
+      >
+        <div style={{ fontSize:12, color:"#64748b", marginBottom:8 }}>
+        Paste screenshot with Ctrl+V or attach file(s)
+        </div>
+        <input
+        type="file"
+        multiple
+        onChange={e => {
+          uploadTestCaseFiles(editTC.id, e.target.files);
+          e.target.value = "";
+        }}
+        style={{ ...inp, fontSize:12, padding:"8px 10px" }}
+        />
+      </div>
+
+      <div style={{ display:"grid", gap:8, marginTop:10 }}>
+        {(testCaseAttachments[editTC.id] || []).length === 0 && (
+        <div style={{ color:"#94a3b8", fontSize:13 }}>No attachments yet.</div>
+        )}
+
+        {(testCaseAttachments[editTC.id] || []).map(a => (
+        <div key={a.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #e2e8f0", borderRadius:8, padding:"8px 10px" }}>
+          <a href={a.url} target="_blank" rel="noreferrer" style={{ color:"#1d4ed8", fontSize:13, fontWeight:700, textDecoration:"none", maxWidth:360, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+          {a.fileName}
+          </a>
+          <span style={{ color:"#64748b", fontSize:12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
+          <span style={{ color:"#94a3b8", fontSize:11, marginLeft:"auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
+          <button onClick={() => deleteTestCaseAttachment(editTC.id, a.id)} style={{ border:"none", background:"none", color:"#ef4444", cursor:"pointer", fontSize:14 }}>✕</button>
+        </div>
+        ))}
+
+        {uploadingTestCaseId === editTC.id && (
+        <div style={{ color:"#64748b", fontSize:12 }}>Uploading...</div>
+        )}
+      </div>
+      </div>
 		</div>
 
 		<div style={{
@@ -1562,7 +1888,7 @@ export default function App() {
         <Modal onClose={()=>setShowAddDef(null)}>
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
             <div style={{ fontSize:17, fontWeight:800 }}>Create Defect</div>
-            <button onClick={()=>setShowAddDef(null)} style={xBtn}>✕</button>
+            <button onClick={()=>{ setShowAddDef(null); setNewDefAttachments([]); }} style={xBtn}>✕</button>
           </div>
           {showAddDef.runId && showAddDef.tcId
             ? <div style={{ display:"flex", gap:8, marginBottom:12 }}>
@@ -1600,9 +1926,44 @@ export default function App() {
               <div><label style={lbl}>Target Fix Date</label><input type="date" value={newDef.targetFix} onChange={e=>setNewDef(p=>({...p,targetFix:e.target.value}))} style={inp}/></div>
             </div>
             <div><label style={lbl}>Remarks</label><input value={newDef.remarks} onChange={e=>setNewDef(p=>({...p,remarks:e.target.value}))} style={inp}/></div>
+            <div style={{ marginTop:2 }}>
+              <label style={lbl}>Attachments</label>
+              <div
+                onPaste={onNewDefectPasteUpload}
+                style={{ background:"#f8fafc", border:"1.5px dashed #cbd5e1", borderRadius:10, padding:"10px 12px" }}
+              >
+                <div style={{ fontSize:12, color:"#64748b", marginBottom:8 }}>
+                  Paste screenshot with Ctrl+V or attach file(s)
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  onChange={e => {
+                    queueNewDefectFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                  style={{ ...inp, fontSize:12, padding:"8px 10px" }}
+                />
+              </div>
+
+              <div style={{ display:"grid", gap:8, marginTop:10 }}>
+                {newDefAttachments.length === 0 && (
+                  <div style={{ color:"#94a3b8", fontSize:13 }}>No attachments selected yet.</div>
+                )}
+
+                {newDefAttachments.map((f, i) => (
+                  <div key={`${f.name}-${f.size}-${i}`} style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #e2e8f0", borderRadius:8, padding:"8px 10px" }}>
+                    <span style={{ color:"#1e293b", fontSize:13, fontWeight:700, maxWidth:360, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</span>
+                    <span style={{ color:"#64748b", fontSize:12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
+                    <span style={{ color:"#94a3b8", fontSize:11, marginLeft:"auto" }}>Will upload after defect is logged</span>
+                    <button onClick={() => removeQueuedNewDefectFile(i)} style={{ border:"none", background:"none", color:"#ef4444", cursor:"pointer", fontSize:14 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
           <div style={{ display:"flex", gap:10, marginTop:22, justifyContent:"flex-end" }}>
-            <button onClick={()=>setShowAddDef(null)} style={btnS}>Cancel</button>
+            <button onClick={()=>{ setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
             <button onClick={submitDefect} style={{ ...btnP, opacity:!newDef.description?0.5:1 }} disabled={!newDef.description}>Log Defect</button>
           </div>
         </Modal>

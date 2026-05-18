@@ -28,6 +28,21 @@ export const api = {
 
 	  return await response.json();
   },
+  getTestCaseAttachments: (id) => fetch(`${BASE}/testcases/${id}/attachments`).then(r => r.json()),
+  uploadTestCaseAttachments: (id, files, uploadedBy) => {
+    const form = new FormData();
+    files.forEach(f => form.append("files", f));
+    return fetch(`${BASE}/testcases/${id}/attachments`, {
+      method: "POST",
+      headers: {
+        "X-User-Name": uploadedBy || "Unknown"
+      },
+      body: form,
+    }).then(r => r.json());
+  },
+  deleteTestCaseAttachment: (id, attachmentId) => fetch(`${BASE}/testcases/${id}/attachments/${attachmentId}`, {
+    method: "DELETE"
+  }),
 
   // Test Runs
   getTestRuns: () => fetch(`${BASE}/testruns`).then(r => r.json()),
@@ -72,4 +87,19 @@ export const api = {
     body: JSON.stringify({ status })
   }).then(r => r.json()),
   getDefectAudits: (id) => fetch(`${BASE}/defects/${id}/audits`).then(r => r.json()),
+  getDefectAttachments: (id) => fetch(`${BASE}/defects/${id}/attachments`).then(r => r.json()),
+  uploadDefectAttachments: (id, files, uploadedBy) => {
+    const form = new FormData();
+    files.forEach(f => form.append("files", f));
+    return fetch(`${BASE}/defects/${id}/attachments`, {
+      method: "POST",
+      headers: {
+        "X-User-Name": uploadedBy || "Unknown"
+      },
+      body: form,
+    }).then(r => r.json());
+  },
+  deleteDefectAttachment: (id, attachmentId) => fetch(`${BASE}/defects/${id}/attachments/${attachmentId}`, {
+    method: "DELETE"
+  }),
 };

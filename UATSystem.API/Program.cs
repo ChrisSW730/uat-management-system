@@ -25,5 +25,6 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseCors("ReactApp");
+app.UseStaticFiles();
 app.MapControllers();
 app.Run();

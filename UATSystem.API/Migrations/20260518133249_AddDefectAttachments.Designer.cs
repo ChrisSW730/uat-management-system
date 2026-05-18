@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UATSystem.API.Data;
 
@@ -11,9 +12,11 @@ using UATSystem.API.Data;
 namespace UATSystem.API.Migrations
 {
     [DbContext(typeof(UATDbContext))]
-    partial class UATDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260518133249_AddDefectAttachments")]
+    partial class AddDefectAttachments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -226,46 +229,6 @@ namespace UATSystem.API.Migrations
                     b.ToTable("TestCases");
                 });
 
-            modelBuilder.Entity("UATSystem.API.Models.TestCaseAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<long>("Size")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("StoredFileName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TestCaseId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UploadedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TestCaseId");
-
-                    b.ToTable("TestCaseAttachments");
-                });
-
             modelBuilder.Entity("UATSystem.API.Models.TestRun", b =>
                 {
                     b.Property<int>("Id")
@@ -357,17 +320,6 @@ namespace UATSystem.API.Migrations
                     b.Navigation("Defect");
                 });
 
-            modelBuilder.Entity("UATSystem.API.Models.TestCaseAttachment", b =>
-                {
-                    b.HasOne("UATSystem.API.Models.TestCase", "TestCase")
-                        .WithMany("Attachments")
-                        .HasForeignKey("TestCaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TestCase");
-                });
-
             modelBuilder.Entity("UATSystem.API.Models.TestRunEntry", b =>
                 {
                     b.HasOne("UATSystem.API.Models.TestCase", "TestCase")
@@ -396,8 +348,6 @@ namespace UATSystem.API.Migrations
 
             modelBuilder.Entity("UATSystem.API.Models.TestCase", b =>
                 {
-                    b.Navigation("Attachments");
-
                     b.Navigation("TestRunEntries");
                 });
 

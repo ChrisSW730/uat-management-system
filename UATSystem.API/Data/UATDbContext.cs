@@ -12,6 +12,8 @@ public class UATDbContext : DbContext
     public DbSet<TestRunEntry> TestRunEntries => Set<TestRunEntry>();
     public DbSet<Defect> Defects => Set<Defect>();
     public DbSet<DefectAuditLog> DefectAuditLogs => Set<DefectAuditLog>();
+    public DbSet<DefectAttachment> DefectAttachments => Set<DefectAttachment>();
+    public DbSet<TestCaseAttachment> TestCaseAttachments => Set<TestCaseAttachment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,6 +39,18 @@ public class UATDbContext : DbContext
             .HasOne(a => a.Defect)
             .WithMany(d => d.AuditLogs)
             .HasForeignKey(a => a.DefectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DefectAttachment>()
+            .HasOne(a => a.Defect)
+            .WithMany(d => d.Attachments)
+            .HasForeignKey(a => a.DefectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TestCaseAttachment>()
+            .HasOne(a => a.TestCase)
+            .WithMany(tc => tc.Attachments)
+            .HasForeignKey(a => a.TestCaseId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -23,4 +23,5 @@ public class Defect
 
     public TestRunEntry? TestRunEntry { get; set; }
     public ICollection<DefectAuditLog> AuditLogs { get; set; } = new List<DefectAuditLog>();
+    public ICollection<DefectAttachment> Attachments { get; set; } = new List<DefectAttachment>();
 }

@@ -10,7 +10,34 @@ namespace UATSystem.API.Controllers;
 public class DefectsController : ControllerBase
 {
     private readonly UATDbContext _db;
-    public DefectsController(UATDbContext db) => _db = db;
+    private readonly IWebHostEnvironment _env;
+    public DefectsController(UATDbContext db, IWebHostEnvironment env)
+    {
+        _db = db;
+        _env = env;
+    }
+
+    private string UploadRoot
+    {
+        get
+        {
+            var root = _env.WebRootPath;
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                root = Path.Combine(_env.ContentRootPath, "wwwroot");
+            }
+
+            var dir = Path.Combine(root, "uploads", "defects");
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+    }
+
+    private DefectAttachmentDto ToAttachmentDto(DefectAttachment a)
+    {
+        var fileUrl = $"{Request.Scheme}://{Request.Host}/api/defects/{a.DefectId}/attachments/{a.Id}/file";
+        return new DefectAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl);
+    }
 
     private string GetChangedBy()
     {
@@ -150,6 +177,92 @@ public class DefectsController : ControllerBase
 
         return Ok(audits);
     }
+
+    [HttpGet("{id}/attachments")]
+    public async Task<IActionResult> GetAttachments(int id)
+    {
+        var exists = await _db.Defects.AnyAsync(d => d.Id == id);
+        if (!exists) return NotFound();
+
+        var attachments = await _db.DefectAttachments
+            .Where(a => a.DefectId == id)
+            .OrderByDescending(a => a.UploadedAt)
+            .ToListAsync();
+
+        return Ok(attachments.Select(ToAttachmentDto));
+    }
+
+    [HttpPost("{id}/attachments")]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> UploadAttachments(int id, [FromForm] List<IFormFile> files)
+    {
+        var defect = await _db.Defects.FindAsync(id);
+        if (defect == null) return NotFound();
+        if (files == null || files.Count == 0) return BadRequest("No files uploaded.");
+
+        var uploadedBy = GetChangedBy();
+        var created = new List<DefectAttachment>();
+
+        foreach (var file in files.Where(f => f.Length > 0))
+        {
+            var ext = Path.GetExtension(file.FileName);
+            var storedFileName = $"{Guid.NewGuid():N}{ext}";
+            var fullPath = Path.Combine(UploadRoot, storedFileName);
+
+            await using (var stream = System.IO.File.Create(fullPath))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var attachment = new DefectAttachment
+            {
+                DefectId = id,
+                FileName = file.FileName,
+                StoredFileName = storedFileName,
+                ContentType = file.ContentType ?? "application/octet-stream",
+                Size = file.Length,
+                UploadedBy = uploadedBy,
+                UploadedAt = DateTime.UtcNow,
+            };
+
+            created.Add(attachment);
+            _db.DefectAttachments.Add(attachment);
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(created.Select(ToAttachmentDto));
+    }
+
+    [HttpDelete("{id}/attachments/{attachmentId}")]
+    public async Task<IActionResult> DeleteAttachment(int id, int attachmentId)
+    {
+        var attachment = await _db.DefectAttachments
+            .FirstOrDefaultAsync(a => a.DefectId == id && a.Id == attachmentId);
+        if (attachment == null) return NotFound();
+
+        var fullPath = Path.Combine(UploadRoot, attachment.StoredFileName);
+        if (System.IO.File.Exists(fullPath))
+        {
+            System.IO.File.Delete(fullPath);
+        }
+
+        _db.DefectAttachments.Remove(attachment);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpGet("{id}/attachments/{attachmentId}/file")]
+    public async Task<IActionResult> GetAttachmentFile(int id, int attachmentId)
+    {
+        var attachment = await _db.DefectAttachments
+            .FirstOrDefaultAsync(a => a.DefectId == id && a.Id == attachmentId);
+        if (attachment == null) return NotFound();
+
+        var fullPath = Path.Combine(UploadRoot, attachment.StoredFileName);
+        if (!System.IO.File.Exists(fullPath)) return NotFound();
+
+        return PhysicalFile(fullPath, attachment.ContentType, attachment.FileName);
+    }
 }
 
 public record CreateDefectDto(
@@ -171,3 +284,12 @@ public record UpdateDefectDto(
     DateTime DateRaised,
     DateTime? TargetFixDate,
     string Status);
+
+public record DefectAttachmentDto(
+    int Id,
+    string FileName,
+    string ContentType,
+    long Size,
+    string UploadedBy,
+    DateTime UploadedAt,
+    string Url);
