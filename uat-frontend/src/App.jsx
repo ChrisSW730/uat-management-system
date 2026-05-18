@@ -228,6 +228,15 @@ export default function App() {
       && (defMarketFilter === "All" || def.market === defMarketFilter);
   }), [defects, defSearch, defStatusFilter, defPriFilter, defMarketFilter]);
 
+  const sortedRuns = useMemo(() => {
+    return [...runs].sort((a, b) => {
+      const aTime = new Date(a.createdAt || 0).getTime();
+      const bTime = new Date(b.createdAt || 0).getTime();
+      if (aTime !== bTime) return bTime - aTime;
+      return (b.id || 0) - (a.id || 0);
+    });
+  }, [runs]);
+
   /* ── CRUD functions ── */
   async function addTC() {
     try {
@@ -898,18 +907,18 @@ export default function App() {
       {activeTab==="runs" && (
         <div style={{ padding:"20px 2.5%" }}>
           <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10, marginBottom:16 }}>
-            {runs.length > 0 && (
+            {sortedRuns.length > 0 && (
               <button
                 onClick={() => {
-                  if (selectedRunIds.length === runs.length) {
+                  if (selectedRunIds.length === sortedRuns.length) {
                     setSelectedRunIds([]);
                   } else {
-                    setSelectedRunIds(runs.map(r => r.id));
+                    setSelectedRunIds(sortedRuns.map(r => r.id));
                   }
                 }}
                 style={{ ...btnS, padding:"8px 14px", fontSize:14 }}
               >
-                {selectedRunIds.length === runs.length ? "Clear Selection" : "Select All"}
+                {selectedRunIds.length === sortedRuns.length ? "Clear Selection" : "Select All"}
               </button>
             )}
             {selectedRunIds.length > 0 && (
@@ -926,9 +935,9 @@ export default function App() {
             )}
             <button onClick={()=>setShowAddRun(true)} style={btnP}>+ New Test Run</button>
           </div>
-          {runs.length===0 && <div style={{ textAlign:"center", padding:60, color:"#cbd5e1" }}>No test runs yet. Create your first one!</div>}
+          {sortedRuns.length===0 && <div style={{ textAlign:"center", padding:60, color:"#cbd5e1" }}>No test runs yet. Create your first one!</div>}
           <div style={{ display:"grid", gap:14 }}>
-            {runs.map(run=>{
+            {sortedRuns.map(run=>{
               const st = runStats(run);
               const pct = st.total>0 ? Math.round((st.pass/st.total)*100) : 0;
               const isRunSelected = selectedRunIds.includes(run.id);
