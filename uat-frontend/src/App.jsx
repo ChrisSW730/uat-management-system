@@ -20,6 +20,8 @@ const PRIORITY_META = {
   Low:        { bg:"#22c55e", text:"#fff", shadow:"#22c55e33" },
 };
 
+const TEST_CASE_PRIORITIES = ["High", "Medium", "Low"];
+
 const DEFECT_STATUS = {
   New:              { bg:"#eff6ff", text:"#1d4ed8", border:"#bfdbfe", dot:"#3b82f6" },
   "In Progress":    { bg:"#ecfdf5", text:"#065f46", border:"#6ee7b7", dot:"#10b981" },
@@ -118,6 +120,10 @@ export default function App() {
   const [tcSearch, setTcSearch]       = useState("");
   const [tcCatFilter, setTcCatFilter] = useState("All");
   const [tcPriFilter, setTcPriFilter] = useState("All");
+  const [defSearch, setDefSearch]     = useState("");
+  const [defStatusFilter, setDefStatusFilter] = useState("All");
+  const [defPriFilter, setDefPriFilter] = useState("All");
+  const [defMarketFilter, setDefMarketFilter] = useState("All");
   const [selectedTcIds, setSelectedTcIds] = useState([]);
   const [commentDrafts, setCommentDrafts] = useState({});
   const [defectCommentDrafts, setDefectCommentDrafts] = useState({});
@@ -177,6 +183,21 @@ export default function App() {
       && (tcCatFilter === "All" || tc.category === tcCatFilter)
       && (tcPriFilter === "All" || tc.priority === tcPriFilter);
   }), [testCases, tcSearch, tcCatFilter, tcPriFilter]);
+
+  const filteredDefects = useMemo(() => defects.filter(def => {
+    const q = defSearch.trim().toLowerCase();
+    const matchesSearch = !q
+      || def.defectNumber?.toLowerCase().includes(q)
+      || def.runNumber?.toLowerCase().includes(q)
+      || def.tcNumber?.toLowerCase().includes(q)
+      || def.description?.toLowerCase().includes(q)
+      || def.assignedTo?.toLowerCase().includes(q)
+      || def.raisedBy?.toLowerCase().includes(q);
+    return matchesSearch
+      && (defStatusFilter === "All" || def.status === defStatusFilter)
+      && (defPriFilter === "All" || def.priority === defPriFilter)
+      && (defMarketFilter === "All" || def.market === defMarketFilter);
+  }), [defects, defSearch, defStatusFilter, defPriFilter, defMarketFilter]);
 
   /* ── CRUD functions ── */
   async function addTC() {
@@ -392,6 +413,11 @@ export default function App() {
     setShowAddDef({ runId, tcId, tcName: tc?.name || tcId });
   }
 
+  function createStandaloneDefect() {
+    setNewDef({ ...blankDef, issueType: "Functional Issue" });
+    setShowAddDef({ runId: null, tcId: null, tcName: "No linked test case" });
+  }
+
   async function submitDefect() {
     try {
       const { runId, tcId } = showAddDef;
@@ -410,12 +436,17 @@ export default function App() {
         remarks: newDef.remarks,
       });
       setDefects(p => [...p, defect]);
-      setRuns(p => p.map(r => r.id !== runId ? r : {
-        ...r, entries: r.entries.map(e => e.testCaseId !== tcId ? e
-          : { ...e, defects: [...(e.defects || []), defect] })
-      }));
-      setViewRun(r => ({ ...r, entries: r.entries.map(e => e.testCaseId !== tcId ? e
-        : { ...e, defects: [...(e.defects || []), defect] }) }));
+      if (runId && tcId) {
+        setRuns(p => p.map(r => r.id !== runId ? r : {
+          ...r, entries: r.entries.map(e => e.testCaseId !== tcId ? e
+            : { ...e, defects: [...(e.defects || []), defect] })
+        }));
+        setViewRun(r => r?.id !== runId ? r : ({
+          ...r,
+          entries: (r.entries || []).map(e => e.testCaseId !== tcId ? e
+            : { ...e, defects: [...(e.defects || []), defect] })
+        }));
+      }
       setNewDef(blankDef);
       setShowAddDef(null);
     } catch(e) { alert("Failed to create defect: " + e.message); }
@@ -520,12 +551,12 @@ export default function App() {
 	<div style={{ minHeight:"100vh", background:"#fff", fontFamily:"'Inter','Segoe UI',sans-serif", color:"#0f172a", width:"100%", overflowX:"hidden" }}>
 	
       {/* ── Header ── */}
-      <div style={{ background:"#fff", borderBottom:"1px solid #f1f5f9", padding:"0 32px", display:"flex", alignItems:"center", justifyContent:"space-between", height:150, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+      <div style={{ background:"#fff", borderBottom:"1px solid #f1f5f9", padding:"0 52px", display:"flex", alignItems:"center", justifyContent:"space-between", height:180, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <div style={{ width:48, height:48, background:"linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:30, boxShadow:"0 4px 12px #6366f155" }}>◈</div>
+          <div style={{ width:58, height:58, background:"linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:40, boxShadow:"0 4px 12px #6366f155" }}>◈</div>
           <div>
-            <div style={{ fontSize:30, fontWeight:700, color:"#0f172a" }}>UAT Management</div>
-            <div style={{ padding:"0 1px", fontSize:15, color:"#94a3b8", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" }}>User Acceptance Testing & Defect Tracking</div>
+            <div style={{ fontSize:35, fontWeight:700, color:"#0f172a" }}>UAT Management System</div>
+            <div style={{ padding:"0 1px", fontSize:18, color:"#94a3b8", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" }}>User Acceptance Testing & Defect Tracking</div>
           </div>
         </div>
       </div>
@@ -534,7 +565,7 @@ export default function App() {
       <div style={{ padding:"0 52px", background:"#fff", display:"flex", gap:0, borderBottom:"2px solid #f1f5f9" }}>
         {TABS.map(([key,label])=>(
           <button key={key} onClick={()=>setActiveTab(key)}
-            style={{ background:"none", border:"none", borderBottom:activeTab===key?"2px solid #6366f1":"2px solid transparent", color:activeTab===key?"#6366f1":"#94a3b8", padding:"14px 20px", fontSize:15, fontWeight:700, cursor:"pointer", marginBottom:-2, transition:"all 0.15s" }}>
+            style={{ background:"none", border:"none", borderBottom:activeTab===key?"2px solid #6366f1":"2px solid transparent", color:activeTab===key?"#6366f1":"#94a3b8", padding:"14px 20px", fontSize:20, fontWeight:700, cursor:"pointer", marginBottom:-2, transition:"all 0.15s" }}>
             {label}
           </button>
         ))}
@@ -558,7 +589,7 @@ export default function App() {
 			  </select>
 			  <select value={tcPriFilter} onChange={e=>setTcPriFilter(e.target.value)} style={{ ...inp, width:150 }}>
 				<option value="All">All Priorities</option>
-				{Object.keys(PRIORITY_META).map(p=><option key={p}>{p}</option>)}
+        {TEST_CASE_PRIORITIES.map(p=><option key={p}>{p}</option>)}
 			  </select>
 			  <div style={{ flex:1 }}/>
 			  {selectedTcIds.length > 0 && (
@@ -576,7 +607,7 @@ export default function App() {
 			<div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", overflow:"hidden" }}>
 			  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
 				<thead>
-				  <tr style={{ background:"#f8fafc", borderBottom:"2px solid #f1f5f9" }}>
+				  <tr style={{ background:"#e2ebf3", borderBottom:"2px solid #f1f5f9" }}>
 					<th style={{ padding:"12px 16px", width:40 }}>
 					  <input type="checkbox"
 						checked={selectedTcIds.length === filteredTC.length && filteredTC.length > 0}
@@ -585,7 +616,7 @@ export default function App() {
 					  />
 					</th>
           {["Actions","ID","Test Name","Category","Coverage","Priority"].map(h=>(
-					  <th key={h} style={{ padding:"12px 16px", textAlign:"left", color:"#94a3b8", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{h}</th>
+					  <th key={h} style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{h}</th>
 					))}
 				  </tr>
 				</thead>
@@ -707,8 +738,8 @@ export default function App() {
                         <span style={{ fontFamily:"monospace", fontSize:14, fontWeight:700, color:"#6366f1", background:"#eff6ff", padding:"2px 8px", borderRadius:5 }}>{run.runNumber}</span>
                         <span style={{ fontSize:14, color:"#94a3b8" }}>{run.createdAt?.slice(0,10)}</span>
                       </div>
-                      <div style={{ fontSize:14, fontWeight:700, color:"#0f172a" }}>{run.name}</div>
-                      <div style={{ fontSize:13, color:"#64748b", marginTop:3 }}>👤 {run.tester}</div>
+                      <div style={{ fontSize:20, fontWeight:700, color:"#0f172a" }}>{run.name}</div>
+                      <div style={{ fontSize:14, color:"#64748b", marginTop:3 }}>👤 {run.tester}</div>
                     </div>
                     <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
                       <StatChip label="Total"   value={st.total}  color="#6366f1" bg="#eff6ff"/>
@@ -737,18 +768,52 @@ export default function App() {
       ══════════════════════════════════ */}
       {activeTab==="defects" && (
         <div style={{ padding:"20px 2.5%" }}>
+          <div style={{ display:"flex", gap:10, marginBottom:12, flexWrap:"wrap" }}>
+            <input
+              placeholder="Search defect / run / TC / assignee..."
+              value={defSearch}
+              onChange={e=>setDefSearch(e.target.value)}
+              style={{ ...inp, width:320 }}
+            />
+            <select value={defStatusFilter} onChange={e=>setDefStatusFilter(e.target.value)} style={{ ...inp, width:180 }}>
+              <option>All</option>
+              {Object.keys(DEFECT_STATUS).map(s=><option key={s}>{s}</option>)}
+            </select>
+            <select value={defPriFilter} onChange={e=>setDefPriFilter(e.target.value)} style={{ ...inp, width:150 }}>
+              <option>All</option>
+              {Object.keys(PRIORITY_META).map(p=><option key={p}>{p}</option>)}
+            </select>
+            <select value={defMarketFilter} onChange={e=>setDefMarketFilter(e.target.value)} style={{ ...inp, width:120 }}>
+              <option>All</option>
+              {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m=><option key={m}>{m}</option>)}
+            </select>
+            <button
+              onClick={() => {
+                setDefSearch("");
+                setDefStatusFilter("All");
+                setDefPriFilter("All");
+                setDefMarketFilter("All");
+              }}
+              style={{ ...btnS, padding:"9px 14px", fontSize:14 }}
+            >
+              Reset
+            </button>
+            <div style={{ flex:1 }}/>
+            <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>
+          </div>
           <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", overflow:"hidden" }}>
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
               <thead>
-                <tr style={{ background:"#f8fafc", borderBottom:"2px solid #f1f5f9" }}>
+                <tr style={{ background:"#e2ebf3", borderBottom:"2px solid #f1f5f9" }}>
                   {["ID","Run","TC","Market","Description","Priority","Assigned","Status","Aged",""].map(h=>(
-                    <th key={h} style={{ padding:"12px 16px", textAlign:"left", color:"#94a3b8", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{h}</th>
+                    <th key={h} style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {defects.length===0 && <tr><td colSpan={10} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects logged</td></tr>}
-                {defects.map((def,i)=>{
+                {defects.length>0 && filteredDefects.length===0 && <tr><td colSpan={10} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects match current filters</td></tr>}
+                {filteredDefects.map((def,i)=>{
                   const aged = agedDays(def.dateRaised);
                   return (
                     <tr key={def.id} style={{ borderBottom:"1px solid #f8fafc", background:i%2===0?"#fff":"#fafafa", cursor:"pointer" }}
@@ -1208,7 +1273,7 @@ export default function App() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <div><label style={lbl}>Priority</label>
                 <select value={newTC.priority} onChange={e=>setNewTC(p=>({...p,priority:e.target.value}))} style={inp}>
-                  {Object.keys(PRIORITY_META).map(p=><option key={p}>{p}</option>)}
+                  {TEST_CASE_PRIORITIES.map(p=><option key={p}>{p}</option>)}
                 </select>
               </div>
               <div><label style={lbl}>Category</label>
@@ -1338,7 +1403,7 @@ export default function App() {
 				}
 				style={inp}
 			  >
-				{Object.keys(PRIORITY_META).map(p =>
+        {TEST_CASE_PRIORITIES.map(p =>
 				  <option key={p}>{p}</option>
 				)}
 			  </select>
@@ -1449,10 +1514,14 @@ export default function App() {
             <div style={{ fontSize:17, fontWeight:800 }}>Create Defect</div>
             <button onClick={()=>setShowAddDef(null)} style={xBtn}>✕</button>
           </div>
-          <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-            <span style={{ background:"#eff6ff", color:"#1d4ed8", border:"1px solid #bfdbfe", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>{runs.find(r=>r.id===showAddDef.runId)?.runNumber}</span>
-            <span style={{ background:"#eff6ff", color:"#1d4ed8", border:"1px solid #bfdbfe", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>{testCases.find(t=>t.id===showAddDef.tcId)?.tcNumber}</span>
-          </div>
+          {showAddDef.runId && showAddDef.tcId
+            ? <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                <span style={{ background:"#eff6ff", color:"#1d4ed8", border:"1px solid #bfdbfe", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>{runs.find(r=>r.id===showAddDef.runId)?.runNumber}</span>
+                <span style={{ background:"#eff6ff", color:"#1d4ed8", border:"1px solid #bfdbfe", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>{testCases.find(t=>t.id===showAddDef.tcId)?.tcNumber}</span>
+              </div>
+            : <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                <span style={{ background:"#fff7ed", color:"#c2410c", border:"1px solid #fdba74", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>Standalone Defect</span>
+              </div>}
           <div style={{ background:"#f8fafc", border:"1px solid #f1f5f9", borderRadius:8, padding:"10px 13px", fontSize:12, color:"#64748b", marginBottom:18 }}>{showAddDef.tcName}</div>
           <div style={{ display:"grid", gap:14 }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
@@ -1523,3 +1592,5 @@ function AddTcToRunRow({ testCases, run, onAdd }) {
     </div>
   );
 }
+
+

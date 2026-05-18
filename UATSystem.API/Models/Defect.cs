@@ -4,7 +4,7 @@ public class Defect
 {
     public int Id { get; set; }
     public string DefectNumber { get; set; } = string.Empty;
-    public int TestRunEntryId { get; set; }
+    public int? TestRunEntryId { get; set; }
     public string RunNumber { get; set; } = string.Empty;
     public string TcNumber { get; set; } = string.Empty;
     public string Market { get; set; } = string.Empty;
@@ -21,6 +21,6 @@ public class Defect
     public string Remarks { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public TestRunEntry TestRunEntry { get; set; } = null!;
+    public TestRunEntry? TestRunEntry { get; set; }
     public ICollection<DefectAuditLog> AuditLogs { get; set; } = new List<DefectAuditLog>();
 }

@@ -31,7 +31,7 @@ public class UATDbContext : DbContext
             .HasOne(d => d.TestRunEntry)
             .WithMany(e => e.Defects)
             .HasForeignKey(d => d.TestRunEntryId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<DefectAuditLog>()
             .HasOne(a => a.Defect)

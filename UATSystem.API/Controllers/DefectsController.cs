@@ -49,19 +49,29 @@ public class DefectsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateDefectDto dto)
     {
-        var entry = await _db.TestRunEntries
-            .Include(e => e.TestCase)
-            .Include(e => e.TestRun)
-            .FirstOrDefaultAsync(e => e.TestRunId == dto.TestRunId && e.TestCaseId == dto.TestCaseId);
-        if (entry == null) return NotFound("Test run entry not found.");
+        if ((dto.TestRunId.HasValue && !dto.TestCaseId.HasValue) || (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue))
+        {
+            return BadRequest("Both TestRunId and TestCaseId must be provided together.");
+        }
+
+        TestRunEntry? entry = null;
+        if (dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
+        {
+            entry = await _db.TestRunEntries
+                .Include(e => e.TestCase)
+                .Include(e => e.TestRun)
+                .FirstOrDefaultAsync(e => e.TestRunId == dto.TestRunId.Value && e.TestCaseId == dto.TestCaseId.Value);
+
+            if (entry == null) return NotFound("Test run entry not found.");
+        }
 
         var count = await _db.Defects.CountAsync();
         var defect = new Defect
         {
             DefectNumber = $"DEF-{(count + 1):D3}",
-            TestRunEntryId = entry.Id,
-            RunNumber = entry.TestRun.RunNumber,
-            TcNumber = entry.TestCase.TcNumber,
+            TestRunEntryId = entry?.Id,
+            RunNumber = entry?.TestRun.RunNumber ?? "-",
+            TcNumber = entry?.TestCase.TcNumber ?? "-",
             Market = dto.Market,
             Description = dto.Description,
             IssueType = dto.IssueType,
@@ -143,7 +153,7 @@ public class DefectsController : ControllerBase
 }
 
 public record CreateDefectDto(
-    int TestRunId, int TestCaseId,
+    int? TestRunId, int? TestCaseId,
     string Market, string Description, string IssueType,
     string ExpectedResult, string ActualResult,
     string Priority, string RaisedBy, string AssignedTo,
