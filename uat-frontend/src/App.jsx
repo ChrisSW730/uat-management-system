@@ -943,7 +943,7 @@ export default function App() {
               const isRunSelected = selectedRunIds.includes(run.id);
               const showRunCheckbox = hoveredRunId === run.id || isRunSelected;
               return (
-                <div key={run.id} style={{ background:"#fff", border:"1.5px solid #f1f5f9", borderRadius:14, padding:"20px 24px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)", cursor:"pointer", transition:"box-shadow 0.15s" }}
+                <div key={run.id} style={{ background:"#f0f4f9", border:"1.5px solid #f1f5f9", borderRadius:14, padding:"20px 24px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)", cursor:"pointer", transition:"box-shadow 0.15s" }}
                   onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 6px 24px rgba(99,102,241,0.1)"; setHoveredRunId(run.id); }}
                   onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.05)"; setHoveredRunId(null); }}
                   onClick={()=>setViewRun(run)}>
