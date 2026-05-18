@@ -101,6 +101,17 @@ public class TestRunsController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(entry);
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var run = await _db.TestRuns.FindAsync(id);
+        if (run == null) return NotFound();
+
+        _db.TestRuns.Remove(run);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 }
 
 public record CreateRunDto(string Name, string Tester, List<int> TestCaseIds);

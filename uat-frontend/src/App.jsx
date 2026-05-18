@@ -125,6 +125,8 @@ export default function App() {
   const [defPriFilter, setDefPriFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState("All");
   const [selectedTcIds, setSelectedTcIds] = useState([]);
+  const [selectedRunIds, setSelectedRunIds] = useState([]);
+  const [hoveredRunId, setHoveredRunId] = useState(null);
   const [commentDrafts, setCommentDrafts] = useState({});
   const [defectCommentDrafts, setDefectCommentDrafts] = useState({});
 
@@ -252,6 +254,15 @@ export default function App() {
       setNewRun(blankRun);
       setShowAddRun(false);
     } catch(e) { alert("Failed to create run: " + e.message); }
+  }
+
+  async function deleteRuns(ids) {
+    try {
+      await Promise.all(ids.map(id => api.deleteTestRun(id)));
+      setRuns(p => p.filter(r => !ids.includes(r.id)));
+      setViewRun(r => (r && ids.includes(r.id) ? null : r));
+      setSelectedRunIds([]);
+    } catch(e) { alert("Failed to delete run(s): " + e.message); }
   }
 
   async function deleteTestCases(ids) {
@@ -719,7 +730,33 @@ export default function App() {
       ══════════════════════════════════ */}
       {activeTab==="runs" && (
         <div style={{ padding:"20px 2.5%" }}>
-          <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
+          <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10, marginBottom:16 }}>
+            {runs.length > 0 && (
+              <button
+                onClick={() => {
+                  if (selectedRunIds.length === runs.length) {
+                    setSelectedRunIds([]);
+                  } else {
+                    setSelectedRunIds(runs.map(r => r.id));
+                  }
+                }}
+                style={{ ...btnS, padding:"8px 14px", fontSize:14 }}
+              >
+                {selectedRunIds.length === runs.length ? "Clear Selection" : "Select All"}
+              </button>
+            )}
+            {selectedRunIds.length > 0 && (
+              <button
+                onClick={() => {
+                  if (window.confirm(`Delete ${selectedRunIds.length} test run(s)?`)) {
+                    deleteRuns(selectedRunIds);
+                  }
+                }}
+                style={{ ...btnD, padding:"8px 14px", fontSize:14 }}
+              >
+                🗑 Delete Selected
+              </button>
+            )}
             <button onClick={()=>setShowAddRun(true)} style={btnP}>+ New Test Run</button>
           </div>
           {runs.length===0 && <div style={{ textAlign:"center", padding:60, color:"#cbd5e1" }}>No test runs yet. Create your first one!</div>}
@@ -727,14 +764,27 @@ export default function App() {
             {runs.map(run=>{
               const st = runStats(run);
               const pct = st.total>0 ? Math.round((st.pass/st.total)*100) : 0;
+              const isRunSelected = selectedRunIds.includes(run.id);
+              const showRunCheckbox = hoveredRunId === run.id || isRunSelected;
               return (
                 <div key={run.id} style={{ background:"#fff", border:"1.5px solid #f1f5f9", borderRadius:14, padding:"20px 24px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)", cursor:"pointer", transition:"box-shadow 0.15s" }}
-                  onMouseEnter={e=>e.currentTarget.style.boxShadow="0 6px 24px rgba(99,102,241,0.1)"}
-                  onMouseLeave={e=>e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.05)"}
+                  onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 6px 24px rgba(99,102,241,0.1)"; setHoveredRunId(run.id); }}
+                  onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.05)"; setHoveredRunId(null); }}
                   onClick={()=>setViewRun(run)}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:10 }}>
                     <div>
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                        <span
+                          onClick={e=>e.stopPropagation()}
+                          style={{ width:18, display:"inline-flex", justifyContent:"center", opacity:showRunCheckbox ? 1 : 0, transition:"opacity 0.15s" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isRunSelected}
+                            onChange={e => setSelectedRunIds(p => e.target.checked ? [...p, run.id] : p.filter(x=>x!==run.id))}
+                            style={{ width:15, height:15, cursor:"pointer", accentColor:"#6366f1" }}
+                          />
+                        </span>
                         <span style={{ fontFamily:"monospace", fontSize:14, fontWeight:700, color:"#6366f1", background:"#eff6ff", padding:"2px 8px", borderRadius:5 }}>{run.runNumber}</span>
                         <span style={{ fontSize:14, color:"#94a3b8" }}>{run.createdAt?.slice(0,10)}</span>
                       </div>

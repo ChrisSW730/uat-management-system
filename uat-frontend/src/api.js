@@ -39,6 +39,9 @@ export const api = {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ testCaseId })
   }).then(r => r.json()),
+  deleteTestRun: (runId) => fetch(`${BASE}/testruns/${runId}`, {
+    method: "DELETE"
+  }),
   removeEntryFromRun: (runId, testCaseId) => fetch(`${BASE}/testruns/${runId}/entries/${testCaseId}`, {
     method: "DELETE"
   }),
