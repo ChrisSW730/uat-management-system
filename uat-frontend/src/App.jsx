@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { api } from "./api";
+import loginBg from "../public/login.png";
 
 /* ─────────────────────────────────────────
    CONSTANTS
@@ -61,15 +62,6 @@ function PriBadge({ label }) {
   return <span style={{ background:m.bg, color:m.text, padding:"3px 10px", borderRadius:6, fontSize:14, fontWeight:700, textTransform:"uppercase", boxShadow:`0 2px 8px ${m.shadow}`, whiteSpace:"nowrap" }}>{label}</span>;
 }
 
-function DefBadge({ status }) {
-  const c = DEFECT_STATUS[status] || DEFECT_STATUS["New"];
-  return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:c.bg, color:c.text, border:`1.5px solid ${c.border}`, padding:"3px 10px 3px 7px", borderRadius:20, fontSize:14, fontWeight:700, textTransform:"uppercase", whiteSpace:"nowrap" }}>
-      <Dot color={c.dot}/>{status}
-    </span>
-  );
-}
-
 function Modal({ children, onClose, wide }) {
   return (
     <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.45)", backdropFilter:"blur(5px)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
@@ -89,40 +81,104 @@ function DetailBlock({ label, value, pre, accent, danger }) {
       <div style={{ fontSize:14, fontWeight:700, color:"#94a3b8", letterSpacing:"0.09em", textTransform:"uppercase", marginBottom:5 }}>{label}</div>
       {pre
         ? <pre style={{ background:"#f8fafc", border:"1.5px solid #f1f5f9", borderRadius:8, padding:"10px 14px", color:"#334155", fontSize:14, whiteSpace:"pre-wrap", margin:0, fontFamily:"ui-monospace,monospace", lineHeight:1.6 }}>{value}</pre>
-        : <div style={{ background:bg, border:`1.5px solid ${bd}`, borderRadius:8, padding:"9px 13px", color:cl, fontSize:14, lineHeight:1.5, fontWeight:accent||danger?600:400 }}>{value}</div>}
+        : <span style={{ display:"block", background:bg, border:`1.5px solid ${bd}`, borderRadius:8, padding:"10px 14px", color:cl, fontSize:14, lineHeight:1.5 }}>{value || "-"}</span>}
     </div>
   );
 }
 
 function LoginScreen({ username, password, error, busy, onUsernameChange, onPasswordChange, onSubmit }) {
+  const [showPw, setShowPw] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
   return (
-    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"radial-gradient(circle at top, #e0e7ff 0, #f8fafc 45%, #eef2ff 100%)", padding:24 }}>
-      <div style={{ width:"100%", maxWidth:460, background:"#fff", borderRadius:24, padding:32, boxShadow:"0 24px 60px rgba(15,23,42,0.12)", border:"1px solid #e2e8f0" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18 }}>
-          <div style={{ width:52, height:52, borderRadius:14, background:"linear-gradient(135deg,#6366f1,#4f46e5)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, fontWeight:900 }}>◈</div>
-          <div>
-            <div style={{ fontSize:26, fontWeight:900, color:"#0f172a", lineHeight:1.1 }}>Test Management System</div>
-            <div style={{ fontSize:13, color:"#64748b", marginTop:4 }}>Sign in to continue</div>
-          </div>
-        </div>
+    <div style={{ minHeight:"100vh", display:"flex", background:"#f0f2ff", fontFamily:"'Inter','Segoe UI',sans-serif" }}>
+      {/* ── Left panel ── */}
+      <div style={{ flex:"0 0 35%", position:"relative", minHeight:"100vh", overflow:"hidden" }}>
+        <img
+          src={loginBg}
+          alt="Test Management System"
+          style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"center top" }}
+        />
+      </div>
 
-        <form onSubmit={onSubmit} style={{ display:"grid", gap:14 }}>
-          <div>
-            <label style={lbl}>Username</label>
-            <input value={username} onChange={e => onUsernameChange(e.target.value)} style={inp} autoComplete="username" />
+      {/* ── Right panel ── */}
+      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"32px 24px", background:"#fff" }}>
+        <div style={{ width:"100%", maxWidth:560 }}>
+          {/* Logo mark */}
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:28 }}>
+            <div style={{ width:64, height:64, borderRadius:"50%", background:"#f0f0ff", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 20px rgba(99,102,241,0.18)" }}>
+              <div style={{ width:40, height:40, borderRadius:10, background:"linear-gradient(135deg,#6366f1,#4f46e5)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, color:"#fff", fontWeight:900 }}>◈</div>
+            </div>
           </div>
-          <div>
-            <label style={lbl}>Password</label>
-            <input type="password" value={password} onChange={e => onPasswordChange(e.target.value)} style={inp} autoComplete="current-password" />
-          </div>
-          {error && <div style={{ background:"#fff1f2", color:"#be123c", border:"1px solid #fecdd3", borderRadius:10, padding:"10px 12px", fontSize:13 }}>{error}</div>}
-          <button type="submit" disabled={busy} style={{ ...btnP, width:"100%", padding:"12px 18px", opacity:busy?0.7:1 }}>
-            {busy ? "Signing in..." : "Login"}
-          </button>
-        </form>
 
-        <div style={{ marginTop:18, fontSize:12, color:"#64748b", lineHeight:1.6 }}>
-          Seed accounts: admin / ChangeMe123!, lead / ChangeMe123!, tester / ChangeMe123!, viewer / ChangeMe123!
+          <div style={{ textAlign:"center", marginBottom:32 }}>
+            <div style={{ fontSize:28, fontWeight:900, color:"#0f172a" }}>Welcome Back</div>
+            <div style={{ fontSize:14, color:"#94a3b8", marginTop:6 }}>Sign in to continue to your account</div>
+          </div>
+
+          <form onSubmit={onSubmit} style={{ display:"grid", gap:18 }}>
+            <div>
+              <label style={{ fontSize:12, fontWeight:700, color:"#475569", letterSpacing:"0.08em", textTransform:"uppercase", display:"block", marginBottom:7 }}>Username</label>
+              <div style={{ position:"relative" }}>
+                <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:16, color:"#94a3b8", pointerEvents:"none" }}>👤</span>
+                <input
+                  value={username}
+                  onChange={e => onUsernameChange(e.target.value)}
+                  autoComplete="username"
+                  style={{ background:"#f8fafc", border:"1.5px solid #e2e8f0", borderRadius:10, color:"#0f172a", padding:"12px 14px 12px 42px", width:"100%", fontSize:15, outline:"none", boxSizing:"border-box", fontFamily:"inherit", transition:"border 0.15s" }}
+                  onFocus={e=>e.target.style.borderColor="#6366f1"}
+                  onBlur={e=>e.target.style.borderColor="#e2e8f0"}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize:12, fontWeight:700, color:"#475569", letterSpacing:"0.08em", textTransform:"uppercase", display:"block", marginBottom:7 }}>Password</label>
+              <div style={{ position:"relative" }}>
+                <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:16, color:"#94a3b8", pointerEvents:"none" }}>🔒</span>
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={e => onPasswordChange(e.target.value)}
+                  autoComplete="current-password"
+                  style={{ background:"#f8fafc", border:"1.5px solid #e2e8f0", borderRadius:10, color:"#0f172a", padding:"12px 44px 12px 42px", width:"100%", fontSize:15, outline:"none", boxSizing:"border-box", fontFamily:"inherit", transition:"border 0.15s" }}
+                  onFocus={e=>e.target.style.borderColor="#6366f1"}
+                  onBlur={e=>e.target.style.borderColor="#e2e8f0"}
+                />
+                <button
+                  type="button"
+                  onClick={()=>setShowPw(v=>!v)}
+                  style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:16, color:"#94a3b8", padding:2 }}
+                  aria-label={showPw?"Hide password":"Show password"}
+                >
+                  {showPw ? "🙈" : "👁"}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#475569", fontWeight:500 }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e=>setRememberMe(e.target.checked)}
+                  style={{ width:16, height:16, accentColor:"#6366f1", cursor:"pointer" }}
+                />
+                Remember me
+              </label>
+              <span style={{ fontSize:14, color:"#6366f1", fontWeight:600, cursor:"default" }}>Forgot password?</span>
+            </div>
+
+            {error && <div style={{ background:"#fff1f2", color:"#be123c", border:"1px solid #fecdd3", borderRadius:10, padding:"10px 12px", fontSize:13 }}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={busy}
+              style={{ background:"linear-gradient(135deg,#6366f1,#4f46e5)", color:"#fff", border:"none", borderRadius:10, padding:"13px 18px", fontSize:15, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px #6366f144", width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8, opacity:busy?0.75:1 }}
+            >
+              {busy ? "Signing in..." : <><span style={{ fontSize:17 }}>→</span> Login</>}
+            </button>
+          </form>
         </div>
       </div>
     </div>
