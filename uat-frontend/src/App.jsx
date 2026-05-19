@@ -241,7 +241,7 @@ export default function App() {
   const [editDef, setEditDef] = useState(null);
 
   const blankTC  = { name:"", description:"", steps:"", expected:"", priority:"Medium", category:"User Authentication", remarks:"" };
-  const blankRun = { name:"", tester:"", selectedTcIds:[] };
+  const blankRun = { name:"", selectedTcIds:[] };
   const defaultDefectTemplate = [
     "Marketing Company: ",
     "WE Date: ",
@@ -669,7 +669,7 @@ export default function App() {
     try {
       const run = await api.createTestRun({
         name: newRun.name,
-        tester: newRun.tester,
+        tester: getCurrentUserName(),
         testCaseIds: newRun.selectedTcIds,
       });
       setRuns(p => [...p, run]);
@@ -3428,7 +3428,7 @@ export default function App() {
           </div>
           <div style={{ display:"grid", gap:14, marginBottom:20 }}>
             <div><label style={lbl}>Run Name *</label><input value={newRun.name} onChange={e=>setNewRun(p=>({...p,name:e.target.value}))} style={inp} placeholder="e.g. UAT 6.1 - SG Regression - Round 1"/></div>
-            <div><label style={lbl}>Tester *</label><input value={newRun.tester} onChange={e=>setNewRun(p=>({...p,tester:e.target.value}))} style={inp} placeholder="Your name"/></div>
+            <div><label style={lbl}>Tester</label><input value={getCurrentUserName()} style={{ ...inp, background:"#f8fafc" }} readOnly/></div>
           </div>
           <div style={{ ...lbl, marginBottom:10 }}>Select Test Cases</div>
           <div style={{ border:"1.5px solid #f1f5f9", borderRadius:10, overflow:"hidden", maxHeight:340, overflowY:"auto" }}>
@@ -3450,8 +3450,8 @@ export default function App() {
           <div style={{ fontSize:12, color:"#94a3b8", marginTop:8 }}>{newRun.selectedTcIds.length} test case{newRun.selectedTcIds.length!==1?"s":""} selected</div>
           <div style={{ display:"flex", gap:10, marginTop:22, justifyContent:"flex-end" }}>
             <button onClick={()=>setShowAddRun(false)} style={btnS}>Cancel</button>
-            <button onClick={addRun} style={{ ...btnP, opacity:(!newRun.name||!newRun.tester||newRun.selectedTcIds.length===0)?0.5:1 }}
-              disabled={!newRun.name||!newRun.tester||newRun.selectedTcIds.length===0}>
+            <button onClick={addRun} style={{ ...btnP, opacity:(!newRun.name||newRun.selectedTcIds.length===0)?0.5:1 }}
+              disabled={!newRun.name||newRun.selectedTcIds.length===0}>
               Create Run
             </button>
           </div>
@@ -3700,7 +3700,7 @@ export default function App() {
         onMouseLeave={e=>e.currentTarget.style.background="none"}>
         <span style={{ fontSize:15 }}>⧉</span> Duplicate
       </button>
-      <button
+      {canDelete && <button
         onClick={() => {
           if (contextMenu.type === "tc") {
             if (window.confirm("Delete this test case?")) deleteTestCases([contextMenu.item.id]);
@@ -3718,7 +3718,7 @@ export default function App() {
         onMouseEnter={e=>e.currentTarget.style.background="#fff1f2"}
         onMouseLeave={e=>e.currentTarget.style.background="none"}>
         <span style={{ fontSize:15 }}>🗑</span> Delete
-      </button>
+      </button>}
     </div>
   </div>
 )}
