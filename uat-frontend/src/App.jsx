@@ -137,6 +137,10 @@ export default function App() {
   const [runDateRule, setRunDateRule] = useState("Any");
   const [runDateValue, setRunDateValue] = useState("");
   const [runDateFilterPanel, setRunDateFilterPanel] = useState(null);
+  const [tcSortCol, setTcSortCol] = useState("");
+  const [tcSortDir, setTcSortDir] = useState("asc");
+  const [defSortCol, setDefSortCol] = useState("");
+  const [defSortDir, setDefSortDir] = useState("asc");
   const [selectedTcIds, setSelectedTcIds] = useState([]);
   const [selectedRunIds, setSelectedRunIds] = useState([]);
   const [selectedDefectIds, setSelectedDefectIds] = useState([]);
@@ -405,6 +409,37 @@ export default function App() {
       return (b.id || 0) - (a.id || 0);
     });
   }, [runs]);
+
+  function applySort(arr, col, dir) {
+    if (!col) return arr;
+    return [...arr].sort((a, b) => {
+      let av = col === "aged"
+        ? agedDays(a.dateRaised)
+        : col === "openDateTime" || col === "closeDateTime"
+          ? new Date(a[col] || 0).getTime()
+          : (a[col] ?? "");
+      let bv = col === "aged"
+        ? agedDays(b.dateRaised)
+        : col === "openDateTime" || col === "closeDateTime"
+          ? new Date(b[col] || 0).getTime()
+          : (b[col] ?? "");
+      if (typeof av === "string") av = av.toLowerCase();
+      if (typeof bv === "string") bv = bv.toLowerCase();
+      if (av < bv) return dir === "asc" ? -1 : 1;
+      if (av > bv) return dir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const sortedFilteredTC = useMemo(
+    () => applySort(filteredTC, tcSortCol, tcSortDir),
+    [filteredTC, tcSortCol, tcSortDir]
+  );
+
+  const sortedFilteredDefects = useMemo(
+    () => applySort(filteredDefects, defSortCol, defSortDir),
+    [filteredDefects, defSortCol, defSortDir]
+  );
 
   const filteredRuns = useMemo(() => {
     const q = runSearch.trim().toLowerCase();
@@ -1417,14 +1452,17 @@ export default function App() {
 						style={{ width:15, height:15, cursor:"pointer", accentColor:"#6366f1" }}
 					  />
 					</th>
-          {["Actions","ID","Project","Test Plan","Test Name","Category","Coverage","Priority"].map(h=>(
-					  <th key={h} style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{h}</th>
-					))}
+          {[{label:"Actions",col:""},{label:"ID",col:"tcNumber"},{label:"Project",col:""},{label:"Test Plan",col:""},{label:"Test Name",col:"name"},{label:"Category",col:"category"},{label:"Coverage",col:""},{label:"Priority",col:"priority"}].map(({label,col})=>(
+                                          <th key={label} onClick={col ? ()=>{ if(tcSortCol===col) setTcSortDir(d=>d==="asc"?"desc":"asc"); else { setTcSortCol(col); setTcSortDir("asc"); } } : undefined}
+                                            style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap", cursor:col?"pointer":"default", userSelect:"none", background: col&&tcSortCol===col ? "#d4dff0" : undefined }}>
+                                            {label}{col && tcSortCol===col ? (tcSortDir==="asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
+                                          </th>
+                                        ))}
 				  </tr>
 				</thead>
 				<tbody>
-          {filteredTC.length===0 && <tr><td colSpan={9} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No test cases found</td></tr>}
-				  {filteredTC.map((tc,i)=>{
+          {sortedFilteredTC.length===0 && <tr><td colSpan={9} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No test cases found</td></tr>}
+				  {sortedFilteredTC.map((tc,i)=>{
 					const isSelected = selectedTcIds.includes(tc.id);
           const planMeta = tc.testPlanId ? testPlanMetaById[tc.testPlanId] : null;
 					const coveredRuns = runs.filter(run =>
@@ -1717,18 +1755,18 @@ export default function App() {
                       style={{ width:15, height:15, cursor:"pointer", accentColor:"#6366f1" }}
                     />
                   </th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Actions</th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>ID</th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Run</th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>TC</th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Market</th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Actual Result</th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Priority</th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Assigned</th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Status</th>
-                  <th style={{ padding:"8px 12px", textAlign:"left", color:"#1f252e", whiteSpace:"nowrap", position:"relative", zIndex:5 }}>
+                  {[{label:"Actions",col:""},{label:"ID",col:"defectNumber"},{label:"Run",col:"runNumber"},{label:"TC",col:"tcNumber"},{label:"Market",col:"market"},{label:"Actual Result",col:"actualResult"},{label:"Priority",col:"priority"},{label:"Assigned",col:"assignedTo"},{label:"Status",col:"status"}].map(({label,col})=>(
+                    <th key={label} onClick={col ? ()=>{ if(defSortCol===col) setDefSortDir(d=>d==="asc"?"desc":"asc"); else { setDefSortCol(col); setDefSortDir("asc"); } } : undefined}
+                      style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap", cursor:col?"pointer":"default", userSelect:"none", background: col&&defSortCol===col ? "#d4dff0" : undefined }}>
+                      {label}{col && defSortCol===col ? (defSortDir==="asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
+                    </th>
+                  ))}
+                  <th
+                    onClick={() => { if(defSortCol === "openDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("openDateTime"); setDefSortDir("asc"); } }}
+                    style={{ padding:"8px 12px", textAlign:"left", color:"#1f252e", whiteSpace:"nowrap", position:"relative", zIndex:5, cursor:"pointer", userSelect:"none", background:defSortCol === "openDateTime" ? "#d4dff0" : undefined }}
+                  >
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <span style={{ fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase" }}>Open Datetime</span>
+                      <span style={{ fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase" }}>Open Datetime{defSortCol === "openDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
                       <button
                         onClick={e => toggleDefDateFilterPanel(e, "open")}
                         title="Filter open datetime"
@@ -1738,9 +1776,12 @@ export default function App() {
                       </button>
                     </div>
                   </th>
-                  <th style={{ padding:"8px 12px", textAlign:"left", color:"#1f252e", whiteSpace:"nowrap", position:"relative", zIndex:5 }}>
+                  <th
+                    onClick={() => { if(defSortCol === "closeDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("closeDateTime"); setDefSortDir("asc"); } }}
+                    style={{ padding:"8px 12px", textAlign:"left", color:"#1f252e", whiteSpace:"nowrap", position:"relative", zIndex:5, cursor:"pointer", userSelect:"none", background:defSortCol === "closeDateTime" ? "#d4dff0" : undefined }}
+                  >
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <span style={{ fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase" }}>Close Datetime</span>
+                      <span style={{ fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase" }}>Close Datetime{defSortCol === "closeDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
                       <button
                         onClick={e => toggleDefDateFilterPanel(e, "close")}
                         title="Filter close datetime"
@@ -1750,13 +1791,18 @@ export default function App() {
                       </button>
                     </div>
                   </th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Aged</th>
+                  <th
+                    onClick={() => { if(defSortCol === "aged") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("aged"); setDefSortDir("asc"); } }}
+                    style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap", cursor:"pointer", userSelect:"none", background:defSortCol === "aged" ? "#d4dff0" : undefined }}
+                  >
+                    Aged{defSortCol === "aged" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {defects.length===0 && <tr><td colSpan={13} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects logged</td></tr>}
                 {defects.length>0 && filteredDefects.length===0 && <tr><td colSpan={13} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects match current filters</td></tr>}
-                {filteredDefects.map((def,i)=>{
+                {sortedFilteredDefects.map((def,i)=>{
                   const aged = agedDays(def.dateRaised);
                   const isSelected = selectedDefectIds.includes(def.id);
                   return (
