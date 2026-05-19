@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using UATSystem.API.Data;
 using UATSystem.API.Models;
@@ -7,6 +8,7 @@ namespace UATSystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class TestRunsController : ControllerBase
 {
     private readonly UATDbContext _db;
@@ -38,6 +40,7 @@ public class TestRunsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> Create(CreateRunDto dto)
     {
         var count = await _db.TestRuns.CountAsync();
@@ -63,6 +66,7 @@ public class TestRunsController : ControllerBase
     }
 
     [HttpPost("{id}/entries")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> AddEntry(int id, AddEntryDto dto)
     {
         var run = await _db.TestRuns.Include(r => r.Entries).FirstOrDefaultAsync(r => r.Id == id);
@@ -80,6 +84,7 @@ public class TestRunsController : ControllerBase
     }
 
     [HttpDelete("{id}/entries/{testCaseId}")]
+    [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> RemoveEntry(int id, int testCaseId)
     {
         var entry = await _db.TestRunEntries
@@ -91,6 +96,7 @@ public class TestRunsController : ControllerBase
     }
 
     [HttpPatch("{id}/entries/{testCaseId}")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> UpdateEntry(int id, int testCaseId, UpdateEntryDto dto)
     {
         var entry = await _db.TestRunEntries
@@ -103,6 +109,7 @@ public class TestRunsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> Delete(int id)
     {
         var run = await _db.TestRuns.FindAsync(id);

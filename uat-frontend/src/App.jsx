@@ -94,6 +94,41 @@ function DetailBlock({ label, value, pre, accent, danger }) {
   );
 }
 
+function LoginScreen({ username, password, error, busy, onUsernameChange, onPasswordChange, onSubmit }) {
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"radial-gradient(circle at top, #e0e7ff 0, #f8fafc 45%, #eef2ff 100%)", padding:24 }}>
+      <div style={{ width:"100%", maxWidth:460, background:"#fff", borderRadius:24, padding:32, boxShadow:"0 24px 60px rgba(15,23,42,0.12)", border:"1px solid #e2e8f0" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18 }}>
+          <div style={{ width:52, height:52, borderRadius:14, background:"linear-gradient(135deg,#6366f1,#4f46e5)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, fontWeight:900 }}>◈</div>
+          <div>
+            <div style={{ fontSize:26, fontWeight:900, color:"#0f172a", lineHeight:1.1 }}>Test Management System</div>
+            <div style={{ fontSize:13, color:"#64748b", marginTop:4 }}>Sign in to continue</div>
+          </div>
+        </div>
+
+        <form onSubmit={onSubmit} style={{ display:"grid", gap:14 }}>
+          <div>
+            <label style={lbl}>Username</label>
+            <input value={username} onChange={e => onUsernameChange(e.target.value)} style={inp} autoComplete="username" />
+          </div>
+          <div>
+            <label style={lbl}>Password</label>
+            <input type="password" value={password} onChange={e => onPasswordChange(e.target.value)} style={inp} autoComplete="current-password" />
+          </div>
+          {error && <div style={{ background:"#fff1f2", color:"#be123c", border:"1px solid #fecdd3", borderRadius:10, padding:"10px 12px", fontSize:13 }}>{error}</div>}
+          <button type="submit" disabled={busy} style={{ ...btnP, width:"100%", padding:"12px 18px", opacity:busy?0.7:1 }}>
+            {busy ? "Signing in..." : "Login"}
+          </button>
+        </form>
+
+        <div style={{ marginTop:18, fontSize:12, color:"#64748b", lineHeight:1.6 }}>
+          Seed accounts: admin / ChangeMe123!, lead / ChangeMe123!, tester / ChangeMe123!, viewer / ChangeMe123!
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────────────────────
    SHARED STYLES
 ───────────────────────────────────────── */
@@ -126,12 +161,25 @@ export default function App() {
   const [tcCatFilter, setTcCatFilter] = useState("All");
   const [tcPriFilter, setTcPriFilter] = useState("All");
   const [defSearch, setDefSearch]     = useState("");
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [authUser, setAuthUser] = useState(() => {
+    try {
+      const auth = JSON.parse(localStorage.getItem("uatAuth") || "null");
+      return auth?.user || null;
+    } catch {
+      return null;
+    }
+  });
   const [defStatusFilter, setDefStatusFilter] = useState("All");
   const [defPriFilter, setDefPriFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState("All");
   const [defOpenRule, setDefOpenRule] = useState("Any");
   const [defOpenDate, setDefOpenDate] = useState("");
   const [defCloseRule, setDefCloseRule] = useState("Any");
+  const [users, setUsers]             = useState([]);
   const [defCloseDate, setDefCloseDate] = useState("");
   const [defDateFilterPanel, setDefDateFilterPanel] = useState(null);
   const [runSearch, setRunSearch] = useState("");
@@ -157,10 +205,18 @@ export default function App() {
   const [newTCAttachments, setNewTCAttachments] = useState([]);
   const [showAddProject, setShowAddProject] = useState(false);
   const [showAddPlan, setShowAddPlan] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showEditProject, setShowEditProject] = useState(false);
   const [showEditPlan, setShowEditPlan] = useState(false);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [editUser, setEditUser] = useState(null);
   const [newProjectName, setNewProjectName] = useState("");
   const [newPlanName, setNewPlanName] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserDisplayName, setNewUserDisplayName] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState("Viewer");
+  const [newUserActive, setNewUserActive] = useState(true);
   const [editProjectName, setEditProjectName] = useState("");
   const [editPlanName, setEditPlanName] = useState("");
   const [newProjectStartDate, setNewProjectStartDate] = useState("");
@@ -199,8 +255,52 @@ export default function App() {
   const [newRun, setNewRun] = useState(blankRun);
   const [newDef, setNewDef] = useState(blankDef);
 
+  const TABS = [["projects","🗂  Projects"],["testcases","📋  Test Cases"],["runs","▶  Test Runs"],["defects","🐛  Defect Log"]];
+
+  const canWrite = !!authUser && authUser.role !== "Viewer";
+  const canManageProjects = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
+  const canDelete = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
+  const isAdmin = authUser?.role === "Admin";
+
   function getCurrentUserName() {
-    return localStorage.getItem("uatUserName") || "Chris";
+    return authUser?.username || localStorage.getItem("uatUserName") || "Chris";
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    setLoginError("");
+    setLoginBusy(true);
+    try {
+      const result = await api.login(loginUsername, loginPassword);
+      localStorage.setItem("uatAuth", JSON.stringify(result));
+      localStorage.setItem("uatToken", result.token);
+      localStorage.setItem("uatUserName", result.user.username);
+      localStorage.setItem("uatUserRole", result.user.role);
+      setAuthUser(result.user);
+      setLoginPassword("");
+      setLoading(true);
+    } catch (error) {
+      setLoginError(error.message || "Login failed.");
+    } finally {
+      setLoginBusy(false);
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("uatAuth");
+    localStorage.removeItem("uatToken");
+    localStorage.removeItem("uatUserName");
+    localStorage.removeItem("uatUserRole");
+    setAuthUser(null);
+    setProjects([]);
+    setTestCases([]);
+    setAllTestCases([]);
+    setRuns([]);
+    setDefects([]);
+    setUsers([]);
+    setSelectedProjectId("");
+    setSelectedTestPlanId("");
+    setActiveTab("testcases");
   }
 
   function toInputDate(value) {
@@ -288,35 +388,35 @@ export default function App() {
       .catch(err => console.error("Failed to load data:", err))
       .finally(() => setLoading(false));
   }, []);*/
-	  useEffect(() => {
-      api.getProjects()
-        .then(ps => {
-          setProjects(ps || []);
-          if ((ps || []).length > 0) {
-            const p = ps[0];
-            setSelectedProjectId(String(p.id));
-            const firstPlan = (p.testPlans || [])[0];
-            if (firstPlan) setSelectedTestPlanId(String(firstPlan.id));
+    	  useEffect(() => {
+          if (!authUser) {
+            setLoading(false);
+            return;
           }
-        })
-        .catch(err => console.error("Project Error:", err));
 
-	  api.getTestCases()
-    .then(tcs => {
-      setTestCases(tcs);
-      setAllTestCases(tcs || []);
-    })
-		.catch(err => console.error("TC Error:", err));
+          setLoading(true);
+          Promise.all([
+            api.getProjects().then(ps => {
+              setProjects(ps || []);
+              if ((ps || []).length > 0) {
+                const p = ps[0];
+                setSelectedProjectId(String(p.id));
+                const firstPlan = (p.testPlans || [])[0];
+                if (firstPlan) setSelectedTestPlanId(String(firstPlan.id));
+              }
+            }),
+            api.getTestCases().then(tcs => {
+              setTestCases(tcs);
+              setAllTestCases(tcs || []);
+            }),
+            api.getTestRuns().then(setRuns),
+            api.getDefects().then(setDefects),
+            isAdmin ? api.getUsers().then(setUsers).catch(err => console.error("Users Error:", err)) : Promise.resolve([]),
+          ])
+            .catch(err => console.error("Failed to load data:", err))
+            .finally(() => setLoading(false));
 
-	  api.getTestRuns()
-		.then(setRuns)
-		.catch(err => console.error("Run Error:", err));
-
-	  api.getDefects()
-		.then(setDefects)
-		.catch(err => console.error("Defect Error:", err))
-		.finally(() => setLoading(false));
-	}, []);
+    	}, [authUser, isAdmin]);
 
   useEffect(() => {
     api.getTestCases(selectedTestPlanId || undefined)
@@ -329,6 +429,7 @@ export default function App() {
       setContextMenu(null);
       setDefDateFilterPanel(null);
       setRunDateFilterPanel(null);
+      setShowSettingsMenu(false);
     }
 	  window.addEventListener("click", handleClick);
 	  return () => window.removeEventListener("click", handleClick);
@@ -411,6 +512,16 @@ export default function App() {
     });
   }, [runs]);
 
+  const sortedFilteredTC = useMemo(
+    () => applySort(filteredTC, tcSortCol, tcSortDir),
+    [filteredTC, tcSortCol, tcSortDir]
+  );
+
+  const sortedFilteredDefects = useMemo(
+    () => applySort(filteredDefects, defSortCol, defSortDir),
+    [filteredDefects, defSortCol, defSortDir]
+  );
+
   function applySort(arr, col, dir) {
     if (!col) return arr;
     return [...arr].sort((a, b) => {
@@ -432,16 +543,6 @@ export default function App() {
     });
   }
 
-  const sortedFilteredTC = useMemo(
-    () => applySort(filteredTC, tcSortCol, tcSortDir),
-    [filteredTC, tcSortCol, tcSortDir]
-  );
-
-  const sortedFilteredDefects = useMemo(
-    () => applySort(filteredDefects, defSortCol, defSortDir),
-    [filteredDefects, defSortCol, defSortDir]
-  );
-
   const filteredRuns = useMemo(() => {
     const q = runSearch.trim().toLowerCase();
     return sortedRuns.filter(run => {
@@ -449,8 +550,9 @@ export default function App() {
         || run.runNumber?.toLowerCase().includes(q)
         || run.name?.toLowerCase().includes(q)
         || run.tester?.toLowerCase().includes(q);
+
       let matchesDate = true;
-      if (runDateRule !== "Any" && runDateValue) {
+      if (runDateRule !== "All" && runDateValue) {
         const src = run.createdAt ? new Date(run.createdAt) : null;
         if (!src || Number.isNaN(src.getTime())) {
           matchesDate = false;
@@ -462,6 +564,7 @@ export default function App() {
           else if (runDateRule === "On") matchesDate = src >= start && src <= end;
         }
       }
+
       return matchesSearch && matchesDate;
     });
   }, [sortedRuns, runSearch, runDateRule, runDateValue]);
@@ -493,6 +596,14 @@ export default function App() {
     });
     return map;
   }, [projects]);
+
+  const visibleTabs = TABS;
+
+  useEffect(() => {
+    if (!isAdmin && activeTab === "users") {
+      setActiveTab("projects");
+    }
+  }, [isAdmin, activeTab]);
 
   /* ── CRUD functions ── */
   async function addTC() {
@@ -593,6 +704,63 @@ export default function App() {
       setViewDef(d => (d && ids.includes(d.id) ? null : d));
     } catch(e) { alert("Failed to delete defect(s): " + e.message); }
   }
+
+  function openAddUser() {
+    setNewUserName("");
+    setNewUserDisplayName("");
+    setNewUserPassword("");
+    setNewUserRole("Viewer");
+    setNewUserActive(true);
+    setShowAddUser(true);
+  }
+
+  async function createUserAccount() {
+    try {
+      const user = await api.createUser({
+        username: newUserName,
+        displayName: newUserDisplayName,
+        password: newUserPassword,
+        role: newUserRole,
+        isActive: newUserActive,
+      });
+      setUsers(p => [...p, user]);
+      setShowAddUser(false);
+    } catch (error) {
+      alert(`Failed to create user: ${error.message}`);
+    }
+  }
+
+  function openEditUser(user) {
+    setEditUser(user);
+  }
+
+  async function saveUserAccount() {
+    try {
+      const updated = await api.updateUser(editUser.id, {
+        username: editUser.username,
+        displayName: editUser.displayName,
+        password: editUser.password || "",
+        role: editUser.role,
+        isActive: editUser.isActive,
+      });
+      setUsers(p => p.map(user => user.id === updated.id ? updated : user));
+      setEditUser(null);
+    } catch (error) {
+      alert(`Failed to update user: ${error.message}`);
+    }
+  }
+
+  async function deleteUserAccount(id) {
+    try {
+      await api.deleteUser(id);
+      setUsers(p => p.filter(user => user.id !== id));
+      if (authUser?.id === id) {
+        handleLogout();
+      }
+    } catch (error) {
+      alert(`Failed to delete user: ${error.message}`);
+    }
+  }
   
   async function duplicateTC(tc) {
 	  try {
@@ -613,6 +781,10 @@ export default function App() {
 	}
 
   async function addProject() {
+    if (!canManageProjects) {
+      alert("You do not have permission to create projects.");
+      return;
+    }
     if (!newProjectName.trim() || !isValidDateRange(newProjectStartDate, newProjectEndDate)) return;
     try {
       const p = await api.createProject({
@@ -633,6 +805,10 @@ export default function App() {
   }
 
   async function addTestPlan() {
+    if (!canManageProjects) {
+      alert("You do not have permission to create test plans.");
+      return;
+    }
     if (!selectedProjectId) {
       alert("Please select a project first.");
       return;
@@ -659,6 +835,10 @@ export default function App() {
   }
 
   async function updateProjectName() {
+    if (!canManageProjects) {
+      alert("You do not have permission to edit projects.");
+      return;
+    }
     if (!editingProjectId || !editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate)) return;
     try {
       const updated = await api.updateProject(editingProjectId, {
@@ -1416,7 +1596,19 @@ export default function App() {
     }
   }
 
-  const TABS = [["projects","🗂  Projects"],["testcases","📋  Test Cases"],["runs","▶  Test Runs"],["defects","🐛  Defect Log"]];
+  if (!authUser) {
+    return (
+      <LoginScreen
+        username={loginUsername}
+        password={loginPassword}
+        error={loginError}
+        busy={loginBusy}
+        onUsernameChange={setLoginUsername}
+        onPasswordChange={setLoginPassword}
+        onSubmit={handleLogin}
+      />
+    );
+  }
 
   if (loading) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontSize:16, color:"#64748b", fontFamily:"Inter,sans-serif" }}>
@@ -1437,11 +1629,71 @@ export default function App() {
             <div style={{ padding:"0 1px", fontSize:18, color:"#94a3b8", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" }}>User Acceptance Testing & Defect Tracking</div>
           </div>
         </div>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:15, fontWeight:800, color:"#0f172a" }}>{authUser.displayName || authUser.username}</div>
+            <div style={{ fontSize:12, color:"#64748b", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em" }}>{authUser.role}</div>
+          </div>
+          {isAdmin && (
+            <div style={{ position:"relative" }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSettingsMenu(v => !v);
+                }}
+                style={{ ...btnS, padding:"8px 10px", fontSize:16, lineHeight:1 }}
+                aria-label="Settings"
+                title="Settings"
+              >
+                ⚙
+              </button>
+              {showSettingsMenu && (
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    position:"absolute",
+                    right:0,
+                    top:"calc(100% + 8px)",
+                    minWidth:180,
+                    background:"#fff",
+                    border:"1.5px solid #e2e8f0",
+                    borderRadius:10,
+                    boxShadow:"0 10px 30px rgba(0,0,0,0.12)",
+                    padding:6,
+                    zIndex:2600,
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setActiveTab("users");
+                      setShowSettingsMenu(false);
+                    }}
+                    style={{
+                      width:"100%",
+                      textAlign:"left",
+                      border:"none",
+                      background:activeTab === "users" ? "#eff6ff" : "transparent",
+                      color:activeTab === "users" ? "#1d4ed8" : "#334155",
+                      borderRadius:8,
+                      padding:"9px 10px",
+                      fontSize:14,
+                      fontWeight:700,
+                      cursor:"pointer",
+                    }}
+                  >
+                    👤 User Management
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          <button onClick={handleLogout} style={btnS}>Logout</button>
+        </div>
       </div>
 
       {/* ── Tabs ── */}
       <div style={{ padding:"0 52px", background:"#fff", display:"flex", gap:0, borderBottom:"2px solid #f1f5f9" }}>
-        {TABS.map(([key,label])=>(
+        {visibleTabs.map(([key,label])=>(
           <button key={key} onClick={()=>setActiveTab(key)}
             style={{ background:"none", border:"none", borderBottom:activeTab===key?"2px solid #6366f1":"2px solid transparent", color:activeTab===key?"#6366f1":"#94a3b8", padding:"14px 20px", fontSize:20, fontWeight:700, cursor:"pointer", marginBottom:-2, transition:"all 0.15s" }}>
             {label}
@@ -1450,13 +1702,53 @@ export default function App() {
       </div>
 
       {/* ══════════════════════════════════
+          TAB: USERS
+      ══════════════════════════════════ */}
+      {activeTab==="users" && isAdmin && (
+        <div style={{ padding:"20px 2.5%" }}>
+          <div style={{ display:"flex", gap:10, marginBottom:16 }}>
+            <button onClick={openAddUser} style={btnP}>+ Add User</button>
+          </div>
+          <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", overflow:"hidden" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
+              <thead>
+                <tr style={{ background:"#e2ebf3", borderBottom:"2px solid #f1f5f9" }}>
+                  {["Actions","Username","Display Name","Role","Active","Created"].map(h => (
+                    <th key={h} style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {users.length===0 && <tr><td colSpan={6} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No users found</td></tr>}
+                {users.map((user,i)=>(
+                  <tr key={user.id} style={{ borderBottom:"1px solid #f8fafc", background:i%2===0?"#fff":"#fafafa" }}>
+                    <td style={{ padding:"13px 16px", width:170, minWidth:170 }}>
+                      <div style={{ display:"flex", gap:8, alignItems:"center", whiteSpace:"nowrap" }}>
+                        <button onClick={()=>openEditUser({ ...user, password: "" })} style={{ ...btnS, padding:"5px 12px", fontSize:14 }}>Edit</button>
+                        <button onClick={()=>{ if(window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }} style={xBtn}>✕</button>
+                      </div>
+                    </td>
+                    <td style={{ padding:"13px 16px", fontWeight:800, color:"#6366f1" }}>{user.username}</td>
+                    <td style={{ padding:"13px 16px", color:"#1e293b", fontWeight:600 }}>{user.displayName}</td>
+                    <td style={{ padding:"13px 16px" }}><span style={{ background:"#eff6ff", color:"#1d4ed8", padding:"3px 8px", borderRadius:6, fontWeight:800, fontSize:12 }}>{user.role}</span></td>
+                    <td style={{ padding:"13px 16px" }}>{user.isActive ? "Yes" : "No"}</td>
+                    <td style={{ padding:"13px 16px", color:"#64748b" }}>{toInputDate(user.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════
           TAB: PROJECTS
       ══════════════════════════════════ */}
       {activeTab==="projects" && (
         <div style={{ padding:"20px 2.5%" }}>
           <div style={{ display:"flex", gap:10, marginBottom:16 }}>
-            <button onClick={()=>setShowAddProject(true)} style={btnP}>+ Add Project</button>
-            <button onClick={()=>setShowAddPlan(true)} style={{ ...btnS, opacity:!selectedProjectId?0.5:1 }} disabled={!selectedProjectId}>+ Add Test Plan</button>
+            {canManageProjects && <button onClick={()=>setShowAddProject(true)} style={btnP}>+ Add Project</button>}
+            {canManageProjects && <button onClick={()=>setShowAddPlan(true)} style={{ ...btnS, opacity:!selectedProjectId?0.5:1 }} disabled={!selectedProjectId}>+ Add Test Plan</button>}
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"420px 1fr", gap:16 }}>
             <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", overflow:"hidden" }}>
@@ -1500,7 +1792,7 @@ export default function App() {
                       );
                     })()}
                   </button>
-                  <button
+                  {canManageProjects && <button
                     onClick={() => {
                       setEditingProjectId(p.id);
                       setEditProjectName(p.name || "");
@@ -1511,8 +1803,8 @@ export default function App() {
                     style={{ ...btnS, padding:"4px 10px", fontSize:12 }}
                   >
                     Edit
-                  </button>
-                  <button
+                  </button>}
+                  {canDelete && <button
                     onClick={() => {
                       if (window.confirm(`Delete project "${p.name}" and all its test plans?`)) {
                         deleteProject(p.id);
@@ -1521,7 +1813,7 @@ export default function App() {
                     style={{ ...btnD, padding:"4px 10px", fontSize:12 }}
                   >
                     Delete
-                  </button>
+                  </button>}
                 </div>
               ))}
             </div>
@@ -1579,7 +1871,7 @@ export default function App() {
                   >
                     Edit
                   </button>
-                  <button
+                  {canDelete && <button
                     onClick={() => {
                       if (window.confirm(`Delete test plan "${tp.name}"?`)) {
                         deleteTestPlan(tp.id);
@@ -1588,7 +1880,7 @@ export default function App() {
                     style={{ ...btnD, padding:"4px 10px", fontSize:12 }}
                   >
                     Delete
-                  </button>
+                  </button>}
                 </div>
               ))}
             </div>
@@ -1665,7 +1957,7 @@ export default function App() {
         </button>
         )}
 			  <div style={{ flex:1 }}/>
-			  {selectedTcIds.length > 0 && (
+          {selectedTcIds.length > 0 && canDelete && (
 				<div style={{ display:"flex", alignItems:"center", gap:10 }}>
 				  <span style={{ fontSize:14, color:"#64748b", fontWeight:700 }}>{selectedTcIds.length} selected</span>
 				  <button onClick={()=>{ if(window.confirm(`Delete ${selectedTcIds.length} test case(s)?`)) deleteTestCases(selectedTcIds); }}
@@ -1675,7 +1967,7 @@ export default function App() {
 				</div>
 			  )}
         <button onClick={exportTestCases} style={{ ...btnS, padding:"9px 14px", fontSize:14 }} disabled={sortedFilteredTC.length===0}>Export Excel</button>
-			  <button onClick={()=>setShowAddTC(true)} style={btnP}>+ Add Test Case</button>
+            {canWrite && <button onClick={()=>setShowAddTC(true)} style={btnP}>+ Add Test Case</button>}
 			</div>
 
 			<div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", overflow:"hidden" }}>
@@ -1709,7 +2001,7 @@ export default function App() {
 					);
 					return (
 					  <tr key={tc.id} 
-					  onContextMenu={e=>{ e.preventDefault(); setContextMenu({ type:"tc", item:tc, x:e.clientX, y:e.clientY }); }}
+					  onContextMenu={e=>{ if(canWrite) { e.preventDefault(); setContextMenu({ type:"tc", item:tc, x:e.clientX, y:e.clientY }); } }}
 					  style={{ borderBottom:"1px solid #f8fafc", background:isSelected?"#eff6ff":i%2===0?"#fff":"#fafafa", cursor:"pointer" }}
 						onMouseEnter={e=>{ if(!isSelected) e.currentTarget.style.background="#f0f4ff"; }}
 						onMouseLeave={e=>{ e.currentTarget.style.background=isSelected?"#eff6ff":i%2===0?"#fff":"#fafafa"; }}>
@@ -1723,7 +2015,7 @@ export default function App() {
 						<td style={{ padding:"13px 16px", width:180, minWidth:180 }}>
               <div style={{ display:"flex", gap:8, alignItems:"center", whiteSpace:"nowrap" }}>
                 <button onClick={()=>setViewTC(tc)} style={{ ...btnS, padding:"5px 12px", fontSize:14 }}>View</button>
-                <button
+                {canWrite && <button
                 onClick={() => setEditTC({
                   ...tc,
                   expected: tc.expectedResult
@@ -1731,8 +2023,8 @@ export default function App() {
                 style={{ ...btnP, padding:"5px 12px", fontSize:14 }}
                 >
                 Edit
-                </button>
-                <button
+                </button>}
+                {canDelete && <button
                 onClick={() => {
                   if (window.confirm(`Delete ${tc.tcNumber}?`)) deleteTestCases([tc.id]);
                 }}
@@ -1740,7 +2032,7 @@ export default function App() {
                 title="Delete"
                 >
                 ✕
-                </button>
+                </button>}
               </div>
 						</td>
 						<td style={{ padding:"13px 16px" }} onClick={()=>setViewTC(tc)}>
@@ -1818,28 +2110,30 @@ export default function App() {
                 onClick={toggleRunDateFilterPanel}
                 title="Filter by date"
                 style={{ border:"1px solid #cbd5e1", background: runDateFilterPanel || runDateRule !== "Any" ? "#eff6ff" : "#fff", color: runDateFilterPanel || runDateRule !== "Any" ? "#1d4ed8" : "#64748b", borderRadius:6, width:26, height:26, fontSize:13, cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center", padding:0 }}
-              >⌕</button>
+              >
+                ⏷
+              </button>
               {runDateRule !== "Any" && runDateValue && (
                 <button onClick={() => { setRunDateRule("Any"); setRunDateValue(""); }}
                   style={{ border:"1px solid #fca5a5", background:"#fff1f2", color:"#dc2626", borderRadius:6, width:22, height:22, fontSize:11, cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center", padding:0, fontWeight:700 }}>✕</button>
               )}
             </div>
             <div style={{ flex:"0 0 auto", display:"flex", gap:10, alignItems:"center" }}>
-            {sortedRuns.length > 0 && (
-              <button
-                onClick={() => {
-                  if (selectedRunIds.length === filteredRuns.length) {
-                    setSelectedRunIds([]);
-                  } else {
-                    setSelectedRunIds(filteredRuns.map(r => r.id));
-                  }
-                }}
-                style={{ ...btnS, padding:"8px 14px", fontSize:14 }}
-              >
-                {selectedRunIds.length === filteredRuns.length ? "Clear Selection" : "Select All"}
-              </button>
-            )}
-            {selectedRunIds.length > 0 && (
+              {sortedRuns.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (selectedRunIds.length === filteredRuns.length) {
+                      setSelectedRunIds([]);
+                    } else {
+                      setSelectedRunIds(filteredRuns.map(r => r.id));
+                    }
+                  }}
+                  style={{ ...btnS, padding:"8px 14px", fontSize:14 }}
+                >
+                  {selectedRunIds.length === filteredRuns.length ? "Clear Selection" : "Select All"}
+                </button>
+              )}
+            {selectedRunIds.length > 0 && canDelete && (
               <button
                 onClick={() => {
                   if (window.confirm(`Delete ${selectedRunIds.length} test run(s)?`)) {
@@ -1852,7 +2146,7 @@ export default function App() {
               </button>
             )}
             <button onClick={exportRuns} style={{ ...btnS, padding:"8px 14px", fontSize:14 }} disabled={filteredRuns.length===0}>Export Excel</button>
-            <button onClick={()=>setShowAddRun(true)} style={btnP}>+ New Test Run</button>
+            {canWrite && <button onClick={()=>setShowAddRun(true)} style={btnP}>+ New Test Run</button>}
             </div>
           </div>
           {sortedRuns.length===0 && <div style={{ textAlign:"center", padding:60, color:"#cbd5e1" }}>No test runs yet. Create your first one!</div>}
@@ -1964,7 +2258,7 @@ export default function App() {
               </button>
             )}
             <div style={{ flex:1 }}/>
-            {selectedDefectIds.length > 0 && (
+            {selectedDefectIds.length > 0 && canDelete && (
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ fontSize:14, color:"#64748b", fontWeight:700 }}>{selectedDefectIds.length} selected</span>
                 <button
@@ -1980,7 +2274,7 @@ export default function App() {
               </div>
             )}
             <button onClick={exportDefects} style={{ ...btnS, padding:"9px 14px", fontSize:14 }} disabled={sortedFilteredDefects.length===0}>Export Excel</button>
-            <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>
+            {canWrite && <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>}
           </div>
           <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", overflowX:"auto", overflowY:"visible" }}>
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
@@ -2046,7 +2340,7 @@ export default function App() {
                   const isSelected = selectedDefectIds.includes(def.id);
                   return (
                     <tr key={def.id} 
-					onContextMenu={e=>{ e.preventDefault(); setContextMenu({ type:"defect", item:def, x:e.clientX, y:e.clientY }); }}
+					onContextMenu={e=>{ if(canWrite) { e.preventDefault(); setContextMenu({ type:"defect", item:def, x:e.clientX, y:e.clientY }); } }}
 					style={{ borderBottom:"1px solid #f8fafc", background:isSelected?"#eff6ff":i%2===0?"#fff":"#fafafa", cursor:"pointer" }}
                       onMouseEnter={e=>{ if (!isSelected) e.currentTarget.style.background="#f0f4ff"; }}
                       onMouseLeave={e=>{ e.currentTarget.style.background=isSelected?"#eff6ff":i%2===0?"#fff":"#fafafa"; }}>
@@ -2061,7 +2355,7 @@ export default function App() {
                       <td style={{ padding:"13px 16px", width:220, minWidth:220 }}>
                         <div style={{ display:"flex", gap:8, alignItems:"center", whiteSpace:"nowrap" }}>
                           <button onClick={()=>setViewDef(def)} style={{ ...btnS, padding:"5px 12px", fontSize:14 }}>View</button>
-                          <button
+                          {canWrite && <button
                             onClick={() => setEditDef({
                               ...def,
                               dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
@@ -2072,8 +2366,8 @@ export default function App() {
                             style={{ ...btnP, padding:"5px 12px", fontSize:14 }}
                           >
                             Edit
-                          </button>
-                          <button
+                          </button>}
+                          {canDelete && <button
                             onClick={() => {
                               if (window.confirm(`Delete ${def.defectNumber}?`)) {
                                 deleteDefects([def.id]);
@@ -2083,7 +2377,7 @@ export default function App() {
                             title="Delete"
                           >
                             ✕
-                          </button>
+                          </button>}
                         </div>
                       </td>
                       <td style={{ padding:"13px 16px" }} onClick={()=>setViewDef(def)}>
@@ -2102,7 +2396,7 @@ export default function App() {
                       <td style={{ padding:"13px 16px" }} onClick={()=>setViewDef(def)}><PriBadge label={def.priority}/></td>
                       <td style={{ padding:"13px 16px", color:"#64748b", fontSize:14 }} onClick={()=>setViewDef(def)}>{def.assignedTo||"—"}</td>
                       <td style={{ padding:"13px 16px" }}>
-                        <select value={def.status} onChange={e=>updateDefStatus(def.id,e.target.value)} onClick={e=>e.stopPropagation()}
+                        <select value={def.status} onChange={e=>updateDefStatus(def.id,e.target.value)} onClick={e=>e.stopPropagation()} disabled={!canWrite}
                           style={{ background:DEFECT_STATUS[def.status]?.bg, color:DEFECT_STATUS[def.status]?.text, border:`1.5px solid ${DEFECT_STATUS[def.status]?.border}`, borderRadius:20, padding:"4px 10px", fontSize:14, fontWeight:700, cursor:"pointer", outline:"none" }}>
                           {Object.keys(DEFECT_STATUS).map(s=><option key={s}>{s}</option>)}
                         </select>
@@ -2147,7 +2441,7 @@ export default function App() {
           </div>
           <div style={{ marginTop:22, paddingTop:18, borderTop:"1.5px solid #f1f5f9" }}>
             <div style={{ ...lbl, marginBottom:10 }}>Attachments</div>
-            <div
+            {canWrite && <div
               onPaste={e => onTestCasePasteUpload(e, viewTC.id)}
               style={{ background:"#f8fafc", border:"1.5px dashed #cbd5e1", borderRadius:10, padding:"10px 12px" }}
             >
@@ -2163,8 +2457,7 @@ export default function App() {
                 }}
                 style={{ ...inp, fontSize:12, padding:"8px 10px" }}
               />
-            </div>
-
+            </div>}
             <div style={{ display:"grid", gap:8, marginTop:10 }}>
               {(testCaseAttachments[viewTC.id] || []).length === 0 && (
                 <div style={{ color:"#94a3b8", fontSize:13 }}>No attachments yet.</div>
@@ -2216,7 +2509,7 @@ export default function App() {
             </div>
           );})()}
 
-          <AddTcToRunRow testCases={allTestCases} run={viewRun} onAdd={tcId=>addTcToRun(viewRun.id, tcId)}/>
+          {canWrite && <AddTcToRunRow testCases={allTestCases} run={viewRun} onAdd={tcId=>addTcToRun(viewRun.id, tcId)}/>}
 
           <div style={{ display:"grid", gap:10, marginTop:16 }}>
             {(viewRun.entries||[]).length===0 && <div style={{ textAlign:"center", padding:32, color:"#cbd5e1" }}>No test cases in this run yet.</div>}
@@ -2270,23 +2563,25 @@ export default function App() {
 								{new Date(c.createdAt).toLocaleString()}
 							  </span>
 
-							  <button
-								onClick={() =>
-								  deleteComment(
-									viewRun.id,
-									entry.testCaseId,
-									c.id
-								  )
-								}
-								style={{
-								  border:"none",
-								  background:"none",
-								  color:"#ef4444",
-								  cursor:"pointer"
-								}}
-							  >
-								✕
-							  </button>
+                {canDelete && (
+                  <button
+                    onClick={() =>
+                      deleteComment(
+                        viewRun.id,
+                        entry.testCaseId,
+                        c.id
+                      )
+                    }
+                    style={{
+                      border:"none",
+                      background:"none",
+                      color:"#ef4444",
+                      cursor:"pointer"
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
 							</div>
 						  </div>
 
@@ -2319,7 +2614,7 @@ export default function App() {
 						  }}
 						/>
 
-						<button
+                        {canWrite && <button
 						  onClick={() =>
 							addComment(
 							  viewRun.id,
@@ -2329,20 +2624,22 @@ export default function App() {
 						  style={btnP}
 						>
 						  Add
-						</button>
+                        </button>}
 					  </div>
 					</div>
                     </div>
                     <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8, flexShrink:0 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        <select value={entry.execStatus||"Not Run"} onChange={e=>updateExecStatus(viewRun.id, entry.testCaseId, e.target.value)}
+                        <select value={entry.execStatus||"Not Run"} onChange={e=>updateExecStatus(viewRun.id, entry.testCaseId, e.target.value)} disabled={!canWrite}
                           style={{ background:ec.bg, color:ec.text, border:`1.5px solid ${ec.border}`, borderRadius:20, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer", outline:"none" }}>
                           {Object.keys(EXEC_STATUS).map(s=><option key={s}>{s}</option>)}
                         </select>
-                        <button onClick={()=>removeTcFromRun(viewRun.id, entry.testCaseId)} title="Remove from run"
-                          style={{ background:"#f1f5f9", border:"none", color:"#94a3b8", width:28, height:28, borderRadius:6, cursor:"pointer", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                        {canDelete && (
+                          <button onClick={()=>removeTcFromRun(viewRun.id, entry.testCaseId)} title="Remove from run"
+                            style={{ background:"#f1f5f9", border:"none", color:"#94a3b8", width:28, height:28, borderRadius:6, cursor:"pointer", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                        )}
                       </div>
-                      {entry.execStatus==="Fail" && entryDefects.length===0 && (
+                      {canWrite && entry.execStatus==="Fail" && entryDefects.length===0 && (
                         <button onClick={()=>createDefect(viewRun.id, entry.testCaseId)} style={btnD}>🐛 Create Defect</button>
                       )}
                       {entryDefects.map(d=>(
@@ -2393,7 +2690,7 @@ export default function App() {
             {viewDef.remarks && <DetailBlock label="Remarks" value={viewDef.remarks}/>}
           </div>
           <div style={{ marginTop:16, display:"flex", justifyContent:"flex-end" }}>
-            <button
+            {canWrite && <button
               onClick={() => setEditDef({
                 ...viewDef,
                 dateRaised: viewDef.dateRaised?.slice(0, 10) || "",
@@ -2404,11 +2701,11 @@ export default function App() {
               style={{ ...btnP, padding:"8px 14px", fontSize:14 }}
             >
               Edit Defect
-            </button>
+            </button>}
           </div>
           <div style={{ marginTop:22, paddingTop:18, borderTop:"1.5px solid #f1f5f9" }}>
             <div style={{ ...lbl, marginBottom:10 }}>Attachments</div>
-            <div
+            {canWrite && <div
               onPaste={e => onDefectPasteUpload(e, viewDef.id)}
               style={{ background:"#f8fafc", border:"1.5px dashed #cbd5e1", borderRadius:10, padding:"10px 12px" }}
             >
@@ -2424,8 +2721,7 @@ export default function App() {
                 }}
                 style={{ ...inp, fontSize:12, padding:"8px 10px" }}
               />
-            </div>
-
+            </div>}
             <div style={{ display:"grid", gap:8, marginTop:10 }}>
               {(defectAttachments[viewDef.id] || []).length === 0 && (
                 <div style={{ color:"#94a3b8", fontSize:13 }}>No attachments yet.</div>
@@ -2480,7 +2776,7 @@ export default function App() {
                 </div>
               ))}
 
-              <div style={{ display:"flex", gap:8, marginTop:2 }}>
+              {canWrite && <div style={{ display:"flex", gap:8, marginTop:2 }}>
                 <input
                   placeholder="Add comment..."
                   value={defectCommentDrafts[viewDef.id] || ""}
@@ -2491,7 +2787,7 @@ export default function App() {
                   style={{ ...inp, fontSize:12, flex:1 }}
                 />
                 <button onClick={() => addDefectComment(viewDef.id)} style={btnP}>Add</button>
-              </div>
+              </div>}
             </div>
           </div>
           <div style={{ marginTop:22, paddingTop:18, borderTop:"1.5px solid #f1f5f9" }}>
@@ -2736,7 +3032,7 @@ export default function App() {
         </Modal>
       )}
 
-      {showAddProject && (
+      {showAddProject && canManageProjects && (
         <Modal onClose={()=>setShowAddProject(false)}>
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
             <div style={{ fontSize:17, fontWeight:800 }}>Add Project</div>
@@ -2768,7 +3064,7 @@ export default function App() {
         </Modal>
       )}
 
-      {showAddPlan && (
+      {showAddPlan && canManageProjects && (
         <Modal onClose={()=>setShowAddPlan(false)}>
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
             <div style={{ fontSize:17, fontWeight:800 }}>Add Test Plan</div>
@@ -2822,7 +3118,7 @@ export default function App() {
         </Modal>
       )}
 
-      {showEditProject && (
+      {showEditProject && canManageProjects && (
         <Modal onClose={()=>setShowEditProject(false)}>
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
             <div style={{ fontSize:17, fontWeight:800 }}>Edit Project</div>
@@ -3244,6 +3540,56 @@ export default function App() {
           <div style={{ display:"flex", gap:10, marginTop:22, justifyContent:"flex-end" }}>
             <button onClick={()=>{ setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
             <button onClick={submitDefect} style={{ ...btnP, opacity:!newDef.description?0.5:1 }} disabled={!newDef.description}>Log Defect</button>
+          </div>
+        </Modal>
+      )}
+      {showAddUser && (
+        <Modal onClose={()=>setShowAddUser(false)}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+            <div style={{ fontSize:17, fontWeight:800 }}>Create User</div>
+            <button onClick={()=>setShowAddUser(false)} style={xBtn}>✕</button>
+          </div>
+          <div style={{ display:"grid", gap:14 }}>
+            <div><label style={lbl}>Username *</label><input value={newUserName} onChange={e=>setNewUserName(e.target.value)} style={inp} /></div>
+            <div><label style={lbl}>Display Name *</label><input value={newUserDisplayName} onChange={e=>setNewUserDisplayName(e.target.value)} style={inp} /></div>
+            <div><label style={lbl}>Password *</label><input type="password" value={newUserPassword} onChange={e=>setNewUserPassword(e.target.value)} style={inp} /></div>
+            <div><label style={lbl}>Role *</label>
+              <select value={newUserRole} onChange={e=>setNewUserRole(e.target.value)} style={inp}>
+                {["Admin","Test Lead","Tester","Viewer"].map(role => <option key={role}>{role}</option>)}
+              </select>
+            </div>
+            <label style={{ display:"flex", alignItems:"center", gap:8, color:"#334155", fontWeight:700 }}>
+              <input type="checkbox" checked={newUserActive} onChange={e=>setNewUserActive(e.target.checked)} /> Active
+            </label>
+          </div>
+          <div style={{ display:"flex", gap:10, marginTop:22, justifyContent:"flex-end" }}>
+            <button onClick={()=>setShowAddUser(false)} style={btnS}>Cancel</button>
+            <button onClick={createUserAccount} style={btnP}>Create User</button>
+          </div>
+        </Modal>
+      )}
+      {editUser && (
+        <Modal onClose={()=>setEditUser(null)}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+            <div style={{ fontSize:17, fontWeight:800 }}>Edit User</div>
+            <button onClick={()=>setEditUser(null)} style={xBtn}>✕</button>
+          </div>
+          <div style={{ display:"grid", gap:14 }}>
+            <div><label style={lbl}>Username *</label><input value={editUser.username || ""} onChange={e=>setEditUser(p=>({...p,username:e.target.value}))} style={inp} /></div>
+            <div><label style={lbl}>Display Name *</label><input value={editUser.displayName || ""} onChange={e=>setEditUser(p=>({...p,displayName:e.target.value}))} style={inp} /></div>
+            <div><label style={lbl}>New Password</label><input type="password" value={editUser.password || ""} onChange={e=>setEditUser(p=>({...p,password:e.target.value}))} style={inp} placeholder="Leave blank to keep current password" /></div>
+            <div><label style={lbl}>Role *</label>
+              <select value={editUser.role || "Viewer"} onChange={e=>setEditUser(p=>({...p,role:e.target.value}))} style={inp}>
+                {["Admin","Test Lead","Tester","Viewer"].map(role => <option key={role}>{role}</option>)}
+              </select>
+            </div>
+            <label style={{ display:"flex", alignItems:"center", gap:8, color:"#334155", fontWeight:700 }}>
+              <input type="checkbox" checked={!!editUser.isActive} onChange={e=>setEditUser(p=>({...p,isActive:e.target.checked}))} /> Active
+            </label>
+          </div>
+          <div style={{ display:"flex", gap:10, marginTop:22, justifyContent:"flex-end" }}>
+            <button onClick={()=>setEditUser(null)} style={btnS}>Cancel</button>
+            <button onClick={saveUserAccount} style={btnP}>Save Changes</button>
           </div>
         </Modal>
       )}

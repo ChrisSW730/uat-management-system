@@ -1,0 +1,113 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.EntityFrameworkCore;
+using UATSystem.API.Data;
+using UATSystem.API.Models;
+
+namespace UATSystem.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class AuthController : ControllerBase
+{
+    private readonly UATDbContext _db;
+    private readonly IConfiguration _config;
+
+    public AuthController(UATDbContext db, IConfiguration config)
+    {
+        _db = db;
+        _config = config;
+    }
+
+    [AllowAnonymous]
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(LoginRequest request)
+    {
+        var username = request.Username?.Trim();
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest("Username and password are required.");
+        }
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+        if (user == null || !user.IsActive)
+        {
+            return Unauthorized("Invalid credentials.");
+        }
+
+        var hasher = new PasswordHasher<UserAccount>();
+        var verify = hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        if (verify == PasswordVerificationResult.Failed)
+        {
+            return Unauthorized("Invalid credentials.");
+        }
+
+        var token = CreateToken(user);
+        return Ok(new AuthResponse(
+            token,
+            DateTime.UtcNow.AddMinutes(GetTokenExpiryMinutes()),
+            new AuthUserDto(user.Id, user.Username, user.DisplayName, user.Role)
+        ));
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> Me()
+    {
+        var username = User.Identity?.Name;
+        if (string.IsNullOrWhiteSpace(username)) return Unauthorized();
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+        if (user == null) return Unauthorized();
+
+        return Ok(new AuthUserDto(user.Id, user.Username, user.DisplayName, user.Role));
+    }
+
+    private int GetTokenExpiryMinutes()
+    {
+        if (int.TryParse(_config["Jwt:ExpiresMinutes"], out var minutes) && minutes > 0)
+        {
+            return minutes;
+        }
+        return 480;
+    }
+
+    private string CreateToken(UserAccount user)
+    {
+        var key = _config["Jwt:Key"] ?? "DEV_ONLY_SUPER_SECRET_CHANGE_ME_1234567890";
+        var issuer = _config["Jwt:Issuer"] ?? "UATSystem";
+        var audience = _config["Jwt:Audience"] ?? "UATSystem";
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.Username),
+            new(ClaimTypes.Role, user.Role),
+            new("display_name", user.DisplayName),
+        };
+
+        var creds = new SigningCredentials(
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+            SecurityAlgorithms.HmacSha256
+        );
+
+        var token = new JwtSecurityToken(
+            issuer,
+            audience,
+            claims,
+            expires: DateTime.UtcNow.AddMinutes(GetTokenExpiryMinutes()),
+            signingCredentials: creds
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+}
+
+public record LoginRequest(string Username, string Password);
+public record AuthUserDto(int Id, string Username, string DisplayName, string Role);
+public record AuthResponse(string Token, DateTime ExpiresAtUtc, AuthUserDto User);

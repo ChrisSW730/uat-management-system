@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using UATSystem.API.Data;
 using UATSystem.API.Models;
@@ -7,6 +8,7 @@ namespace UATSystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class TestCasesController : ControllerBase
 {
     private readonly UATDbContext _db;
@@ -59,6 +61,7 @@ public class TestCasesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> Create(TestCase tc)
     {
         if (!tc.TestPlanId.HasValue)
@@ -81,6 +84,7 @@ public class TestCasesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> Update(int id, TestCase updated)
     {
         var tc = await _db.TestCases.FindAsync(id);
@@ -98,6 +102,7 @@ public class TestCasesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> Delete(int id)
     {
         var tc = await _db.TestCases.FindAsync(id);
@@ -122,6 +127,7 @@ public class TestCasesController : ControllerBase
     }
 
     [HttpPost("{id}/attachments")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     [RequestSizeLimit(50_000_000)]
     public async Task<IActionResult> UploadAttachments(int id, [FromForm] List<IFormFile> files)
     {
@@ -165,6 +171,7 @@ public class TestCasesController : ControllerBase
     }
 
     [HttpDelete("{id}/attachments/{attachmentId}")]
+    [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> DeleteAttachment(int id, int attachmentId)
     {
         var attachment = await _db.TestCaseAttachments

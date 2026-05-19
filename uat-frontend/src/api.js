@@ -1,6 +1,72 @@
 const BASE = "http://localhost:5176/api";
+const rawFetch = window.fetch.bind(window);
+
+function readAuth() {
+  try {
+    return JSON.parse(localStorage.getItem("uatAuth") || "null");
+  } catch {
+    return null;
+  }
+}
+
+async function authFetch(resource, options = {}) {
+  const url = typeof resource === "string" ? resource : resource.url;
+  if (url?.includes("/api/auth/login")) {
+    return rawFetch(resource, options);
+  }
+
+  const auth = readAuth();
+  if (auth?.token) {
+    const headers = new Headers(options.headers || (resource instanceof Request ? resource.headers : undefined) || {});
+    headers.set("Authorization", `Bearer ${auth.token}`);
+    if (auth.user?.username) {
+      headers.set("X-User-Name", auth.user.username);
+    }
+    options = { ...options, headers };
+  }
+
+  return rawFetch(resource, options);
+}
+
+window.fetch = authFetch;
 
 export const api = {
+  login: async (username, password) => {
+    const response = await rawFetch(`${BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to login");
+    }
+
+    return await response.json();
+  },
+
+  getUsers: () => fetch(`${BASE}/users`).then(r => r.json()),
+  createUser: (data) => fetch(`${BASE}/users`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
+  updateUser: (id, data) => fetch(`${BASE}/users/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
+  deleteUser: (id) => fetch(`${BASE}/users/${id}`, {
+    method: "DELETE"
+  }),
+
   // Projects and Test Plans
   getProjects: () => fetch(`${BASE}/projects`).then(r => r.json()),
   async createProject(data) {

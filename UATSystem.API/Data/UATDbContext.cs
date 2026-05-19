@@ -16,6 +16,7 @@ public class UATDbContext : DbContext
     public DbSet<DefectAuditLog> DefectAuditLogs => Set<DefectAuditLog>();
     public DbSet<DefectAttachment> DefectAttachments => Set<DefectAttachment>();
     public DbSet<TestCaseAttachment> TestCaseAttachments => Set<TestCaseAttachment>();
+    public DbSet<UserAccount> Users => Set<UserAccount>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,5 +67,9 @@ public class UATDbContext : DbContext
             .WithMany(tc => tc.Attachments)
             .HasForeignKey(a => a.TestCaseId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserAccount>()
+            .HasIndex(u => u.Username)
+            .IsUnique();
     }
 }

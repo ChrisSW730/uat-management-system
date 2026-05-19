@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using UATSystem.API.Data;
 using UATSystem.API.Models;
@@ -7,6 +8,7 @@ namespace UATSystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ProjectsController : ControllerBase
 {
     private readonly UATDbContext _db;
@@ -38,6 +40,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> Create(CreateProjectDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Project name is required.");
@@ -61,6 +64,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPut("{projectId}")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> UpdateProject(int projectId, UpdateProjectDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Project name is required.");
@@ -89,6 +93,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpDelete("{projectId}")]
+    [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> DeleteProject(int projectId)
     {
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
@@ -100,6 +105,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPost("{projectId}/testplans")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> CreateTestPlan(int projectId, CreateTestPlanDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Test plan name is required.");
@@ -137,6 +143,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPut("testplans/{testPlanId}")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> UpdateTestPlan(int testPlanId, UpdateTestPlanDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Test plan name is required.");
@@ -169,6 +176,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpDelete("testplans/{testPlanId}")]
+    [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> DeleteTestPlan(int testPlanId)
     {
         var testPlan = await _db.TestPlans.FirstOrDefaultAsync(tp => tp.Id == testPlanId);
