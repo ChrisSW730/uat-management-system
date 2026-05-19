@@ -133,6 +133,10 @@ export default function App() {
   const [defCloseRule, setDefCloseRule] = useState("Any");
   const [defCloseDate, setDefCloseDate] = useState("");
   const [defDateFilterPanel, setDefDateFilterPanel] = useState(null);
+  const [runSearch, setRunSearch] = useState("");
+  const [runDateRule, setRunDateRule] = useState("Any");
+  const [runDateValue, setRunDateValue] = useState("");
+  const [runDateFilterPanel, setRunDateFilterPanel] = useState(null);
   const [selectedTcIds, setSelectedTcIds] = useState([]);
   const [selectedRunIds, setSelectedRunIds] = useState([]);
   const [selectedDefectIds, setSelectedDefectIds] = useState([]);
@@ -259,6 +263,15 @@ export default function App() {
     setDefDateFilterPanel(p => p?.type === type ? null : { type, top, left });
   }
 
+  function toggleRunDateFilterPanel(e) {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const panelWidth = 190;
+    const left = Math.max(8, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 8));
+    const top = Math.min(rect.bottom + 6, window.innerHeight - 150);
+    setRunDateFilterPanel(p => p ? null : { top, left });
+  }
+
   /* ── Load data from API ── */
  /* useEffect(() => {
     Promise.all([api.getTestCases(), api.getTestRuns(), api.getDefects()])
@@ -310,6 +323,7 @@ export default function App() {
     function handleClick() {
       setContextMenu(null);
       setDefDateFilterPanel(null);
+      setRunDateFilterPanel(null);
     }
 	  window.addEventListener("click", handleClick);
 	  return () => window.removeEventListener("click", handleClick);
@@ -391,6 +405,30 @@ export default function App() {
       return (b.id || 0) - (a.id || 0);
     });
   }, [runs]);
+
+  const filteredRuns = useMemo(() => {
+    const q = runSearch.trim().toLowerCase();
+    return sortedRuns.filter(run => {
+      const matchesSearch = !q
+        || run.runNumber?.toLowerCase().includes(q)
+        || run.name?.toLowerCase().includes(q)
+        || run.tester?.toLowerCase().includes(q);
+      let matchesDate = true;
+      if (runDateRule !== "Any" && runDateValue) {
+        const src = run.createdAt ? new Date(run.createdAt) : null;
+        if (!src || Number.isNaN(src.getTime())) {
+          matchesDate = false;
+        } else {
+          const start = new Date(`${runDateValue}T00:00:00`);
+          const end   = new Date(`${runDateValue}T23:59:59`);
+          if (runDateRule === "Before") matchesDate = src < start;
+          else if (runDateRule === "After") matchesDate = src > end;
+          else if (runDateRule === "On") matchesDate = src >= start && src <= end;
+        }
+      }
+      return matchesSearch && matchesDate;
+    });
+  }, [sortedRuns, runSearch, runDateRule, runDateValue]);
 
   const selectedProject = useMemo(
     () => projects.find(p => String(p.id) === String(selectedProjectId)) || null,
@@ -1492,19 +1530,38 @@ export default function App() {
       ══════════════════════════════════ */}
       {activeTab==="runs" && (
         <div style={{ padding:"20px 2.5%" }}>
-          <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10, marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16, flexWrap:"wrap" }}>
+            <input
+              value={runSearch}
+              onChange={e => setRunSearch(e.target.value)}
+              placeholder="Search runs…"
+              style={{ flex:1, minWidth:180, background:"#f8fafc", border:"1.5px solid #e2e8f0", borderRadius:8, padding:"8px 12px", fontSize:14, color:"#0f172a", outline:"none" }}
+            />
+            <div style={{ display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap", position:"relative" }}>
+              <span style={{ fontSize:13, fontWeight:700, color:"#64748b", letterSpacing:"0.05em", textTransform:"uppercase" }}>Date</span>
+              <button
+                onClick={toggleRunDateFilterPanel}
+                title="Filter by date"
+                style={{ border:"1px solid #cbd5e1", background: runDateFilterPanel || runDateRule !== "Any" ? "#eff6ff" : "#fff", color: runDateFilterPanel || runDateRule !== "Any" ? "#1d4ed8" : "#64748b", borderRadius:6, width:26, height:26, fontSize:13, cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center", padding:0 }}
+              >⌕</button>
+              {runDateRule !== "Any" && runDateValue && (
+                <button onClick={() => { setRunDateRule("Any"); setRunDateValue(""); }}
+                  style={{ border:"1px solid #fca5a5", background:"#fff1f2", color:"#dc2626", borderRadius:6, width:22, height:22, fontSize:11, cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center", padding:0, fontWeight:700 }}>✕</button>
+              )}
+            </div>
+            <div style={{ flex:"0 0 auto", display:"flex", gap:10, alignItems:"center" }}>
             {sortedRuns.length > 0 && (
               <button
                 onClick={() => {
-                  if (selectedRunIds.length === sortedRuns.length) {
+                  if (selectedRunIds.length === filteredRuns.length) {
                     setSelectedRunIds([]);
                   } else {
-                    setSelectedRunIds(sortedRuns.map(r => r.id));
+                    setSelectedRunIds(filteredRuns.map(r => r.id));
                   }
                 }}
                 style={{ ...btnS, padding:"8px 14px", fontSize:14 }}
               >
-                {selectedRunIds.length === sortedRuns.length ? "Clear Selection" : "Select All"}
+                {selectedRunIds.length === filteredRuns.length ? "Clear Selection" : "Select All"}
               </button>
             )}
             {selectedRunIds.length > 0 && (
@@ -1520,10 +1577,12 @@ export default function App() {
               </button>
             )}
             <button onClick={()=>setShowAddRun(true)} style={btnP}>+ New Test Run</button>
+            </div>
           </div>
           {sortedRuns.length===0 && <div style={{ textAlign:"center", padding:60, color:"#cbd5e1" }}>No test runs yet. Create your first one!</div>}
+          {sortedRuns.length>0 && filteredRuns.length===0 && <div style={{ textAlign:"center", padding:40, color:"#cbd5e1" }}>No runs match current filters.</div>}
           <div style={{ display:"grid", gap:14 }}>
-            {sortedRuns.map(run=>{
+            {filteredRuns.map(run=>{
               const st = runStats(run);
               const pct = st.total>0 ? Math.round((st.pass/st.total)*100) : 0;
               const isRunSelected = selectedRunIds.includes(run.id);
@@ -2902,6 +2961,39 @@ export default function App() {
             <button onClick={submitDefect} style={{ ...btnP, opacity:!newDef.description?0.5:1 }} disabled={!newDef.description}>Log Defect</button>
           </div>
         </Modal>
+      )}
+      {runDateFilterPanel && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position:"fixed",
+            top:runDateFilterPanel.top,
+            left:runDateFilterPanel.left,
+            zIndex:2500,
+            background:"#fff",
+            border:"1.5px solid #e2e8f0",
+            borderRadius:10,
+            boxShadow:"0 10px 30px rgba(0,0,0,0.12)",
+            padding:10,
+            width:190
+          }}
+        >
+          <div style={{ display:"grid", gap:6 }}>
+            <select
+              value={runDateRule}
+              onChange={e => setRunDateRule(e.target.value)}
+              style={{ ...inp, width:"100%", fontSize:12, padding:"6px 8px" }}
+            >
+              {["Any","Before","After","On"].map(rule => <option key={rule}>{rule}</option>)}
+            </select>
+            <input
+              type="date"
+              value={runDateValue}
+              onChange={e => setRunDateValue(e.target.value)}
+              style={{ ...inp, width:"100%", fontSize:12, padding:"6px 8px" }}
+            />
+          </div>
+        </div>
       )}
 	  {defDateFilterPanel && (
       <div
