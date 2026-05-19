@@ -76,9 +76,16 @@ public class DefectsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateDefectDto dto)
     {
-        if ((dto.TestRunId.HasValue && !dto.TestCaseId.HasValue) || (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue))
+        if (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
         {
-            return BadRequest("Both TestRunId and TestCaseId must be provided together.");
+            return BadRequest("TestCaseId cannot be provided without TestRunId.");
+        }
+
+        TestRun? run = null;
+        if (dto.TestRunId.HasValue)
+        {
+            run = await _db.TestRuns.FirstOrDefaultAsync(r => r.Id == dto.TestRunId.Value);
+            if (run == null) return NotFound("Test run not found.");
         }
 
         TestRunEntry? entry = null;
@@ -98,7 +105,7 @@ public class DefectsController : ControllerBase
         {
             DefectNumber = $"DEF-{(count + 1):D3}",
             TestRunEntryId = entry?.Id,
-            RunNumber = entry?.TestRun.RunNumber ?? "-",
+            RunNumber = entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-",
             TcNumber = entry?.TestCase.TcNumber ?? "-",
             Market = dto.Market,
             Description = dto.Description,
@@ -153,9 +160,16 @@ public class DefectsController : ControllerBase
         var defect = await _db.Defects.FindAsync(id);
         if (defect == null) return NotFound();
 
-        if ((dto.TestRunId.HasValue && !dto.TestCaseId.HasValue) || (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue))
+        if (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
         {
-            return BadRequest("Both TestRunId and TestCaseId must be provided together.");
+            return BadRequest("TestCaseId cannot be provided without TestRunId.");
+        }
+
+        TestRun? run = null;
+        if (dto.TestRunId.HasValue)
+        {
+            run = await _db.TestRuns.FirstOrDefaultAsync(r => r.Id == dto.TestRunId.Value);
+            if (run == null) return NotFound("Test run not found.");
         }
 
         TestRunEntry? entry = null;
@@ -171,7 +185,7 @@ public class DefectsController : ControllerBase
 
         var changedBy = GetChangedBy();
 
-        AddAudit(defect, "RunNumber", defect.RunNumber, entry?.TestRun.RunNumber ?? "-", changedBy);
+        AddAudit(defect, "RunNumber", defect.RunNumber, entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-", changedBy);
         AddAudit(defect, "TcNumber", defect.TcNumber, entry?.TestCase.TcNumber ?? "-", changedBy);
         AddAudit(defect, "Market", defect.Market, dto.Market, changedBy);
         AddAudit(defect, "Description", defect.Description, dto.Description, changedBy);
@@ -190,7 +204,7 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(newClose), changedBy);
 
         defect.TestRunEntryId = entry?.Id;
-        defect.RunNumber = entry?.TestRun.RunNumber ?? "-";
+        defect.RunNumber = entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-";
         defect.TcNumber = entry?.TestCase.TcNumber ?? "-";
         defect.Market = dto.Market;
         defect.Description = dto.Description;

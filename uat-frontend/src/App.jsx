@@ -113,6 +113,7 @@ export default function App() {
   const [activeTab, setActiveTab]     = useState("testcases");
   const [projects, setProjects]       = useState([]);
   const [testCases, setTestCases]     = useState([]);
+  const [allTestCases, setAllTestCases] = useState([]);
   const [runs, setRuns]               = useState([]);
   const [defects, setDefects]         = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -176,7 +177,14 @@ export default function App() {
 
   const blankTC  = { name:"", description:"", steps:"", expected:"", priority:"Medium", category:"User Authentication", remarks:"" };
   const blankRun = { name:"", tester:"", selectedTcIds:[] };
-  const blankDef = { market:"SG", description:"", issueType:"Functional Issue", expected:"", actual:"", targetFix:"", raisedBy:"", priority:"Medium", assignedTo:"", remarks:"" };
+  const defaultDefectTemplate = [
+    "Marketing Company: ",
+    "WE Date: ",
+    "Impacted Area: ",
+    "BA / Owner ID: ",
+    "Sample Serial Number: ",
+  ].join("\n");
+  const blankDef = { market:"SG", description:defaultDefectTemplate, issueType:"Functional Issue", expected:"", actual:"", targetFix:"", raisedBy:"", priority:"Medium", assignedTo:"", remarks:"" };
 
   const [newTC,  setNewTC]  = useState(blankTC);
   const [newRun, setNewRun] = useState(blankRun);
@@ -276,7 +284,10 @@ export default function App() {
         .catch(err => console.error("Project Error:", err));
 
 	  api.getTestCases()
-		.then(setTestCases)
+    .then(tcs => {
+      setTestCases(tcs);
+      setAllTestCases(tcs || []);
+    })
 		.catch(err => console.error("TC Error:", err));
 
 	  api.getTestRuns()
@@ -391,6 +402,14 @@ export default function App() {
     [selectedProject]
   );
 
+  const allTestCaseById = useMemo(() => {
+    const map = {};
+    (allTestCases || []).forEach(tc => {
+      map[tc.id] = tc;
+    });
+    return map;
+  }, [allTestCases]);
+
   const testPlanMetaById = useMemo(() => {
     const map = {};
     (projects || []).forEach(p => {
@@ -426,6 +445,7 @@ export default function App() {
       }
 
       setTestCases(p => [...p, tc]);
+      setAllTestCases(p => [...p, tc]);
       setNewTC(blankTC);
       setNewTCAttachments([]);
       setShowAddTC(false);
@@ -447,6 +467,10 @@ export default function App() {
 		setTestCases(p =>
 		  p.map(tc => tc.id === updated.id ? updated : tc)
 		);
+
+    setAllTestCases(p =>
+      p.map(tc => tc.id === updated.id ? updated : tc)
+    );
 
 		setViewTC(updated);
 		setEditTC(null);
@@ -482,6 +506,7 @@ export default function App() {
     try {
       await Promise.all(ids.map(id => api.deleteTestCase(id)));
       setTestCases(p => p.filter(tc => !ids.includes(tc.id)));
+      setAllTestCases(p => p.filter(tc => !ids.includes(tc.id)));
       setSelectedTcIds([]);
     } catch(e) { alert("Failed to delete: " + e.message); }
   }
@@ -508,6 +533,7 @@ export default function App() {
 		  remarks: tc.remarks,
 		});
 		setTestCases(p => [...p, duped]);
+    setAllTestCases(p => [...p, duped]);
 		setContextMenu(null);
 	  } catch(e) { alert("Failed to duplicate: " + e.message); }
 	}
@@ -893,8 +919,9 @@ export default function App() {
 
     const runId = editDef.linkedRunId ? Number(editDef.linkedRunId) : null;
     const tcId = editDef.linkedTestCaseId ? Number(editDef.linkedTestCaseId) : null;
-    if ((runId && !tcId) || (!runId && tcId)) {
-      alert("Please select both Run and Test Case, or leave both blank for a standalone defect.");
+
+    if (!runId && tcId) {
+      alert("Please select a Run when selecting a Test Case.");
       return;
     }
 
@@ -1636,7 +1663,7 @@ export default function App() {
                   <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Run</th>
                   <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>TC</th>
                   <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Market</th>
-                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Description</th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Actual Result</th>
                   <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Priority</th>
                   <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Assigned</th>
                   <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Status</th>
@@ -1696,7 +1723,7 @@ export default function App() {
                               dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
                               targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
                               linkedRunId: runs.find(r => r.runNumber === def.runNumber)?.id || "",
-                              linkedTestCaseId: testCases.find(t => t.tcNumber === def.tcNumber)?.id || "",
+                              linkedTestCaseId: allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || "",
                             })}
                             style={{ ...btnP, padding:"5px 12px", fontSize:14 }}
                           >
@@ -1724,7 +1751,9 @@ export default function App() {
                         <span style={{ fontSize:14, background:"#f1f5f9", color:"#475569", padding:"2px 8px", borderRadius:6, fontWeight:700 }}>{def.market}</span>
                       </td>
                       <td style={{ padding:"13px 16px", maxWidth:240 }} onClick={()=>setViewDef(def)}>
-                        <div style={{ color:"#1e293b", lineHeight:1.4 }}>{def.description.slice(0,65)}{def.description.length>65?"…":""}</div>
+                        <div style={{ color:"#1e293b", lineHeight:1.4, whiteSpace:"pre-wrap", wordBreak:"break-word", display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                          {def.actualResult}
+                        </div>
                       </td>
                       <td style={{ padding:"13px 16px" }} onClick={()=>setViewDef(def)}><PriBadge label={def.priority}/></td>
                       <td style={{ padding:"13px 16px", color:"#64748b", fontSize:14 }} onClick={()=>setViewDef(def)}>{def.assignedTo||"—"}</td>
@@ -2026,7 +2055,7 @@ export default function App() {
                 dateRaised: viewDef.dateRaised?.slice(0, 10) || "",
                 targetFixDate: viewDef.targetFixDate?.slice(0, 10) || "",
                 linkedRunId: runs.find(r => r.runNumber === viewDef.runNumber)?.id || "",
-                linkedTestCaseId: testCases.find(t => t.tcNumber === viewDef.tcNumber)?.id || "",
+                linkedTestCaseId: allTestCases.find(t => t.tcNumber === viewDef.tcNumber)?.id || "",
               })}
               style={{ ...btnP, padding:"8px 14px", fontSize:14 }}
             >
@@ -2159,7 +2188,18 @@ export default function App() {
                 <label style={lbl}>Run</label>
                 <select
                   value={editDef.linkedRunId || ""}
-                  onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value }))}
+                  onChange={e => {
+                    const nextRunId = e.target.value;
+                    setEditDef(p => {
+                      const run = runs.find(r => String(r.id) === String(nextRunId));
+                      const validTcIds = new Set((run?.entries || []).map(en => String(en.testCaseId)));
+                      return {
+                        ...p,
+                        linkedRunId: nextRunId,
+                        linkedTestCaseId: validTcIds.has(String(p.linkedTestCaseId || "")) ? p.linkedTestCaseId : "",
+                      };
+                    });
+                  }}
                   style={inp}
                 >
                   <option value="">Standalone (No linked run/test case)</option>
@@ -2173,10 +2213,17 @@ export default function App() {
               <select
                 value={editDef.linkedTestCaseId || ""}
                 onChange={e => setEditDef(p => ({ ...p, linkedTestCaseId: e.target.value }))}
+                disabled={!editDef.linkedRunId}
                 style={inp}
               >
-                <option value="">Standalone (No linked run/test case)</option>
-                {testCases.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>)}
+                <option value="">{editDef.linkedRunId ? "No specific test case (run-level defect)" : "Select run first or choose standalone"}</option>
+                {(() => {
+                  const run = runs.find(r => String(r.id) === String(editDef.linkedRunId));
+                  const options = (run?.entries || [])
+                    .map(en => allTestCaseById[en.testCaseId])
+                    .filter(Boolean);
+                  return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
+                })()}
               </select>
             </div>
 
