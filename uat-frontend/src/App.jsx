@@ -835,6 +835,30 @@ export default function App() {
 				<option value="All">All Priorities</option>
         {TEST_CASE_PRIORITIES.map(p=><option key={p}>{p}</option>)}
 			  </select>
+        <button
+        onClick={() => {
+          setTcSearch("");
+          setTcCatFilter("All");
+          setTcPriFilter("All");
+        }}
+        style={{ ...btnS, padding:"9px 14px", fontSize:14 }}
+        >
+        Reset
+        </button>
+        {filteredTC.length > 0 && (
+        <button
+          onClick={() => {
+          if (selectedTcIds.length === filteredTC.length) {
+            setSelectedTcIds([]);
+          } else {
+            setSelectedTcIds(filteredTC.map(tc => tc.id));
+          }
+          }}
+          style={{ ...btnS, padding:"9px 14px", fontSize:14 }}
+        >
+          {selectedTcIds.length === filteredTC.length ? "Clear Selection" : "Select All"}
+        </button>
+        )}
 			  <div style={{ flex:1 }}/>
 			  {selectedTcIds.length > 0 && (
 				<div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -1099,16 +1123,19 @@ export default function App() {
             )}
             <div style={{ flex:1 }}/>
             {selectedDefectIds.length > 0 && (
-              <button
-                onClick={() => {
-                  if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
-                    deleteDefects(selectedDefectIds);
-                  }
-                }}
-                style={{ ...btnD, padding:"9px 14px", fontSize:14 }}
-              >
-                🗑 Delete Selected
-              </button>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ fontSize:14, color:"#64748b", fontWeight:700 }}>{selectedDefectIds.length} selected</span>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
+                      deleteDefects(selectedDefectIds);
+                    }
+                  }}
+                  style={{ ...btnD, padding:"9px 14px", fontSize:14 }}
+                >
+                  🗑 Delete Selected
+                </button>
+              </div>
             )}
             <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>
           </div>
