@@ -138,8 +138,27 @@ public class DefectsController : ControllerBase
         var defect = await _db.Defects.FindAsync(id);
         if (defect == null) return NotFound();
 
+        if ((dto.TestRunId.HasValue && !dto.TestCaseId.HasValue) || (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue))
+        {
+            return BadRequest("Both TestRunId and TestCaseId must be provided together.");
+        }
+
+        TestRunEntry? entry = null;
+        if (dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
+        {
+            entry = await _db.TestRunEntries
+                .Include(e => e.TestCase)
+                .Include(e => e.TestRun)
+                .FirstOrDefaultAsync(e => e.TestRunId == dto.TestRunId.Value && e.TestCaseId == dto.TestCaseId.Value);
+
+            if (entry == null) return NotFound("Test run entry not found.");
+        }
+
         var changedBy = GetChangedBy();
 
+        AddAudit(defect, "RunNumber", defect.RunNumber, entry?.TestRun.RunNumber ?? "-", changedBy);
+        AddAudit(defect, "TcNumber", defect.TcNumber, entry?.TestCase.TcNumber ?? "-", changedBy);
+        AddAudit(defect, "Market", defect.Market, dto.Market, changedBy);
         AddAudit(defect, "Description", defect.Description, dto.Description, changedBy);
         AddAudit(defect, "ExpectedResult", defect.ExpectedResult, dto.ExpectedResult, changedBy);
         AddAudit(defect, "ActualResult", defect.ActualResult, dto.ActualResult, changedBy);
@@ -150,6 +169,10 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "TargetFixDate", AuditDate(defect.TargetFixDate), AuditDate(dto.TargetFixDate), changedBy);
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
 
+        defect.TestRunEntryId = entry?.Id;
+        defect.RunNumber = entry?.TestRun.RunNumber ?? "-";
+        defect.TcNumber = entry?.TestCase.TcNumber ?? "-";
+        defect.Market = dto.Market;
         defect.Description = dto.Description;
         defect.ExpectedResult = dto.ExpectedResult;
         defect.ActualResult = dto.ActualResult;
@@ -299,6 +322,9 @@ public record CreateDefectDto(
 public record UpdateStatusDto(string Status);
 
 public record UpdateDefectDto(
+    int? TestRunId,
+    int? TestCaseId,
+    string Market,
     string Description,
     string ExpectedResult,
     string ActualResult,

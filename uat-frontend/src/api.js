@@ -74,14 +74,23 @@ export const api = {
   deleteDefect: (id) => fetch(`${BASE}/defects/${id}`, {
     method: "DELETE"
   }),
-  updateDefect: (id, data, changedBy) => fetch(`${BASE}/defects/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "X-User-Name": changedBy || "Unknown"
-    },
-    body: JSON.stringify(data)
-  }).then(r => r.json()),
+  async updateDefect(id, data, changedBy) {
+    const response = await fetch(`${BASE}/defects/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Name": changedBy || "Unknown"
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to update defect");
+    }
+
+    return await response.json();
+  },
   updateDefectStatus: (id, status, changedBy) => fetch(`${BASE}/defects/${id}/status`, {
     method: "PATCH", headers: {
       "Content-Type": "application/json",

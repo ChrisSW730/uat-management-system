@@ -603,8 +603,19 @@ export default function App() {
 
   async function saveDefectEdits() {
     if (!editDef) return;
+
+    const runId = editDef.linkedRunId ? Number(editDef.linkedRunId) : null;
+    const tcId = editDef.linkedTestCaseId ? Number(editDef.linkedTestCaseId) : null;
+    if ((runId && !tcId) || (!runId && tcId)) {
+      alert("Please select both Run and Test Case, or leave both blank for a standalone defect.");
+      return;
+    }
+
     try {
       const updated = await api.updateDefect(editDef.id, {
+        testRunId: runId,
+        testCaseId: tcId,
+        market: editDef.market,
         description: editDef.description,
         expectedResult: editDef.expectedResult,
         actualResult: editDef.actualResult,
@@ -1184,6 +1195,8 @@ export default function App() {
                               ...def,
                               dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
                               targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
+                              linkedRunId: runs.find(r => r.runNumber === def.runNumber)?.id || "",
+                              linkedTestCaseId: testCases.find(t => t.tcNumber === def.tcNumber)?.id || "",
                             })}
                             style={{ ...btnP, padding:"5px 12px", fontSize:14 }}
                           >
@@ -1506,6 +1519,8 @@ export default function App() {
                 ...viewDef,
                 dateRaised: viewDef.dateRaised?.slice(0, 10) || "",
                 targetFixDate: viewDef.targetFixDate?.slice(0, 10) || "",
+                linkedRunId: runs.find(r => r.runNumber === viewDef.runNumber)?.id || "",
+                linkedTestCaseId: testCases.find(t => t.tcNumber === viewDef.tcNumber)?.id || "",
               })}
               style={{ ...btnP, padding:"8px 14px", fontSize:14 }}
             >
@@ -1623,6 +1638,42 @@ export default function App() {
           </div>
 
           <div style={{ display:"grid", gap:14 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={lbl}>Market</label>
+                <select
+                  value={editDef.market || "SG"}
+                  onChange={e => setEditDef(p => ({ ...p, market: e.target.value }))}
+                  style={inp}
+                >
+                  {["SG","HK","MY","KR","US","ID","TW"].map(m => <option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Run</label>
+                <select
+                  value={editDef.linkedRunId || ""}
+                  onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value }))}
+                  style={inp}
+                >
+                  <option value="">Standalone (No linked run/test case)</option>
+                  {sortedRuns.map(r => <option key={r.id} value={r.id}>{r.runNumber} - {r.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={lbl}>Test Case</label>
+              <select
+                value={editDef.linkedTestCaseId || ""}
+                onChange={e => setEditDef(p => ({ ...p, linkedTestCaseId: e.target.value }))}
+                style={inp}
+              >
+                <option value="">Standalone (No linked run/test case)</option>
+                {testCases.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>)}
+              </select>
+            </div>
+
             <div>
               <label style={lbl}>Description</label>
               <textarea
