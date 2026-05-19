@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import * as XLSX from "xlsx";
 import { api } from "./api";
 
 /* ─────────────────────────────────────────
@@ -1180,6 +1181,241 @@ export default function App() {
     return Math.floor((new Date() - new Date(dateStr)) / 86400000);
   }
 
+  function formatExportDateTime(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString();
+  }
+
+  function appendSheet(workbook, name, rows) {
+    const sheetRows = rows.length > 0 ? rows : [{ Info: "No data" }];
+    const sheet = XLSX.utils.json_to_sheet(sheetRows);
+    XLSX.utils.book_append_sheet(workbook, sheet, name);
+  }
+
+  function downloadWorkbook(filename, sheets) {
+    const workbook = XLSX.utils.book_new();
+    sheets.forEach(sheet => appendSheet(workbook, sheet.name, sheet.rows));
+    XLSX.writeFileXLSX(workbook, filename);
+  }
+
+  async function exportTestCases() {
+    try {
+      const summaryRows = sortedFilteredTC.map(tc => {
+        const planMeta = tc.testPlanId ? testPlanMetaById[tc.testPlanId] : null;
+        const linkedRuns = runs.filter(run =>
+          (run.entries || []).some(entry => entry.testCaseId === tc.id)
+        );
+        return {
+          ID: tc.tcNumber,
+          Project: planMeta?.projectName || "",
+          "Test Plan": planMeta?.testPlanName || "",
+          "Test Name": tc.name || "",
+          Category: tc.category || "",
+          Priority: tc.priority || "",
+          Description: tc.description || "",
+          Steps: tc.steps || "",
+          "Expected Result": tc.expectedResult || "",
+          Remarks: tc.remarks || "",
+          "Coverage Count": linkedRuns.length,
+          "Covered Runs": linkedRuns.map(run => run.runNumber).join(", "),
+        };
+      });
+
+      const coverageRows = sortedFilteredTC.flatMap(tc => {
+        const planMeta = tc.testPlanId ? testPlanMetaById[tc.testPlanId] : null;
+        const linkedRuns = runs.filter(run =>
+          (run.entries || []).some(entry => entry.testCaseId === tc.id)
+        );
+        if (linkedRuns.length === 0) {
+          return [{
+            ID: tc.tcNumber,
+            "Test Name": tc.name || "",
+            Project: planMeta?.projectName || "",
+            "Test Plan": planMeta?.testPlanName || "",
+            Run: "",
+            Tester: "",
+            "Run Created At": "",
+          }];
+        }
+        return linkedRuns.map(run => ({
+          ID: tc.tcNumber,
+          "Test Name": tc.name || "",
+          Project: planMeta?.projectName || "",
+          "Test Plan": planMeta?.testPlanName || "",
+          Run: run.runNumber || "",
+          Tester: run.tester || "",
+          "Run Created At": formatExportDateTime(run.createdAt),
+        }));
+      });
+
+      const attachmentLists = await Promise.all(
+        sortedFilteredTC.map(async tc => ({
+          tc,
+          attachments: await api.getTestCaseAttachments(tc.id).catch(() => []),
+        }))
+      );
+
+      const attachmentRows = attachmentLists.flatMap(({ tc, attachments }) => {
+        const planMeta = tc.testPlanId ? testPlanMetaById[tc.testPlanId] : null;
+        if (!attachments.length) {
+          return [];
+        }
+        return attachments.map(attachment => ({
+          ID: tc.tcNumber,
+          "Test Name": tc.name || "",
+          Project: planMeta?.projectName || "",
+          "Test Plan": planMeta?.testPlanName || "",
+          File: attachment.fileName || "",
+          Url: attachment.url || "",
+          "Size (KB)": Math.max(1, Math.round((attachment.size || 0) / 1024)),
+          "Uploaded By": attachment.uploadedBy || "",
+          "Uploaded At": formatExportDateTime(attachment.uploadedAt),
+        }));
+      });
+
+      downloadWorkbook(`test-cases-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+        { name: "Test Cases", rows: summaryRows },
+        { name: "Coverage", rows: coverageRows },
+        { name: "Attachments", rows: attachmentRows },
+      ]);
+    } catch (error) {
+      alert(`Failed to export test cases: ${error.message}`);
+    }
+  }
+
+  function exportRuns() {
+    const summaryRows = filteredRuns.map(run => {
+      const stats = runStats(run);
+      const progress = stats.total > 0 ? Math.round((stats.pass / stats.total) * 100) : 0;
+      return {
+        Run: run.runNumber || "",
+        Name: run.name || "",
+        Tester: run.tester || "",
+        "Created At": formatExportDateTime(run.createdAt),
+        Total: stats.total,
+        Pass: stats.pass,
+        Fail: stats.fail,
+        "Not Run": stats.notRun,
+        Progress: `${progress}%`,
+      };
+    });
+
+    const entryRows = filteredRuns.flatMap(run =>
+      (run.entries || []).map(entry => {
+        const tc = allTestCaseById[entry.testCaseId] || {};
+        return {
+          Run: run.runNumber || "",
+          "Run Name": run.name || "",
+          Tester: run.tester || "",
+          "Created At": formatExportDateTime(run.createdAt),
+          "TC ID": tc.tcNumber || entry.testCaseId || "",
+          "TC Name": tc.name || "",
+          Category: tc.category || "",
+          Priority: tc.priority || "",
+          "TC Description": tc.description || "",
+          Steps: tc.steps || "",
+          "Expected Result": tc.expectedResult || "",
+          Status: entry.execStatus || "Not Run",
+          Comment: entry.comment || "",
+          "Comment Count": (entry.comments || []).length,
+          Comments: (entry.comments || []).map(c => `${c.author || c.createdBy || "User"}: ${c.text || c.comment || ""}`).join(" | "),
+          Defects: (entry.defects || []).map(def => def.defectNumber).join(", "),
+          "Defect Count": (entry.defects || []).length,
+        };
+      })
+    );
+
+    const commentRows = filteredRuns.flatMap(run =>
+      (run.entries || []).flatMap(entry => {
+        const tc = allTestCaseById[entry.testCaseId] || {};
+        const comments = entry.comments || [];
+        if (comments.length === 0) {
+          return [];
+        }
+        return comments.map(comment => ({
+          Run: run.runNumber || "",
+          "TC ID": tc.tcNumber || entry.testCaseId || "",
+          "TC Name": tc.name || "",
+          Author: comment.author || comment.createdBy || "",
+          Comment: comment.text || comment.comment || "",
+          "Created At": formatExportDateTime(comment.createdAt),
+        }));
+      })
+    );
+
+    downloadWorkbook(`test-runs-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+      { name: "Runs", rows: summaryRows },
+      { name: "Run Entries", rows: entryRows },
+      { name: "Comments", rows: commentRows },
+    ]);
+  }
+
+  async function exportDefects() {
+    try {
+      const detailRows = sortedFilteredDefects.map(def => ({
+        ID: def.defectNumber || "",
+        Run: def.runNumber || "",
+        TC: def.tcNumber || "",
+        Market: def.market || "",
+        Status: def.status || "",
+        Priority: def.priority || "",
+        "Issue Type": def.issueType || "",
+        Description: def.description || "",
+        "Expected Result": def.expectedResult || "",
+        "Actual Result": def.actualResult || "",
+        "Raised By": def.raisedBy || "",
+        "Assigned To": def.assignedTo || "",
+        Remarks: def.remarks || "",
+        "Target Fix Date": formatExportDateTime(def.targetFixDate),
+        "Date Raised": formatExportDateTime(def.dateRaised),
+        "Open Datetime": formatExportDateTime(def.openDateTime),
+        "Close Datetime": formatExportDateTime(def.closeDateTime),
+        "Aged (Days)": agedDays(def.dateRaised),
+      }));
+
+      const statusRows = sortedFilteredDefects.map(def => ({
+        ID: def.defectNumber || "",
+        Status: def.status || "",
+        Priority: def.priority || "",
+        "Raised By": def.raisedBy || "",
+        "Assigned To": def.assignedTo || "",
+        "Open Datetime": formatExportDateTime(def.openDateTime),
+        "Close Datetime": formatExportDateTime(def.closeDateTime),
+        "Aged (Days)": agedDays(def.dateRaised),
+      }));
+
+      const detailLists = await Promise.all(
+        sortedFilteredDefects.map(async def => ({
+          def,
+          attachments: await api.getDefectAttachments(def.id).catch(() => []),
+        }))
+      );
+
+      const attachmentRows = detailLists.flatMap(({ def, attachments }) =>
+        attachments.map(attachment => ({
+          ID: def.defectNumber || "",
+          Run: def.runNumber || "",
+          TC: def.tcNumber || "",
+          File: attachment.fileName || "",
+          Url: attachment.url || "",
+          "Size (KB)": Math.max(1, Math.round((attachment.size || 0) / 1024)),
+          "Uploaded By": attachment.uploadedBy || "",
+          "Uploaded At": formatExportDateTime(attachment.uploadedAt),
+        }))
+      );
+
+      downloadWorkbook(`defects-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+        { name: "Defects", rows: detailRows },
+        { name: "Status View", rows: statusRows },
+        { name: "Attachments", rows: attachmentRows },
+      ]);
+    } catch (error) {
+      alert(`Failed to export defects: ${error.message}`);
+    }
+  }
+
   const TABS = [["projects","🗂  Projects"],["testcases","📋  Test Cases"],["runs","▶  Test Runs"],["defects","🐛  Defect Log"]];
 
   if (loading) return (
@@ -1197,7 +1433,7 @@ export default function App() {
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ width:58, height:58, background:"linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:40, boxShadow:"0 4px 12px #6366f155" }}>◈</div>
           <div>
-            <div style={{ fontSize:35, fontWeight:700, color:"#0f172a" }}>UAT Management System</div>
+            <div style={{ fontSize:35, fontWeight:700, color:"#0f172a" }}>Test Management System</div>
             <div style={{ padding:"0 1px", fontSize:18, color:"#94a3b8", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" }}>User Acceptance Testing & Defect Tracking</div>
           </div>
         </div>
@@ -1438,6 +1674,7 @@ export default function App() {
 				  </button>
 				</div>
 			  )}
+        <button onClick={exportTestCases} style={{ ...btnS, padding:"9px 14px", fontSize:14 }} disabled={sortedFilteredTC.length===0}>Export Excel</button>
 			  <button onClick={()=>setShowAddTC(true)} style={btnP}>+ Add Test Case</button>
 			</div>
 
@@ -1614,6 +1851,7 @@ export default function App() {
                 🗑 Delete Selected
               </button>
             )}
+            <button onClick={exportRuns} style={{ ...btnS, padding:"8px 14px", fontSize:14 }} disabled={filteredRuns.length===0}>Export Excel</button>
             <button onClick={()=>setShowAddRun(true)} style={btnP}>+ New Test Run</button>
             </div>
           </div>
@@ -1741,6 +1979,7 @@ export default function App() {
                 </button>
               </div>
             )}
+            <button onClick={exportDefects} style={{ ...btnS, padding:"9px 14px", fontSize:14 }} disabled={sortedFilteredDefects.length===0}>Export Excel</button>
             <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>
           </div>
           <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", overflowX:"auto", overflowY:"visible" }}>
