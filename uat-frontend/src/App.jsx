@@ -126,6 +126,8 @@ export default function App() {
   const [defMarketFilter, setDefMarketFilter] = useState("All");
   const [selectedTcIds, setSelectedTcIds] = useState([]);
   const [selectedRunIds, setSelectedRunIds] = useState([]);
+  const [selectedDefectIds, setSelectedDefectIds] = useState([]);
+  const [contextMenu, setContextMenu] = useState(null);
   const [hoveredRunId, setHoveredRunId] = useState(null);
   const [commentDrafts, setCommentDrafts] = useState({});
   const [defectCommentDrafts, setDefectCommentDrafts] = useState({});
@@ -182,6 +184,12 @@ export default function App() {
 		.then(setDefects)
 		.catch(err => console.error("Defect Error:", err))
 		.finally(() => setLoading(false));
+	}, []);
+
+	useEffect(() => {
+	  function handleClick() { setContextMenu(null); }
+	  window.addEventListener("click", handleClick);
+	  return () => window.removeEventListener("click", handleClick);
 	}, []);
 
   useEffect(() => {
@@ -315,6 +323,55 @@ export default function App() {
       setSelectedTcIds([]);
     } catch(e) { alert("Failed to delete: " + e.message); }
   }
+
+  async function deleteDefects(ids) {
+    try {
+      await Promise.all(ids.map(id => api.deleteDefect(id)));
+      setDefects(p => p.filter(def => !ids.includes(def.id)));
+      setSelectedDefectIds([]);
+      setViewDef(d => (d && ids.includes(d.id) ? null : d));
+    } catch(e) { alert("Failed to delete defect(s): " + e.message); }
+  }
+  
+  async function duplicateTC(tc) {
+	  try {
+		const duped = await api.createTestCase({
+		  name: tc.name + " (Copy)",
+		  description: tc.description,
+		  steps: tc.steps,
+		  expectedResult: tc.expectedResult,
+		  priority: tc.priority,
+		  category: tc.category,
+		  remarks: tc.remarks,
+		});
+		setTestCases(p => [...p, duped]);
+		setContextMenu(null);
+	  } catch(e) { alert("Failed to duplicate: " + e.message); }
+	}
+
+	async function duplicateDefect(def) {
+	  try {
+		const run = runs.find(r => r.runNumber === def.runNumber);
+		const tc  = testCases.find(t => t.tcNumber === def.tcNumber);
+		if (!run || !tc) { alert("Cannot duplicate: linked run or TC not found."); return; }
+		const duped = await api.createDefect({
+		  testRunId:      run.id,
+		  testCaseId:     tc.id,
+		  market:         def.market,
+		  description:    def.description + " (Copy)",
+		  issueType:      def.issueType,
+		  expectedResult: def.expectedResult,
+		  actualResult:   def.actualResult,
+		  priority:       def.priority,
+		  raisedBy:       def.raisedBy,
+		  assignedTo:     def.assignedTo,
+		  targetFixDate:  def.targetFixDate || null,
+		  remarks:        def.remarks,
+		});
+		setDefects(p => [...p, duped]);
+		setContextMenu(null);
+	  } catch(e) { alert("Failed to duplicate: " + e.message); }
+	}
   
   async function addTcToRun(runId, tcId) {
     try {
@@ -817,7 +874,9 @@ export default function App() {
 					  )
 					);
 					return (
-					  <tr key={tc.id} style={{ borderBottom:"1px solid #f8fafc", background:isSelected?"#eff6ff":i%2===0?"#fff":"#fafafa", cursor:"pointer" }}
+					  <tr key={tc.id} 
+					  onContextMenu={e=>{ e.preventDefault(); setContextMenu({ type:"tc", item:tc, x:e.clientX, y:e.clientY }); }}
+					  style={{ borderBottom:"1px solid #f8fafc", background:isSelected?"#eff6ff":i%2===0?"#fff":"#fafafa", cursor:"pointer" }}
 						onMouseEnter={e=>{ if(!isSelected) e.currentTarget.style.background="#f0f4ff"; }}
 						onMouseLeave={e=>{ e.currentTarget.style.background=isSelected?"#eff6ff":i%2===0?"#fff":"#fafafa"; }}>
 						<td style={{ padding:"13px 16px" }} onClick={e=>e.stopPropagation()}>
@@ -1024,27 +1083,98 @@ export default function App() {
             >
               Reset
             </button>
+            {filteredDefects.length > 0 && (
+              <button
+                onClick={() => {
+                  if (selectedDefectIds.length === filteredDefects.length) {
+                    setSelectedDefectIds([]);
+                  } else {
+                    setSelectedDefectIds(filteredDefects.map(def => def.id));
+                  }
+                }}
+                style={{ ...btnS, padding:"9px 14px", fontSize:14 }}
+              >
+                {selectedDefectIds.length === filteredDefects.length ? "Clear Selection" : "Select All"}
+              </button>
+            )}
             <div style={{ flex:1 }}/>
+            {selectedDefectIds.length > 0 && (
+              <button
+                onClick={() => {
+                  if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
+                    deleteDefects(selectedDefectIds);
+                  }
+                }}
+                style={{ ...btnD, padding:"9px 14px", fontSize:14 }}
+              >
+                🗑 Delete Selected
+              </button>
+            )}
             <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>
           </div>
           <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", overflow:"hidden" }}>
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
               <thead>
                 <tr style={{ background:"#e2ebf3", borderBottom:"2px solid #f1f5f9" }}>
-                  {["ID","Run","TC","Market","Description","Priority","Assigned","Status","Aged",""].map(h=>(
+                  <th style={{ padding:"12px 16px", width:40 }}>
+                    <input
+                      type="checkbox"
+                      checked={filteredDefects.length > 0 && selectedDefectIds.length === filteredDefects.length}
+                      onChange={e => setSelectedDefectIds(e.target.checked ? filteredDefects.map(def => def.id) : [])}
+                      style={{ width:15, height:15, cursor:"pointer", accentColor:"#6366f1" }}
+                    />
+                  </th>
+                  {["Actions","ID","Run","TC","Market","Description","Priority","Assigned","Status","Aged"] .map(h=>(
                     <th key={h} style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {defects.length===0 && <tr><td colSpan={10} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects logged</td></tr>}
-                {defects.length>0 && filteredDefects.length===0 && <tr><td colSpan={10} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects match current filters</td></tr>}
+                {defects.length===0 && <tr><td colSpan={11} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects logged</td></tr>}
+                {defects.length>0 && filteredDefects.length===0 && <tr><td colSpan={11} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects match current filters</td></tr>}
                 {filteredDefects.map((def,i)=>{
                   const aged = agedDays(def.dateRaised);
+                  const isSelected = selectedDefectIds.includes(def.id);
                   return (
-                    <tr key={def.id} style={{ borderBottom:"1px solid #f8fafc", background:i%2===0?"#fff":"#fafafa", cursor:"pointer" }}
-                      onMouseEnter={e=>e.currentTarget.style.background="#f0f4ff"}
-                      onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"#fff":"#fafafa"}>
+                    <tr key={def.id} 
+					onContextMenu={e=>{ e.preventDefault(); setContextMenu({ type:"defect", item:def, x:e.clientX, y:e.clientY }); }}
+					style={{ borderBottom:"1px solid #f8fafc", background:isSelected?"#eff6ff":i%2===0?"#fff":"#fafafa", cursor:"pointer" }}
+                      onMouseEnter={e=>{ if (!isSelected) e.currentTarget.style.background="#f0f4ff"; }}
+                      onMouseLeave={e=>{ e.currentTarget.style.background=isSelected?"#eff6ff":i%2===0?"#fff":"#fafafa"; }}>
+                      <td style={{ padding:"13px 16px" }} onClick={e=>e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={e => setSelectedDefectIds(p => e.target.checked ? [...p, def.id] : p.filter(x=>x!==def.id))}
+                          style={{ width:15, height:15, cursor:"pointer", accentColor:"#6366f1" }}
+                        />
+                      </td>
+                      <td style={{ padding:"13px 16px", width:220, minWidth:220 }}>
+                        <div style={{ display:"flex", gap:8, alignItems:"center", whiteSpace:"nowrap" }}>
+                          <button onClick={()=>setViewDef(def)} style={{ ...btnS, padding:"5px 12px", fontSize:14 }}>View</button>
+                          <button
+                            onClick={() => setEditDef({
+                              ...def,
+                              dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
+                              targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
+                            })}
+                            style={{ ...btnP, padding:"5px 12px", fontSize:14 }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete ${def.defectNumber}?`)) {
+                                deleteDefects([def.id]);
+                              }
+                            }}
+                            style={xBtn}
+                            title="Delete"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </td>
                       <td style={{ padding:"13px 16px" }} onClick={()=>setViewDef(def)}>
                         <span style={{ fontWeight:800, color:"#ef4444", fontSize:14, fontFamily:"monospace", background:"#fff1f2", padding:"2px 7px", borderRadius:5 }}>{def.defectNumber}</span>
                       </td>
@@ -1066,9 +1196,6 @@ export default function App() {
                       </td>
                       <td style={{ padding:"13px 16px" }} onClick={()=>setViewDef(def)}>
                         <span style={{ fontWeight:700, fontSize:14, color:aged>7?"#ef4444":aged>3?"#f97316":"#22c55e" }}>{aged}d</span>
-                      </td>
-                      <td style={{ padding:"13px 16px" }}>
-                        <button onClick={()=>setViewDef(def)} style={{ ...btnS, padding:"5px 12px", fontSize:14 }}>View</button>
                       </td>
                     </tr>
                   );
@@ -1977,6 +2104,63 @@ export default function App() {
           </div>
         </Modal>
       )}
+	  {contextMenu && (
+  <div onClick={e=>e.stopPropagation()}
+    style={{
+      position:"fixed", top:contextMenu.y, left:contextMenu.x,
+      background:"#fff", border:"1.5px solid #f1f5f9", borderRadius:10,
+      boxShadow:"0 8px 32px rgba(0,0,0,0.12)", zIndex:2000,
+      minWidth:180, overflow:"hidden",
+    }}>
+    {/* header */}
+    <div style={{ padding:"10px 14px 8px", borderBottom:"1px solid #f8fafc" }}>
+      <div style={{ fontSize:10, fontWeight:800, color:"#94a3b8", letterSpacing:"0.08em", textTransform:"uppercase" }}>
+        {contextMenu.type === "tc" ? "Test Case" : "Defect"}
+      </div>
+      <div style={{ fontSize:12, fontWeight:600, color:"#1e293b", marginTop:2 }}>
+        {contextMenu.type === "tc"
+          ? contextMenu.item.tcNumber
+          : contextMenu.item.defectNumber}
+      </div>
+    </div>
+    {/* actions */}
+    <div style={{ padding:"4px 0" }}>
+      <button
+        onClick={() => contextMenu.type === "tc"
+          ? duplicateTC(contextMenu.item)
+          : duplicateDefect(contextMenu.item)}
+        style={{
+          display:"flex", alignItems:"center", gap:10,
+          width:"100%", padding:"9px 14px", background:"none",
+          border:"none", cursor:"pointer", fontSize:13, color:"#1e293b",
+          fontWeight:500, textAlign:"left",
+        }}
+        onMouseEnter={e=>e.currentTarget.style.background="#f0f4ff"}
+        onMouseLeave={e=>e.currentTarget.style.background="none"}>
+        <span style={{ fontSize:15 }}>⧉</span> Duplicate
+      </button>
+      <button
+        onClick={() => {
+          if (contextMenu.type === "tc") {
+            if (window.confirm("Delete this test case?")) deleteTestCases([contextMenu.item.id]);
+          } else {
+            if (window.confirm(`Delete ${contextMenu.item.defectNumber}?`)) deleteDefects([contextMenu.item.id]);
+          }
+          setContextMenu(null);
+        }}
+        style={{
+          display:"flex", alignItems:"center", gap:10,
+          width:"100%", padding:"9px 14px", background:"none",
+          border:"none", cursor:"pointer", fontSize:13, color:"#be123c",
+          fontWeight:500, textAlign:"left",
+        }}
+        onMouseEnter={e=>e.currentTarget.style.background="#fff1f2"}
+        onMouseLeave={e=>e.currentTarget.style.background="none"}>
+        <span style={{ fontSize:15 }}>🗑</span> Delete
+      </button>
+    </div>
+  </div>
+)}
     </div>
   );
 }

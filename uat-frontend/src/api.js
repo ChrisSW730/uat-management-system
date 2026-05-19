@@ -71,6 +71,9 @@ export const api = {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   }).then(r => r.json()),
+  deleteDefect: (id) => fetch(`${BASE}/defects/${id}`, {
+    method: "DELETE"
+  }),
   updateDefect: (id, data, changedBy) => fetch(`${BASE}/defects/${id}`, {
     method: "PUT",
     headers: {

@@ -164,6 +164,30 @@ public class DefectsController : ControllerBase
         return Ok(defect);
     }
 
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var defect = await _db.Defects.FindAsync(id);
+        if (defect == null) return NotFound();
+
+        var attachments = await _db.DefectAttachments
+            .Where(a => a.DefectId == id)
+            .ToListAsync();
+
+        foreach (var attachment in attachments)
+        {
+            var fullPath = Path.Combine(UploadRoot, attachment.StoredFileName);
+            if (System.IO.File.Exists(fullPath))
+            {
+                System.IO.File.Delete(fullPath);
+            }
+        }
+
+        _db.Defects.Remove(defect);
+        await _db.SaveChangesAsync();
+        return Ok();
+    }
+
     [HttpGet("{id}/audits")]
     public async Task<IActionResult> GetAudits(int id)
     {
