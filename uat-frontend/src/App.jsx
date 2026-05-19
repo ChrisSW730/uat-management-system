@@ -831,7 +831,7 @@ export default function App() {
 	}
 
   function createDefect(runId, tcId) {
-    const tc = testCases.find(t => t.id === tcId);
+    const tc = allTestCaseById[tcId];
     const run = runs.find(r => r.id === runId);
     setNewDef({ ...blankDef, raisedBy: run?.tester || "" });
     setNewDefAttachments([]);
@@ -1872,12 +1872,12 @@ export default function App() {
             </div>
           );})()}
 
-          <AddTcToRunRow testCases={testCases} run={viewRun} onAdd={tcId=>addTcToRun(viewRun.id, tcId)}/>
+          <AddTcToRunRow testCases={allTestCases} run={viewRun} onAdd={tcId=>addTcToRun(viewRun.id, tcId)}/>
 
           <div style={{ display:"grid", gap:10, marginTop:16 }}>
             {(viewRun.entries||[]).length===0 && <div style={{ textAlign:"center", padding:32, color:"#cbd5e1" }}>No test cases in this run yet.</div>}
             {(viewRun.entries||[]).map(entry=>{
-              const tc = testCases.find(t => t.id === entry.testCaseId);
+              const tc = allTestCaseById[entry.testCaseId];
               const ec = EXEC_STATUS[entry.execStatus] || EXEC_STATUS["Not Run"];
               const entryDefects = entry.defects || [];
               return (
@@ -2828,7 +2828,7 @@ export default function App() {
           {showAddDef.runId && showAddDef.tcId
             ? <div style={{ display:"flex", gap:8, marginBottom:12 }}>
                 <span style={{ background:"#eff6ff", color:"#1d4ed8", border:"1px solid #bfdbfe", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>{runs.find(r=>r.id===showAddDef.runId)?.runNumber}</span>
-                <span style={{ background:"#eff6ff", color:"#1d4ed8", border:"1px solid #bfdbfe", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>{testCases.find(t=>t.id===showAddDef.tcId)?.tcNumber}</span>
+                <span style={{ background:"#eff6ff", color:"#1d4ed8", border:"1px solid #bfdbfe", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>{allTestCaseById[showAddDef.tcId]?.tcNumber}</span>
               </div>
             : <div style={{ display:"flex", gap:8, marginBottom:12 }}>
                 <span style={{ background:"#fff7ed", color:"#c2410c", border:"1px solid #fdba74", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>Standalone Defect</span>
