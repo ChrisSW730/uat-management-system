@@ -1,8 +1,22 @@
 const BASE = "http://localhost:5176/api";
 
 export const api = {
+  // Projects and Test Plans
+  getProjects: () => fetch(`${BASE}/projects`).then(r => r.json()),
+  createProject: (data) => fetch(`${BASE}/projects`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  }).then(r => r.json()),
+  createTestPlan: (projectId, data) => fetch(`${BASE}/projects/${projectId}/testplans`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  }).then(r => r.json()),
+
   // Test Cases
-  getTestCases: () => fetch(`${BASE}/testcases`).then(r => r.json()),
+  getTestCases: (testPlanId) => {
+    const qp = testPlanId ? `?testPlanId=${testPlanId}` : "";
+    return fetch(`${BASE}/testcases${qp}`).then(r => r.json());
+  },
   createTestCase: (data) => fetch(`${BASE}/testcases`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)

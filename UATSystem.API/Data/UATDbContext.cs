@@ -7,6 +7,8 @@ public class UATDbContext : DbContext
 {
     public UATDbContext(DbContextOptions<UATDbContext> options) : base(options) { }
 
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<TestPlan> TestPlans => Set<TestPlan>();
     public DbSet<TestCase> TestCases => Set<TestCase>();
     public DbSet<TestRun> TestRuns => Set<TestRun>();
     public DbSet<TestRunEntry> TestRunEntries => Set<TestRunEntry>();
@@ -17,6 +19,18 @@ public class UATDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<TestPlan>()
+            .HasOne(tp => tp.Project)
+            .WithMany(p => p.TestPlans)
+            .HasForeignKey(tp => tp.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TestCase>()
+            .HasOne(tc => tc.TestPlan)
+            .WithMany(tp => tp.TestCases)
+            .HasForeignKey(tc => tc.TestPlanId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<TestRunEntry>()
             .HasOne(e => e.TestRun)
             .WithMany(r => r.Entries)

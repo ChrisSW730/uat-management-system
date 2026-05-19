@@ -93,6 +93,7 @@ public class DefectsController : ControllerBase
         }
 
         var count = await _db.Defects.CountAsync();
+        var now = DateTime.UtcNow;
         var defect = new Defect
         {
             DefectNumber = $"DEF-{(count + 1):D3}",
@@ -108,10 +109,12 @@ public class DefectsController : ControllerBase
             Status = "New",
             RaisedBy = dto.RaisedBy,
             AssignedTo = dto.AssignedTo,
-            DateRaised = DateTime.UtcNow,
+            DateRaised = now,
+            OpenDateTime = now,
+            CloseDateTime = null,
             TargetFixDate = dto.TargetFixDate,
             Remarks = dto.Remarks,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
         };
         _db.Defects.Add(defect);
         await _db.SaveChangesAsync();
@@ -126,6 +129,18 @@ public class DefectsController : ControllerBase
 
         var changedBy = GetChangedBy();
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
+
+        var oldClose = defect.CloseDateTime;
+        if (dto.Status == "Closed")
+        {
+            defect.CloseDateTime = DateTime.UtcNow;
+        }
+        else
+        {
+            defect.CloseDateTime = null;
+        }
+
+        AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(defect.CloseDateTime), changedBy);
         defect.Status = dto.Status;
 
         await _db.SaveChangesAsync();
@@ -166,8 +181,13 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "RaisedBy", defect.RaisedBy, dto.RaisedBy, changedBy);
         AddAudit(defect, "AssignedTo", defect.AssignedTo, dto.AssignedTo, changedBy);
         AddAudit(defect, "DateRaised", AuditDate(defect.DateRaised), AuditDate(dto.DateRaised), changedBy);
+        AddAudit(defect, "OpenDateTime", AuditDate(defect.OpenDateTime), AuditDate(dto.DateRaised), changedBy);
         AddAudit(defect, "TargetFixDate", AuditDate(defect.TargetFixDate), AuditDate(dto.TargetFixDate), changedBy);
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
+
+        var oldClose = defect.CloseDateTime;
+        DateTime? newClose = dto.Status == "Closed" ? DateTime.UtcNow : null;
+        AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(newClose), changedBy);
 
         defect.TestRunEntryId = entry?.Id;
         defect.RunNumber = entry?.TestRun.RunNumber ?? "-";
@@ -180,6 +200,8 @@ public class DefectsController : ControllerBase
         defect.RaisedBy = dto.RaisedBy;
         defect.AssignedTo = dto.AssignedTo;
         defect.DateRaised = dto.DateRaised;
+        defect.OpenDateTime = dto.DateRaised;
+        defect.CloseDateTime = newClose;
         defect.TargetFixDate = dto.TargetFixDate;
         defect.Status = dto.Status;
 

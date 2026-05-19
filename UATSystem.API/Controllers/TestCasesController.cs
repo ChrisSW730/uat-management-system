@@ -40,8 +40,16 @@ public class TestCasesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll() =>
-        Ok(await _db.TestCases.OrderBy(t => t.TcNumber).ToListAsync());
+    public async Task<IActionResult> GetAll([FromQuery] int? testPlanId)
+    {
+        var query = _db.TestCases.AsQueryable();
+        if (testPlanId.HasValue)
+        {
+            query = query.Where(t => t.TestPlanId == testPlanId.Value);
+        }
+
+        return Ok(await query.OrderBy(t => t.TcNumber).ToListAsync());
+    }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(int id)
@@ -53,6 +61,17 @@ public class TestCasesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(TestCase tc)
     {
+        if (!tc.TestPlanId.HasValue)
+        {
+            return BadRequest("TestPlanId is required.");
+        }
+
+        var planExists = await _db.TestPlans.AnyAsync(tp => tp.Id == tc.TestPlanId.Value);
+        if (!planExists)
+        {
+            return BadRequest("Invalid TestPlanId.");
+        }
+
         var count = await _db.TestCases.CountAsync();
         tc.TcNumber = $"TC-{(count + 1):D3}";
         tc.CreatedAt = DateTime.UtcNow;
@@ -73,6 +92,7 @@ public class TestCasesController : ControllerBase
         tc.Priority = updated.Priority;
         tc.Category = updated.Category;
         tc.Remarks = updated.Remarks;
+        tc.TestPlanId = updated.TestPlanId;
         await _db.SaveChangesAsync();
         return Ok(tc);
     }

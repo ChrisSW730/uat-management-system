@@ -111,10 +111,13 @@ const xBtn = { background:"#f1f5f9", border:"none", color:"#64748b", width:32, h
 ───────────────────────────────────────── */
 export default function App() {
   const [activeTab, setActiveTab]     = useState("testcases");
+  const [projects, setProjects]       = useState([]);
   const [testCases, setTestCases]     = useState([]);
   const [runs, setRuns]               = useState([]);
   const [defects, setDefects]         = useState([]);
   const [loading, setLoading]         = useState(true);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [selectedTestPlanId, setSelectedTestPlanId] = useState("");
 
   // TC filters
   const [tcSearch, setTcSearch]       = useState("");
@@ -124,6 +127,11 @@ export default function App() {
   const [defStatusFilter, setDefStatusFilter] = useState("All");
   const [defPriFilter, setDefPriFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState("All");
+  const [defOpenRule, setDefOpenRule] = useState("Any");
+  const [defOpenDate, setDefOpenDate] = useState("");
+  const [defCloseRule, setDefCloseRule] = useState("Any");
+  const [defCloseDate, setDefCloseDate] = useState("");
+  const [defDateFilterPanel, setDefDateFilterPanel] = useState(null);
   const [selectedTcIds, setSelectedTcIds] = useState([]);
   const [selectedRunIds, setSelectedRunIds] = useState([]);
   const [selectedDefectIds, setSelectedDefectIds] = useState([]);
@@ -137,6 +145,10 @@ export default function App() {
   const [testCaseAttachments, setTestCaseAttachments] = useState({});
   const [uploadingTestCaseId, setUploadingTestCaseId] = useState(null);
   const [newTCAttachments, setNewTCAttachments] = useState([]);
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [showAddPlan, setShowAddPlan] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newPlanName, setNewPlanName] = useState("");
 
   // Modals
   const [viewTC,     setViewTC]    = useState(null);
@@ -160,6 +172,15 @@ export default function App() {
     return localStorage.getItem("uatUserName") || "Chris";
   }
 
+  function toggleDefDateFilterPanel(e, type) {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const panelWidth = 190;
+    const left = Math.max(8, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 8));
+    const top = Math.min(rect.bottom + 6, window.innerHeight - 150);
+    setDefDateFilterPanel(p => p?.type === type ? null : { type, top, left });
+  }
+
   /* ── Load data from API ── */
  /* useEffect(() => {
     Promise.all([api.getTestCases(), api.getTestRuns(), api.getDefects()])
@@ -172,6 +193,18 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);*/
 	  useEffect(() => {
+      api.getProjects()
+        .then(ps => {
+          setProjects(ps || []);
+          if ((ps || []).length > 0) {
+            const p = ps[0];
+            setSelectedProjectId(String(p.id));
+            const firstPlan = (p.testPlans || [])[0];
+            if (firstPlan) setSelectedTestPlanId(String(firstPlan.id));
+          }
+        })
+        .catch(err => console.error("Project Error:", err));
+
 	  api.getTestCases()
 		.then(setTestCases)
 		.catch(err => console.error("TC Error:", err));
@@ -186,8 +219,17 @@ export default function App() {
 		.finally(() => setLoading(false));
 	}, []);
 
+  useEffect(() => {
+    api.getTestCases(selectedTestPlanId || undefined)
+      .then(setTestCases)
+      .catch(err => console.error("TC Error:", err));
+  }, [selectedTestPlanId]);
+
 	useEffect(() => {
-	  function handleClick() { setContextMenu(null); }
+    function handleClick() {
+      setContextMenu(null);
+      setDefDateFilterPanel(null);
+    }
 	  window.addEventListener("click", handleClick);
 	  return () => window.removeEventListener("click", handleClick);
 	}, []);
@@ -223,6 +265,24 @@ export default function App() {
 
   const filteredDefects = useMemo(() => defects.filter(def => {
     const q = defSearch.trim().toLowerCase();
+    const openAt = def.openDateTime || def.dateRaised;
+    const closeAt = def.closeDateTime;
+
+    function matchDateRule(sourceDate, rule, selectedDate) {
+      if (rule === "Any" || !selectedDate) return true;
+      if (!sourceDate) return false;
+
+      const source = new Date(sourceDate);
+      const start = new Date(`${selectedDate}T00:00:00`);
+      const end = new Date(`${selectedDate}T23:59:59`);
+      if (Number.isNaN(source.getTime()) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return true;
+
+      if (rule === "Before") return source < start;
+      if (rule === "After") return source > end;
+      if (rule === "On") return source >= start && source <= end;
+      return true;
+    }
+
     const matchesSearch = !q
       || def.defectNumber?.toLowerCase().includes(q)
       || def.runNumber?.toLowerCase().includes(q)
@@ -230,11 +290,17 @@ export default function App() {
       || def.description?.toLowerCase().includes(q)
       || def.assignedTo?.toLowerCase().includes(q)
       || def.raisedBy?.toLowerCase().includes(q);
+
+    const matchesOpenRule = matchDateRule(openAt, defOpenRule, defOpenDate);
+    const matchesCloseRule = matchDateRule(closeAt, defCloseRule, defCloseDate);
+
     return matchesSearch
       && (defStatusFilter === "All" || def.status === defStatusFilter)
       && (defPriFilter === "All" || def.priority === defPriFilter)
-      && (defMarketFilter === "All" || def.market === defMarketFilter);
-  }), [defects, defSearch, defStatusFilter, defPriFilter, defMarketFilter]);
+      && (defMarketFilter === "All" || def.market === defMarketFilter)
+        && matchesOpenRule
+        && matchesCloseRule;
+      }), [defects, defSearch, defStatusFilter, defPriFilter, defMarketFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate]);
 
   const sortedRuns = useMemo(() => {
     return [...runs].sort((a, b) => {
@@ -245,10 +311,36 @@ export default function App() {
     });
   }, [runs]);
 
+  const selectedProject = useMemo(
+    () => projects.find(p => String(p.id) === String(selectedProjectId)) || null,
+    [projects, selectedProjectId]
+  );
+
+  const selectedProjectPlans = useMemo(
+    () => selectedProject?.testPlans || [],
+    [selectedProject]
+  );
+
+  const testPlanMetaById = useMemo(() => {
+    const map = {};
+    (projects || []).forEach(p => {
+      (p.testPlans || []).forEach(tp => {
+        map[tp.id] = { testPlanName: tp.name, projectName: p.name };
+      });
+    });
+    return map;
+  }, [projects]);
+
   /* ── CRUD functions ── */
   async function addTC() {
+    if (!selectedTestPlanId) {
+      alert("Please select a test plan first.");
+      return;
+    }
+
     try {
       const tc = await api.createTestCase({
+        testPlanId: Number(selectedTestPlanId),
         name: newTC.name,
         description: newTC.description,
         steps: newTC.steps,
@@ -336,6 +428,7 @@ export default function App() {
   async function duplicateTC(tc) {
 	  try {
 		const duped = await api.createTestCase({
+      testPlanId: tc.testPlanId || (selectedTestPlanId ? Number(selectedTestPlanId) : null),
 		  name: tc.name + " (Copy)",
 		  description: tc.description,
 		  steps: tc.steps,
@@ -348,6 +441,40 @@ export default function App() {
 		setContextMenu(null);
 	  } catch(e) { alert("Failed to duplicate: " + e.message); }
 	}
+
+  async function addProject() {
+    if (!newProjectName.trim()) return;
+    try {
+      const p = await api.createProject({ name: newProjectName.trim() });
+      setProjects(prev => [...prev, { ...p, testPlans: p.testPlans || [] }]);
+      setSelectedProjectId(String(p.id));
+      setSelectedTestPlanId("");
+      setNewProjectName("");
+      setShowAddProject(false);
+    } catch (e) {
+      alert("Failed to create project: " + e.message);
+    }
+  }
+
+  async function addTestPlan() {
+    if (!selectedProjectId) {
+      alert("Please select a project first.");
+      return;
+    }
+    if (!newPlanName.trim()) return;
+
+    try {
+      const plan = await api.createTestPlan(selectedProjectId, { name: newPlanName.trim() });
+      setProjects(prev => prev.map(p => String(p.id) !== String(selectedProjectId)
+        ? p
+        : { ...p, testPlans: [...(p.testPlans || []), plan] }));
+      setSelectedTestPlanId(String(plan.id));
+      setNewPlanName("");
+      setShowAddPlan(false);
+    } catch (e) {
+      alert("Failed to create test plan: " + e.message);
+    }
+  }
 
 	async function duplicateDefect(def) {
 	  try {
@@ -595,9 +722,9 @@ export default function App() {
 
   async function updateDefStatus(id, v) {
     try {
-      await api.updateDefectStatus(id, v, getCurrentUserName());
-      setDefects(p => p.map(d => d.id === id ? { ...d, status: v } : d));
-      setViewDef(d => d?.id === id ? { ...d, status: v } : d);
+      const updated = await api.updateDefectStatus(id, v, getCurrentUserName());
+      setDefects(p => p.map(d => d.id === id ? updated : d));
+      setViewDef(d => d?.id === id ? updated : d);
     } catch(e) { console.error("Failed to update defect status:", e); }
   }
 
@@ -793,7 +920,7 @@ export default function App() {
     return Math.floor((new Date() - new Date(dateStr)) / 86400000);
   }
 
-  const TABS = [["testcases","📋  Test Cases"],["runs","▶  Test Runs"],["defects","🐛  Defect Log"]];
+  const TABS = [["projects","🗂  Projects"],["testcases","📋  Test Cases"],["runs","▶  Test Runs"],["defects","🐛  Defect Log"]];
 
   if (loading) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontSize:16, color:"#64748b", fontFamily:"Inter,sans-serif" }}>
@@ -827,6 +954,41 @@ export default function App() {
       </div>
 
       {/* ══════════════════════════════════
+          TAB: PROJECTS
+      ══════════════════════════════════ */}
+      {activeTab==="projects" && (
+        <div style={{ padding:"20px 2.5%" }}>
+          <div style={{ display:"flex", gap:10, marginBottom:16 }}>
+            <button onClick={()=>setShowAddProject(true)} style={btnP}>+ Add Project</button>
+            <button onClick={()=>setShowAddPlan(true)} style={{ ...btnS, opacity:!selectedProjectId?0.5:1 }} disabled={!selectedProjectId}>+ Add Test Plan</button>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"320px 1fr", gap:16 }}>
+            <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", overflow:"hidden" }}>
+              <div style={{ padding:"12px 14px", borderBottom:"1px solid #f1f5f9", fontWeight:800, color:"#334155" }}>Projects</div>
+              {(projects || []).length === 0 && <div style={{ padding:18, color:"#94a3b8" }}>No projects yet.</div>}
+              {(projects || []).map(p => (
+                <button key={p.id} onClick={()=>{ setSelectedProjectId(String(p.id)); setSelectedTestPlanId(""); }}
+                  style={{ width:"100%", textAlign:"left", border:"none", background:String(selectedProjectId)===String(p.id)?"#eff6ff":"#fff", borderBottom:"1px solid #f8fafc", padding:"12px 14px", cursor:"pointer", fontWeight:700, color:String(selectedProjectId)===String(p.id)?"#1d4ed8":"#334155" }}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+            <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", overflow:"hidden" }}>
+              <div style={{ padding:"12px 14px", borderBottom:"1px solid #f1f5f9", fontWeight:800, color:"#334155" }}>Test Plans {selectedProject ? `- ${selectedProject.name}` : ""}</div>
+              {!selectedProject && <div style={{ padding:18, color:"#94a3b8" }}>Select a project to view plans.</div>}
+              {selectedProject && selectedProjectPlans.length === 0 && <div style={{ padding:18, color:"#94a3b8" }}>No test plans yet.</div>}
+              {selectedProjectPlans.map(tp => (
+                <button key={tp.id} onClick={()=>{ setSelectedTestPlanId(String(tp.id)); setActiveTab("testcases"); }}
+                  style={{ width:"100%", textAlign:"left", border:"none", background:String(selectedTestPlanId)===String(tp.id)?"#eff6ff":"#fff", borderBottom:"1px solid #f8fafc", padding:"12px 14px", cursor:"pointer", fontWeight:700, color:String(selectedTestPlanId)===String(tp.id)?"#1d4ed8":"#334155" }}>
+                  {tp.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════
           TAB: TEST CASES
       ══════════════════════════════════ */}
       
@@ -846,11 +1008,35 @@ export default function App() {
 				<option value="All">All Priorities</option>
         {TEST_CASE_PRIORITIES.map(p=><option key={p}>{p}</option>)}
 			  </select>
+        <select
+          value={selectedProjectId}
+          onChange={e => {
+            const pid = e.target.value;
+            setSelectedProjectId(pid);
+            const p = projects.find(x => String(x.id) === String(pid));
+            const fp = (p?.testPlans || [])[0];
+            setSelectedTestPlanId(fp ? String(fp.id) : "");
+          }}
+          style={{ ...inp, width:190 }}
+        >
+          <option value="">Select Project</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <select
+          value={selectedTestPlanId}
+          onChange={e => setSelectedTestPlanId(e.target.value)}
+          style={{ ...inp, width:210 }}
+        >
+          <option value="">Select Test Plan</option>
+          {selectedProjectPlans.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
+        </select>
         <button
         onClick={() => {
           setTcSearch("");
           setTcCatFilter("All");
           setTcPriFilter("All");
+          setSelectedProjectId("");
+          setSelectedTestPlanId("");
         }}
         style={{ ...btnS, padding:"9px 14px", fontSize:14 }}
         >
@@ -894,15 +1080,16 @@ export default function App() {
 						style={{ width:15, height:15, cursor:"pointer", accentColor:"#6366f1" }}
 					  />
 					</th>
-          {["Actions","ID","Test Name","Category","Coverage","Priority"].map(h=>(
+          {["Actions","ID","Project","Test Plan","Test Name","Category","Coverage","Priority"].map(h=>(
 					  <th key={h} style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{h}</th>
 					))}
 				  </tr>
 				</thead>
 				<tbody>
-				  {filteredTC.length===0 && <tr><td colSpan={6} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No test cases found</td></tr>}
+          {filteredTC.length===0 && <tr><td colSpan={9} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No test cases found</td></tr>}
 				  {filteredTC.map((tc,i)=>{
 					const isSelected = selectedTcIds.includes(tc.id);
+          const planMeta = tc.testPlanId ? testPlanMetaById[tc.testPlanId] : null;
 					const coveredRuns = runs.filter(run =>
 					  (run.entries || []).some(
 						e => e.testCaseId === tc.id
@@ -947,9 +1134,15 @@ export default function App() {
 						<td style={{ padding:"13px 16px" }} onClick={()=>setViewTC(tc)}>
 						  <span style={{ fontWeight:800, color:"#6366f1", fontSize:14, fontFamily:"monospace", background:"#eff6ff", padding:"2px 7px", borderRadius:5 }}>{tc.tcNumber}</span>
 						</td>
-						<td style={{ padding:"13px 16px", maxWidth:340 }} onClick={()=>setViewTC(tc)}>
-						  <div style={{ fontWeight:700, color:"#1e293b", lineHeight:1.4 }}>{tc.name}</div>
-						</td>
+            <td style={{ padding:"13px 16px" }} onClick={()=>setViewTC(tc)}>
+              <span style={{ fontSize:13, color:"#475569", fontWeight:700 }}>{planMeta?.projectName || "-"}</span>
+            </td>
+            <td style={{ padding:"13px 16px" }} onClick={()=>setViewTC(tc)}>
+              <span style={{ fontSize:13, color:"#475569", fontWeight:700 }}>{planMeta?.testPlanName || "-"}</span>
+            </td>
+            <td style={{ padding:"13px 16px", maxWidth:340 }} onClick={()=>setViewTC(tc)}>
+              <div style={{ fontWeight:700, color:"#1e293b", lineHeight:1.4 }}>{tc.name}</div>
+            </td>
 						<td style={{ padding:"13px 16px" }} onClick={()=>setViewTC(tc)}>
 						  <span style={{ fontSize:14, color:"#64748b", background:"#f1f5f9", padding:"2px 8px", borderRadius:6, fontWeight:700 }}>{tc.category.split("(")[0].trim().slice(0,20)}</span>
 						</td>
@@ -1113,6 +1306,10 @@ export default function App() {
                 setDefStatusFilter("All");
                 setDefPriFilter("All");
                 setDefMarketFilter("All");
+                setDefOpenRule("Any");
+                setDefOpenDate("");
+                setDefCloseRule("Any");
+                setDefCloseDate("");
               }}
               style={{ ...btnS, padding:"9px 14px", fontSize:14 }}
             >
@@ -1150,7 +1347,7 @@ export default function App() {
             )}
             <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>
           </div>
-          <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", overflow:"hidden" }}>
+          <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", overflowX:"auto", overflowY:"visible" }}>
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
               <thead>
                 <tr style={{ background:"#e2ebf3", borderBottom:"2px solid #f1f5f9" }}>
@@ -1162,14 +1359,45 @@ export default function App() {
                       style={{ width:15, height:15, cursor:"pointer", accentColor:"#6366f1" }}
                     />
                   </th>
-                  {["Actions","ID","Run","TC","Market","Description","Priority","Assigned","Status","Aged"] .map(h=>(
-                    <th key={h} style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>{h}</th>
-                  ))}
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Actions</th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>ID</th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Run</th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>TC</th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Market</th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Description</th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Priority</th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Assigned</th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Status</th>
+                  <th style={{ padding:"8px 12px", textAlign:"left", color:"#1f252e", whiteSpace:"nowrap", position:"relative", zIndex:5 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <span style={{ fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase" }}>Open Datetime</span>
+                      <button
+                        onClick={e => toggleDefDateFilterPanel(e, "open")}
+                        title="Filter open datetime"
+                        style={{ border:"1px solid #cbd5e1", background:defDateFilterPanel?.type === "open" ? "#eff6ff" : "#fff", color:defDateFilterPanel?.type === "open" ? "#1d4ed8" : "#64748b", borderRadius:6, width:22, height:22, fontSize:12, cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center", padding:0 }}
+                      >
+                        ⌕
+                      </button>
+                    </div>
+                  </th>
+                  <th style={{ padding:"8px 12px", textAlign:"left", color:"#1f252e", whiteSpace:"nowrap", position:"relative", zIndex:5 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <span style={{ fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase" }}>Close Datetime</span>
+                      <button
+                        onClick={e => toggleDefDateFilterPanel(e, "close")}
+                        title="Filter close datetime"
+                        style={{ border:"1px solid #cbd5e1", background:defDateFilterPanel?.type === "close" ? "#eff6ff" : "#fff", color:defDateFilterPanel?.type === "close" ? "#1d4ed8" : "#64748b", borderRadius:6, width:22, height:22, fontSize:12, cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center", padding:0 }}
+                      >
+                        ⌕
+                      </button>
+                    </div>
+                  </th>
+                  <th style={{ padding:"12px 16px", textAlign:"left", color:"#1f252e", fontSize:14, fontWeight:700, letterSpacing:"0.09em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Aged</th>
                 </tr>
               </thead>
               <tbody>
-                {defects.length===0 && <tr><td colSpan={11} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects logged</td></tr>}
-                {defects.length>0 && filteredDefects.length===0 && <tr><td colSpan={11} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects match current filters</td></tr>}
+                {defects.length===0 && <tr><td colSpan={13} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects logged</td></tr>}
+                {defects.length>0 && filteredDefects.length===0 && <tr><td colSpan={13} style={{ padding:48, textAlign:"center", color:"#cbd5e1" }}>No defects match current filters</td></tr>}
                 {filteredDefects.map((def,i)=>{
                   const aged = agedDays(def.dateRaised);
                   const isSelected = selectedDefectIds.includes(def.id);
@@ -1233,6 +1461,12 @@ export default function App() {
                           style={{ background:DEFECT_STATUS[def.status]?.bg, color:DEFECT_STATUS[def.status]?.text, border:`1.5px solid ${DEFECT_STATUS[def.status]?.border}`, borderRadius:20, padding:"4px 10px", fontSize:14, fontWeight:700, cursor:"pointer", outline:"none" }}>
                           {Object.keys(DEFECT_STATUS).map(s=><option key={s}>{s}</option>)}
                         </select>
+                      </td>
+                      <td style={{ padding:"13px 16px", color:"#64748b", fontSize:13 }} onClick={()=>setViewDef(def)}>
+                        {def.openDateTime ? new Date(def.openDateTime).toLocaleString() : "-"}
+                      </td>
+                      <td style={{ padding:"13px 16px", color:"#64748b", fontSize:13 }} onClick={()=>setViewDef(def)}>
+                        {def.closeDateTime ? new Date(def.closeDateTime).toLocaleString() : "-"}
                       </td>
                       <td style={{ padding:"13px 16px" }} onClick={()=>setViewDef(def)}>
                         <span style={{ fontWeight:700, fontSize:14, color:aged>7?"#ef4444":aged>3?"#f97316":"#22c55e" }}>{aged}d</span>
@@ -1834,7 +2068,49 @@ export default function App() {
           </div>
           <div style={{ display:"flex", gap:10, marginTop:22, justifyContent:"flex-end" }}>
             <button onClick={()=>setShowAddTC(false)} style={btnS}>Cancel</button>
-            <button onClick={addTC} style={{ ...btnP, opacity:!newTC.name?0.5:1 }} disabled={!newTC.name}>Add Test Case</button>
+            <button onClick={addTC} style={{ ...btnP, opacity:(!newTC.name || !selectedTestPlanId)?0.5:1 }} disabled={!newTC.name || !selectedTestPlanId}>Add Test Case</button>
+          </div>
+        </Modal>
+      )}
+
+      {showAddProject && (
+        <Modal onClose={()=>setShowAddProject(false)}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
+            <div style={{ fontSize:17, fontWeight:800 }}>Add Project</div>
+            <button onClick={()=>setShowAddProject(false)} style={xBtn}>✕</button>
+          </div>
+          <div style={{ display:"grid", gap:12 }}>
+            <div>
+              <label style={lbl}>Project Name *</label>
+              <input value={newProjectName} onChange={e=>setNewProjectName(e.target.value)} style={inp} />
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:10, marginTop:18, justifyContent:"flex-end" }}>
+            <button onClick={()=>setShowAddProject(false)} style={btnS}>Cancel</button>
+            <button onClick={addProject} style={{ ...btnP, opacity:!newProjectName.trim()?0.5:1 }} disabled={!newProjectName.trim()}>Create Project</button>
+          </div>
+        </Modal>
+      )}
+
+      {showAddPlan && (
+        <Modal onClose={()=>setShowAddPlan(false)}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
+            <div style={{ fontSize:17, fontWeight:800 }}>Add Test Plan</div>
+            <button onClick={()=>setShowAddPlan(false)} style={xBtn}>✕</button>
+          </div>
+          <div style={{ display:"grid", gap:12 }}>
+            <div>
+              <label style={lbl}>Project</label>
+              <input value={selectedProject?.name || "No project selected"} style={{ ...inp, background:"#f8fafc" }} readOnly />
+            </div>
+            <div>
+              <label style={lbl}>Test Plan Name *</label>
+              <input value={newPlanName} onChange={e=>setNewPlanName(e.target.value)} style={inp} />
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:10, marginTop:18, justifyContent:"flex-end" }}>
+            <button onClick={()=>setShowAddPlan(false)} style={btnS}>Cancel</button>
+            <button onClick={addTestPlan} style={{ ...btnP, opacity:(!newPlanName.trim() || !selectedProjectId)?0.5:1 }} disabled={!newPlanName.trim() || !selectedProjectId}>Create Test Plan</button>
           </div>
         </Modal>
       )}
@@ -2182,6 +2458,45 @@ export default function App() {
           </div>
         </Modal>
       )}
+	  {defDateFilterPanel && (
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          position:"fixed",
+          top:defDateFilterPanel.top,
+          left:defDateFilterPanel.left,
+          zIndex:2500,
+          background:"#fff",
+          border:"1.5px solid #e2e8f0",
+          borderRadius:10,
+          boxShadow:"0 10px 30px rgba(0,0,0,0.12)",
+          padding:10,
+          width:190
+        }}
+      >
+        <div style={{ display:"grid", gap:6 }}>
+          <select
+            value={defDateFilterPanel.type === "open" ? defOpenRule : defCloseRule}
+            onChange={e => {
+              if (defDateFilterPanel.type === "open") setDefOpenRule(e.target.value);
+              else setDefCloseRule(e.target.value);
+            }}
+            style={{ ...inp, width:"100%", fontSize:12, padding:"6px 8px" }}
+          >
+            {["Any", "Before", "After", "On"].map(rule => <option key={rule}>{rule}</option>)}
+          </select>
+          <input
+            type="date"
+            value={defDateFilterPanel.type === "open" ? defOpenDate : defCloseDate}
+            onChange={e => {
+              if (defDateFilterPanel.type === "open") setDefOpenDate(e.target.value);
+              else setDefCloseDate(e.target.value);
+            }}
+            style={{ ...inp, width:"100%", fontSize:12, padding:"6px 8px" }}
+          />
+        </div>
+      </div>
+    )}
 	  {contextMenu && (
   <div onClick={e=>e.stopPropagation()}
     style={{

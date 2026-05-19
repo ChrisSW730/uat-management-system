@@ -17,6 +17,8 @@ public class Defect
     public string RaisedBy { get; set; } = string.Empty;
     public string AssignedTo { get; set; } = string.Empty;
     public DateTime DateRaised { get; set; } = DateTime.UtcNow;
+    public DateTime OpenDateTime { get; set; } = DateTime.UtcNow;
+    public DateTime? CloseDateTime { get; set; }
     public DateTime? TargetFixDate { get; set; }
     public string Remarks { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

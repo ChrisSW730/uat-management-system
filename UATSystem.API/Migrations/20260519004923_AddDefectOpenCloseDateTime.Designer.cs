@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UATSystem.API.Data;
 
@@ -11,9 +12,11 @@ using UATSystem.API.Data;
 namespace UATSystem.API.Migrations
 {
     [DbContext(typeof(UATDbContext))]
-    partial class UATDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260519004923_AddDefectOpenCloseDateTime")]
+    partial class AddDefectOpenCloseDateTime
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -184,26 +187,6 @@ namespace UATSystem.API.Migrations
                     b.ToTable("DefectAuditLogs");
                 });
 
-            modelBuilder.Entity("UATSystem.API.Models.Project", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Projects");
-                });
-
             modelBuilder.Entity("UATSystem.API.Models.TestCase", b =>
                 {
                     b.Property<int>("Id")
@@ -247,12 +230,7 @@ namespace UATSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("TestPlanId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("TestPlanId");
 
                     b.ToTable("TestCases");
                 });
@@ -295,31 +273,6 @@ namespace UATSystem.API.Migrations
                     b.HasIndex("TestCaseId");
 
                     b.ToTable("TestCaseAttachments");
-                });
-
-            modelBuilder.Entity("UATSystem.API.Models.TestPlan", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ProjectId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId");
-
-                    b.ToTable("TestPlans");
                 });
 
             modelBuilder.Entity("UATSystem.API.Models.TestRun", b =>
@@ -413,16 +366,6 @@ namespace UATSystem.API.Migrations
                     b.Navigation("Defect");
                 });
 
-            modelBuilder.Entity("UATSystem.API.Models.TestCase", b =>
-                {
-                    b.HasOne("UATSystem.API.Models.TestPlan", "TestPlan")
-                        .WithMany("TestCases")
-                        .HasForeignKey("TestPlanId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("TestPlan");
-                });
-
             modelBuilder.Entity("UATSystem.API.Models.TestCaseAttachment", b =>
                 {
                     b.HasOne("UATSystem.API.Models.TestCase", "TestCase")
@@ -432,17 +375,6 @@ namespace UATSystem.API.Migrations
                         .IsRequired();
 
                     b.Navigation("TestCase");
-                });
-
-            modelBuilder.Entity("UATSystem.API.Models.TestPlan", b =>
-                {
-                    b.HasOne("UATSystem.API.Models.Project", "Project")
-                        .WithMany("TestPlans")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("UATSystem.API.Models.TestRunEntry", b =>
@@ -471,21 +403,11 @@ namespace UATSystem.API.Migrations
                     b.Navigation("AuditLogs");
                 });
 
-            modelBuilder.Entity("UATSystem.API.Models.Project", b =>
-                {
-                    b.Navigation("TestPlans");
-                });
-
             modelBuilder.Entity("UATSystem.API.Models.TestCase", b =>
                 {
                     b.Navigation("Attachments");
 
                     b.Navigation("TestRunEntries");
-                });
-
-            modelBuilder.Entity("UATSystem.API.Models.TestPlan", b =>
-                {
-                    b.Navigation("TestCases");
                 });
 
             modelBuilder.Entity("UATSystem.API.Models.TestRun", b =>
