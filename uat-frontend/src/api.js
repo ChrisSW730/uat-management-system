@@ -3,14 +3,68 @@ const BASE = "http://localhost:5176/api";
 export const api = {
   // Projects and Test Plans
   getProjects: () => fetch(`${BASE}/projects`).then(r => r.json()),
-  createProject: (data) => fetch(`${BASE}/projects`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
-  }).then(r => r.json()),
-  createTestPlan: (projectId, data) => fetch(`${BASE}/projects/${projectId}/testplans`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
-  }).then(r => r.json()),
+  async createProject(data) {
+    const response = await fetch(`${BASE}/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to create project");
+    }
+
+    return await response.json();
+  },
+  async updateProject(id, data) {
+    const response = await fetch(`${BASE}/projects/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to update project");
+    }
+
+    return await response.json();
+  },
+  deleteProject: (id) => fetch(`${BASE}/projects/${id}`, {
+    method: "DELETE"
+  }),
+  async createTestPlan(projectId, data) {
+    const response = await fetch(`${BASE}/projects/${projectId}/testplans`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to create test plan");
+    }
+
+    return await response.json();
+  },
+  async updateTestPlan(id, data) {
+    const response = await fetch(`${BASE}/projects/testplans/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to update test plan");
+    }
+
+    return await response.json();
+  },
+  deleteTestPlan: (id) => fetch(`${BASE}/projects/testplans/${id}`, {
+    method: "DELETE"
+  }),
 
   // Test Cases
   getTestCases: (testPlanId) => {

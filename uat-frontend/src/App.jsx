@@ -147,8 +147,22 @@ export default function App() {
   const [newTCAttachments, setNewTCAttachments] = useState([]);
   const [showAddProject, setShowAddProject] = useState(false);
   const [showAddPlan, setShowAddPlan] = useState(false);
+  const [showEditProject, setShowEditProject] = useState(false);
+  const [showEditPlan, setShowEditPlan] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newPlanName, setNewPlanName] = useState("");
+  const [editProjectName, setEditProjectName] = useState("");
+  const [editPlanName, setEditPlanName] = useState("");
+  const [newProjectStartDate, setNewProjectStartDate] = useState("");
+  const [newProjectEndDate, setNewProjectEndDate] = useState("");
+  const [newPlanStartDate, setNewPlanStartDate] = useState("");
+  const [newPlanEndDate, setNewPlanEndDate] = useState("");
+  const [editProjectStartDate, setEditProjectStartDate] = useState("");
+  const [editProjectEndDate, setEditProjectEndDate] = useState("");
+  const [editPlanStartDate, setEditPlanStartDate] = useState("");
+  const [editPlanEndDate, setEditPlanEndDate] = useState("");
+  const [editingProjectId, setEditingProjectId] = useState(null);
+  const [editingPlanId, setEditingPlanId] = useState(null);
 
   // Modals
   const [viewTC,     setViewTC]    = useState(null);
@@ -170,6 +184,62 @@ export default function App() {
 
   function getCurrentUserName() {
     return localStorage.getItem("uatUserName") || "Chris";
+  }
+
+  function toInputDate(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 10);
+  }
+
+  function isValidDateRange(startDate, endDate) {
+    return !!startDate && !!endDate && new Date(startDate) <= new Date(endDate);
+  }
+
+  function formatTimeline(startDate, endDate) {
+    if (!startDate || !endDate) return "No timeline";
+    return `${startDate.slice(0, 10)} to ${endDate.slice(0, 10)}`;
+  }
+
+  function getTimelineMeta(startDate, endDate) {
+    if (!startDate || !endDate) {
+      return { progress: 0, status: "No timeline", color: "#94a3b8" };
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+      return { progress: 0, status: "Invalid timeline", color: "#ef4444" };
+    }
+
+    const today = new Date();
+    const current = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const startMs = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+    const endMs = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
+
+    if (current < startMs) {
+      return { progress: 0, status: "Not started", color: "#94a3b8" };
+    }
+
+    if (current > endMs) {
+      return { progress: 100, status: "Completed", color: "#22c55e" };
+    }
+
+    const total = Math.max(endMs - startMs, 1);
+    const elapsed = current - startMs;
+    const progress = Math.max(0, Math.min(100, Math.round((elapsed / total) * 100)));
+    return { progress, status: "In progress", color: "#3b82f6" };
+  }
+
+  function timelineBadgeStyle(status) {
+    if (status === "Completed") {
+      return { bg: "#f0fdf4", text: "#166534", border: "#86efac" };
+    }
+    if (status === "In progress") {
+      return { bg: "#eff6ff", text: "#1d4ed8", border: "#93c5fd" };
+    }
+    return { bg: "#f8fafc", text: "#475569", border: "#cbd5e1" };
   }
 
   function toggleDefDateFilterPanel(e, type) {
@@ -443,13 +513,19 @@ export default function App() {
 	}
 
   async function addProject() {
-    if (!newProjectName.trim()) return;
+    if (!newProjectName.trim() || !isValidDateRange(newProjectStartDate, newProjectEndDate)) return;
     try {
-      const p = await api.createProject({ name: newProjectName.trim() });
+      const p = await api.createProject({
+        name: newProjectName.trim(),
+        startDate: newProjectStartDate,
+        endDate: newProjectEndDate,
+      });
       setProjects(prev => [...prev, { ...p, testPlans: p.testPlans || [] }]);
       setSelectedProjectId(String(p.id));
       setSelectedTestPlanId("");
       setNewProjectName("");
+      setNewProjectStartDate("");
+      setNewProjectEndDate("");
       setShowAddProject(false);
     } catch (e) {
       alert("Failed to create project: " + e.message);
@@ -461,18 +537,102 @@ export default function App() {
       alert("Please select a project first.");
       return;
     }
-    if (!newPlanName.trim()) return;
+    if (!newPlanName.trim() || !isValidDateRange(newPlanStartDate, newPlanEndDate)) return;
 
     try {
-      const plan = await api.createTestPlan(selectedProjectId, { name: newPlanName.trim() });
+      const plan = await api.createTestPlan(selectedProjectId, {
+        name: newPlanName.trim(),
+        startDate: newPlanStartDate,
+        endDate: newPlanEndDate,
+      });
       setProjects(prev => prev.map(p => String(p.id) !== String(selectedProjectId)
         ? p
         : { ...p, testPlans: [...(p.testPlans || []), plan] }));
       setSelectedTestPlanId(String(plan.id));
       setNewPlanName("");
+      setNewPlanStartDate("");
+      setNewPlanEndDate("");
       setShowAddPlan(false);
     } catch (e) {
       alert("Failed to create test plan: " + e.message);
+    }
+  }
+
+  async function updateProjectName() {
+    if (!editingProjectId || !editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate)) return;
+    try {
+      const updated = await api.updateProject(editingProjectId, {
+        name: editProjectName.trim(),
+        startDate: editProjectStartDate,
+        endDate: editProjectEndDate,
+      });
+      setProjects(prev => prev.map(p => String(p.id) !== String(editingProjectId)
+        ? p
+        : { ...p, name: updated.name, startDate: updated.startDate, endDate: updated.endDate }));
+      setShowEditProject(false);
+      setEditingProjectId(null);
+      setEditProjectName("");
+      setEditProjectStartDate("");
+      setEditProjectEndDate("");
+    } catch (e) {
+      alert("Failed to update project: " + e.message);
+    }
+  }
+
+  async function updateTestPlanName() {
+    if (!editingPlanId || !editPlanName.trim() || !isValidDateRange(editPlanStartDate, editPlanEndDate)) return;
+    try {
+      const updated = await api.updateTestPlan(editingPlanId, {
+        name: editPlanName.trim(),
+        startDate: editPlanStartDate,
+        endDate: editPlanEndDate,
+      });
+      setProjects(prev => prev.map(p => ({
+        ...p,
+        testPlans: (p.testPlans || []).map(tp => String(tp.id) !== String(editingPlanId)
+          ? tp
+          : { ...tp, name: updated.name, startDate: updated.startDate, endDate: updated.endDate })
+      })));
+      setShowEditPlan(false);
+      setEditingPlanId(null);
+      setEditPlanName("");
+      setEditPlanStartDate("");
+      setEditPlanEndDate("");
+    } catch (e) {
+      alert("Failed to update test plan: " + e.message);
+    }
+  }
+
+  async function deleteProject(projectId) {
+    try {
+      await api.deleteProject(projectId);
+      const remainingProjects = projects.filter(p => String(p.id) !== String(projectId));
+      setProjects(remainingProjects);
+
+      if (String(selectedProjectId) === String(projectId)) {
+        const first = remainingProjects[0];
+        setSelectedProjectId(first ? String(first.id) : "");
+        const firstPlan = first?.testPlans?.[0];
+        setSelectedTestPlanId(firstPlan ? String(firstPlan.id) : "");
+      }
+    } catch (e) {
+      alert("Failed to delete project: " + e.message);
+    }
+  }
+
+  async function deleteTestPlan(testPlanId) {
+    try {
+      await api.deleteTestPlan(testPlanId);
+      setProjects(prev => prev.map(p => ({
+        ...p,
+        testPlans: (p.testPlans || []).filter(tp => String(tp.id) !== String(testPlanId))
+      })));
+
+      if (String(selectedTestPlanId) === String(testPlanId)) {
+        setSelectedTestPlanId("");
+      }
+    } catch (e) {
+      alert("Failed to delete test plan: " + e.message);
     }
   }
 
@@ -962,15 +1122,71 @@ export default function App() {
             <button onClick={()=>setShowAddProject(true)} style={btnP}>+ Add Project</button>
             <button onClick={()=>setShowAddPlan(true)} style={{ ...btnS, opacity:!selectedProjectId?0.5:1 }} disabled={!selectedProjectId}>+ Add Test Plan</button>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"320px 1fr", gap:16 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"420px 1fr", gap:16 }}>
             <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", overflow:"hidden" }}>
               <div style={{ padding:"12px 14px", borderBottom:"1px solid #f1f5f9", fontWeight:800, color:"#334155" }}>Projects</div>
               {(projects || []).length === 0 && <div style={{ padding:18, color:"#94a3b8" }}>No projects yet.</div>}
               {(projects || []).map(p => (
-                <button key={p.id} onClick={()=>{ setSelectedProjectId(String(p.id)); setSelectedTestPlanId(""); }}
-                  style={{ width:"100%", textAlign:"left", border:"none", background:String(selectedProjectId)===String(p.id)?"#eff6ff":"#fff", borderBottom:"1px solid #f8fafc", padding:"12px 14px", cursor:"pointer", fontWeight:700, color:String(selectedProjectId)===String(p.id)?"#1d4ed8":"#334155" }}>
-                  {p.name}
-                </button>
+                <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid #f8fafc", padding:"8px 10px", background:String(selectedProjectId)===String(p.id)?"#eff6ff":"#fff" }}>
+                  <button onClick={()=>{ setSelectedProjectId(String(p.id)); setSelectedTestPlanId(""); }}
+                    style={{ flex:1, textAlign:"left", border:"none", background:"transparent", padding:"6px 4px", cursor:"pointer", fontWeight:700, color:String(selectedProjectId)===String(p.id)?"#1d4ed8":"#334155" }}>
+                    <div>{p.name}</div>
+                    {(() => {
+                      const tm = getTimelineMeta(p.startDate, p.endDate);
+                      const badge = timelineBadgeStyle(tm.status);
+                      return (
+                        <div style={{ marginTop:4 }}>
+                          <div>
+                            <span style={{
+                              display:"inline-flex",
+                              alignItems:"center",
+                              gap:5,
+                              padding:"3px 10px",
+                              borderRadius:999,
+                              fontSize:12,
+                              fontWeight:800,
+                              letterSpacing:"0.01em",
+                              whiteSpace:"nowrap",
+                              background:badge.bg,
+                              color:badge.text,
+                              border:`1px solid ${badge.border}`
+                            }}>
+                              📅 {formatTimeline(p.startDate, p.endDate)}
+                            </span>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
+                            <div style={{ flex:1, height:8, borderRadius:99, background:"#e2e8f0", overflow:"hidden" }}>
+                              <div style={{ width:`${tm.progress}%`, height:"100%", background:tm.color, borderRadius:99, transition:"width 0.25s ease" }} />
+                            </div>
+                            <span style={{ fontSize:11, fontWeight:700, color:tm.color, minWidth:70, textAlign:"right" }}>{tm.status} {tm.progress}%</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingProjectId(p.id);
+                      setEditProjectName(p.name || "");
+                      setEditProjectStartDate(toInputDate(p.startDate));
+                      setEditProjectEndDate(toInputDate(p.endDate));
+                      setShowEditProject(true);
+                    }}
+                    style={{ ...btnS, padding:"4px 10px", fontSize:12 }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete project "${p.name}" and all its test plans?`)) {
+                        deleteProject(p.id);
+                      }
+                    }}
+                    style={{ ...btnD, padding:"4px 10px", fontSize:12 }}
+                  >
+                    Delete
+                  </button>
+                </div>
               ))}
             </div>
             <div style={{ background:"#fff", borderRadius:14, border:"1.5px solid #f1f5f9", overflow:"hidden" }}>
@@ -978,10 +1194,66 @@ export default function App() {
               {!selectedProject && <div style={{ padding:18, color:"#94a3b8" }}>Select a project to view plans.</div>}
               {selectedProject && selectedProjectPlans.length === 0 && <div style={{ padding:18, color:"#94a3b8" }}>No test plans yet.</div>}
               {selectedProjectPlans.map(tp => (
-                <button key={tp.id} onClick={()=>{ setSelectedTestPlanId(String(tp.id)); setActiveTab("testcases"); }}
-                  style={{ width:"100%", textAlign:"left", border:"none", background:String(selectedTestPlanId)===String(tp.id)?"#eff6ff":"#fff", borderBottom:"1px solid #f8fafc", padding:"12px 14px", cursor:"pointer", fontWeight:700, color:String(selectedTestPlanId)===String(tp.id)?"#1d4ed8":"#334155" }}>
-                  {tp.name}
-                </button>
+                <div key={tp.id} style={{ display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid #f8fafc", padding:"8px 10px", background:String(selectedTestPlanId)===String(tp.id)?"#eff6ff":"#fff" }}>
+                  <button onClick={()=>{ setSelectedTestPlanId(String(tp.id)); setActiveTab("testcases"); }}
+                    style={{ flex:1, textAlign:"left", border:"none", background:"transparent", padding:"6px 4px", cursor:"pointer", fontWeight:700, color:String(selectedTestPlanId)===String(tp.id)?"#1d4ed8":"#334155" }}>
+                    <div>{tp.name}</div>
+                    {(() => {
+                      const tm = getTimelineMeta(tp.startDate, tp.endDate);
+                      const badge = timelineBadgeStyle(tm.status);
+                      return (
+                        <div style={{ marginTop:4 }}>
+                          <div>
+                            <span style={{
+                              display:"inline-flex",
+                              alignItems:"center",
+                              gap:5,
+                              padding:"3px 10px",
+                              borderRadius:999,
+                              fontSize:12,
+                              fontWeight:800,
+                              letterSpacing:"0.01em",
+                              whiteSpace:"nowrap",
+                              background:badge.bg,
+                              color:badge.text,
+                              border:`1px solid ${badge.border}`
+                            }}>
+                              📅 {formatTimeline(tp.startDate, tp.endDate)}
+                            </span>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
+                            <div style={{ flex:1, height:8, borderRadius:99, background:"#e2e8f0", overflow:"hidden" }}>
+                              <div style={{ width:`${tm.progress}%`, height:"100%", background:tm.color, borderRadius:99, transition:"width 0.25s ease" }} />
+                            </div>
+                            <span style={{ fontSize:11, fontWeight:700, color:tm.color, minWidth:70, textAlign:"right" }}>{tm.status} {tm.progress}%</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingPlanId(tp.id);
+                      setEditPlanName(tp.name || "");
+                      setEditPlanStartDate(toInputDate(tp.startDate));
+                      setEditPlanEndDate(toInputDate(tp.endDate));
+                      setShowEditPlan(true);
+                    }}
+                    style={{ ...btnS, padding:"4px 10px", fontSize:12 }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete test plan "${tp.name}"?`)) {
+                        deleteTestPlan(tp.id);
+                      }
+                    }}
+                    style={{ ...btnD, padding:"4px 10px", fontSize:12 }}
+                  >
+                    Delete
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -2084,10 +2356,23 @@ export default function App() {
               <label style={lbl}>Project Name *</label>
               <input value={newProjectName} onChange={e=>setNewProjectName(e.target.value)} style={inp} />
             </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={lbl}>Start Date *</label>
+                <input type="date" value={newProjectStartDate} onChange={e=>setNewProjectStartDate(e.target.value)} style={inp} />
+              </div>
+              <div>
+                <label style={lbl}>End Date *</label>
+                <input type="date" value={newProjectEndDate} onChange={e=>setNewProjectEndDate(e.target.value)} style={inp} />
+              </div>
+            </div>
+            {!isValidDateRange(newProjectStartDate, newProjectEndDate) && (newProjectStartDate || newProjectEndDate) && (
+              <div style={{ color:"#be123c", fontSize:12, fontWeight:700 }}>Project start date must be on or before end date.</div>
+            )}
           </div>
           <div style={{ display:"flex", gap:10, marginTop:18, justifyContent:"flex-end" }}>
             <button onClick={()=>setShowAddProject(false)} style={btnS}>Cancel</button>
-            <button onClick={addProject} style={{ ...btnP, opacity:!newProjectName.trim()?0.5:1 }} disabled={!newProjectName.trim()}>Create Project</button>
+            <button onClick={addProject} style={{ ...btnP, opacity:(!newProjectName.trim() || !isValidDateRange(newProjectStartDate, newProjectEndDate))?0.5:1 }} disabled={!newProjectName.trim() || !isValidDateRange(newProjectStartDate, newProjectEndDate)}>Create Project</button>
           </div>
         </Modal>
       )}
@@ -2104,13 +2389,126 @@ export default function App() {
               <input value={selectedProject?.name || "No project selected"} style={{ ...inp, background:"#f8fafc" }} readOnly />
             </div>
             <div>
+              <label style={lbl}>Project Timeline</label>
+              <input value={formatTimeline(selectedProject?.startDate, selectedProject?.endDate)} style={{ ...inp, background:"#f8fafc" }} readOnly />
+            </div>
+            <div>
               <label style={lbl}>Test Plan Name *</label>
               <input value={newPlanName} onChange={e=>setNewPlanName(e.target.value)} style={inp} />
             </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={lbl}>Start Date *</label>
+                <input
+                  type="date"
+                  value={newPlanStartDate}
+                  onChange={e=>setNewPlanStartDate(e.target.value)}
+                  min={toInputDate(selectedProject?.startDate)}
+                  max={toInputDate(selectedProject?.endDate) || undefined}
+                  style={inp}
+                />
+              </div>
+              <div>
+                <label style={lbl}>End Date *</label>
+                <input
+                  type="date"
+                  value={newPlanEndDate}
+                  onChange={e=>setNewPlanEndDate(e.target.value)}
+                  min={toInputDate(selectedProject?.startDate)}
+                  max={toInputDate(selectedProject?.endDate) || undefined}
+                  style={inp}
+                />
+              </div>
+            </div>
+            {!isValidDateRange(newPlanStartDate, newPlanEndDate) && (newPlanStartDate || newPlanEndDate) && (
+              <div style={{ color:"#be123c", fontSize:12, fontWeight:700 }}>Test plan start date must be on or before end date.</div>
+            )}
           </div>
           <div style={{ display:"flex", gap:10, marginTop:18, justifyContent:"flex-end" }}>
             <button onClick={()=>setShowAddPlan(false)} style={btnS}>Cancel</button>
-            <button onClick={addTestPlan} style={{ ...btnP, opacity:(!newPlanName.trim() || !selectedProjectId)?0.5:1 }} disabled={!newPlanName.trim() || !selectedProjectId}>Create Test Plan</button>
+            <button onClick={addTestPlan} style={{ ...btnP, opacity:(!newPlanName.trim() || !selectedProjectId || !isValidDateRange(newPlanStartDate, newPlanEndDate))?0.5:1 }} disabled={!newPlanName.trim() || !selectedProjectId || !isValidDateRange(newPlanStartDate, newPlanEndDate)}>Create Test Plan</button>
+          </div>
+        </Modal>
+      )}
+
+      {showEditProject && (
+        <Modal onClose={()=>setShowEditProject(false)}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
+            <div style={{ fontSize:17, fontWeight:800 }}>Edit Project</div>
+            <button onClick={()=>setShowEditProject(false)} style={xBtn}>✕</button>
+          </div>
+          <div style={{ display:"grid", gap:12 }}>
+            <div>
+              <label style={lbl}>Project Name *</label>
+              <input value={editProjectName} onChange={e=>setEditProjectName(e.target.value)} style={inp} />
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={lbl}>Start Date *</label>
+                <input type="date" value={editProjectStartDate} onChange={e=>setEditProjectStartDate(e.target.value)} style={inp} />
+              </div>
+              <div>
+                <label style={lbl}>End Date *</label>
+                <input type="date" value={editProjectEndDate} onChange={e=>setEditProjectEndDate(e.target.value)} style={inp} />
+              </div>
+            </div>
+            {!isValidDateRange(editProjectStartDate, editProjectEndDate) && (editProjectStartDate || editProjectEndDate) && (
+              <div style={{ color:"#be123c", fontSize:12, fontWeight:700 }}>Project start date must be on or before end date.</div>
+            )}
+          </div>
+          <div style={{ display:"flex", gap:10, marginTop:18, justifyContent:"flex-end" }}>
+            <button onClick={()=>setShowEditProject(false)} style={btnS}>Cancel</button>
+            <button onClick={updateProjectName} style={{ ...btnP, opacity:(!editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate))?0.5:1 }} disabled={!editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate)}>Save Changes</button>
+          </div>
+        </Modal>
+      )}
+
+      {showEditPlan && (
+        <Modal onClose={()=>setShowEditPlan(false)}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
+            <div style={{ fontSize:17, fontWeight:800 }}>Edit Test Plan</div>
+            <button onClick={()=>setShowEditPlan(false)} style={xBtn}>✕</button>
+          </div>
+          <div style={{ display:"grid", gap:12 }}>
+            <div>
+              <label style={lbl}>Test Plan Name *</label>
+              <input value={editPlanName} onChange={e=>setEditPlanName(e.target.value)} style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Project Timeline</label>
+              <input value={formatTimeline(selectedProject?.startDate, selectedProject?.endDate)} style={{ ...inp, background:"#f8fafc" }} readOnly />
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={lbl}>Start Date *</label>
+                <input
+                  type="date"
+                  value={editPlanStartDate}
+                  onChange={e=>setEditPlanStartDate(e.target.value)}
+                  min={toInputDate(selectedProject?.startDate)}
+                  max={toInputDate(selectedProject?.endDate) || undefined}
+                  style={inp}
+                />
+              </div>
+              <div>
+                <label style={lbl}>End Date *</label>
+                <input
+                  type="date"
+                  value={editPlanEndDate}
+                  onChange={e=>setEditPlanEndDate(e.target.value)}
+                  min={toInputDate(selectedProject?.startDate)}
+                  max={toInputDate(selectedProject?.endDate) || undefined}
+                  style={inp}
+                />
+              </div>
+            </div>
+            {!isValidDateRange(editPlanStartDate, editPlanEndDate) && (editPlanStartDate || editPlanEndDate) && (
+              <div style={{ color:"#be123c", fontSize:12, fontWeight:700 }}>Test plan start date must be on or before end date.</div>
+            )}
+          </div>
+          <div style={{ display:"flex", gap:10, marginTop:18, justifyContent:"flex-end" }}>
+            <button onClick={()=>setShowEditPlan(false)} style={btnS}>Cancel</button>
+            <button onClick={updateTestPlanName} style={{ ...btnP, opacity:(!editPlanName.trim() || !isValidDateRange(editPlanStartDate, editPlanEndDate))?0.5:1 }} disabled={!editPlanName.trim() || !isValidDateRange(editPlanStartDate, editPlanEndDate)}>Save Changes</button>
           </div>
         </Modal>
       )}
