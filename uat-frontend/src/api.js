@@ -300,4 +300,23 @@ export const api = {
   }).then(async r => {
     if (!r.ok) throw new Error(await r.text());
   }),
+
+  // User password management
+  sendInitialPasswordEmail: (userId, email, initialPassword, createdBy) => fetch(`${BASE}/users/${userId}/send-initial-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, initialPassword, createdBy })
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
+
+  changeUserPassword: (userId, oldPassword, newPassword) => fetch(`${BASE}/users/${userId}/change-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ oldPassword, newPassword })
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
 };

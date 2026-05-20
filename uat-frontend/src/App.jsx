@@ -105,7 +105,7 @@ function DetailBlock({ label, value, pre, accent, danger }) {
   );
 }
 
-function LoginScreen({ username, password, error, busy, onUsernameChange, onPasswordChange, onSubmit, onContactAdmin }) {
+function LoginScreen({ username, password, error, busy, onUsernameChange, onPasswordChange, onSubmit, onContactAdmin, onForgotPassword }) {
   const [showPw, setShowPw] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -119,8 +119,8 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
             <div style={{ width: 78, height: 78, borderRadius: 24, background: "linear-gradient(135deg,#6366f1,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 30px rgba(99,102,241,0.22)" }}><DiamondMark size={34} outer="#ffffff" inner="#4f46e5" stroke={6} /></div>
           </div>
 
-          <div style={{ textAlign: "center", marginBottom: 90 }}>
-            <div style={{ fontSize: 34, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.03em", marginBottom: 10 }}>Welcome Back</div>
+          <div style={{ textAlign: "center", marginBottom: 50 }}>
+            <div style={{ fontSize: 34, fontWeight: 750, color: "#0f172a", letterSpacing: "-0.03em", marginBottom: 10 }}>Welcome Back</div>
             <div style={{ fontSize: 15, color: "#64748b", lineHeight: 1.6 }}>Sign in to continue to your account</div>
           </div>
 
@@ -160,7 +160,12 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
                 <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#6366f1" }} />
                 Remember me
               </label>
-              <span style={{ color: "#4f46e5", fontWeight: 700, cursor: "default", fontSize: 14 }}>Forgot password?</span>
+              <span
+                onClick={onForgotPassword}
+                style={{ color: "#4f46e5", fontWeight: 700, cursor: "pointer", fontSize: 14, textDecoration: "underline" }}
+              >
+                Forgot password?
+              </span>
             </div>
 
             {error && <div style={{ background: "rgba(255,240,242,0.92)", border: "1px solid rgba(244,63,94,0.12)", color: "#be123c", padding: "12px 14px", borderRadius: 14, fontSize: 13 }}>{error}</div>}
@@ -272,7 +277,6 @@ export default function App() {
   const [newPlanName, setNewPlanName] = useState("");
   const [newUserName, setNewUserName] = useState("");
   const [newUserDisplayName, setNewUserDisplayName] = useState("");
-  const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState("Viewer");
   const [newUserActive, setNewUserActive] = useState(true);
   const [editProjectName, setEditProjectName] = useState("");
@@ -297,6 +301,11 @@ export default function App() {
   const [showAddDef, setShowAddDef] = useState(null);
   const [editTC, setEditTC] = useState(null);
   const [editDef, setEditDef] = useState(null);
+  const [showForcePasswordChange, setShowForcePasswordChange] = useState(false);
+  const [currentPasswordForChange, setCurrentPasswordForChange] = useState("");
+  const [newPasswordForChange, setNewPasswordForChange] = useState("");
+  const [confirmPasswordForChange, setConfirmPasswordForChange] = useState("");
+  const [passwordChangeError, setPasswordChangeError] = useState("");
 
   const blankTC = { name: "", description: "", steps: "", expected: "", priority: "Medium", category: "User Authentication", remarks: "", testScopeId: "" };
   const blankRun = { name: "", selectedTcIds: [] };
@@ -343,7 +352,16 @@ export default function App() {
       localStorage.setItem("uatUserRole", result.user.role);
       setAuthUser(result.user);
       setLoginPassword("");
-      setLoading(true);
+      
+      if (result.user.mustChangePassword) {
+        setShowForcePasswordChange(true);
+        setCurrentPasswordForChange("");
+        setNewPasswordForChange("");
+        setConfirmPasswordForChange("");
+        setPasswordChangeError("");
+      } else {
+        setLoading(true);
+      }
     } catch (error) {
       setLoginError(error.message || "Login failed.");
     } finally {
@@ -358,6 +376,40 @@ export default function App() {
       "",
       "I need help with my system account.",
       loginUsername ? `Username: ${loginUsername}` : "",
+      "",
+      "Thank you."
+    ].filter(Boolean).join("\n");
+
+    let recipient = fallbackAdminEmail;
+    try {
+      const adminContacts = await api.getAdminContacts();
+      const recipients = Array.isArray(adminContacts?.usernames)
+        ? adminContacts.usernames.filter(Boolean)
+        : adminContacts?.username
+          ? [adminContacts.username]
+          : [];
+
+      if (recipients.length > 0) {
+        recipient = recipients.join(",");
+      }
+    } catch (error) {
+      console.warn("Failed to load admin contacts from database:", error);
+    }
+
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedBody = encodeURIComponent(body);
+    window.location.href = `mailto:${recipient}?subject=${encodedSubject}&body=${encodedBody}`;
+  }
+
+  async function handleForgotPassword() {
+    const subject = "Test Management System: Password Reset Request";
+    const body = [
+      "Hello Admin,",
+      "",
+      "I have forgotten my password and need to reset it.",
+      loginUsername ? `Username: ${loginUsername}` : "Username: [Not provided]",
+      "",
+      "Please help me reset my password so I can access the system again.",
       "",
       "Thank you."
     ].filter(Boolean).join("\n");
@@ -876,7 +928,6 @@ export default function App() {
   function openAddUser() {
     setNewUserName("");
     setNewUserDisplayName("");
-    setNewUserPassword("");
     setNewUserRole("Viewer");
     setNewUserActive(true);
     setShowAddUser(true);
@@ -889,17 +940,78 @@ export default function App() {
     }
 
     try {
-      const user = await api.createUser({
+      const created = await api.createUser({
         username: newUserName.trim(),
         displayName: newUserDisplayName.trim(),
-        password: newUserPassword,
         role: newUserRole,
         isActive: newUserActive,
       });
-      setUsers(p => [...p, user]);
+
+      setUsers(p => [...p, created.user]);
       setShowAddUser(false);
+
+      // Open admin's email client with pre-filled initial password email to the new user
+      const subject = "Test Management System - Your Account Has Been Created";
+      const body = [
+        `Dear ${newUserDisplayName.trim()},`,
+        "",
+        "Welcome to the Test Management System! Your account has been created.",
+        "",
+        "Your login credentials:",
+        `  Username (Email): ${newUserName.trim()}`,
+        `  Password: ${created.initialPassword}`,
+        "",
+        "Please log in and update your password immediately when prompted.",
+        "",
+        "Best regards,",
+        getCurrentUserName() || "System Administrator",
+      ].join("\n");
+
+      const mailto = `mailto:${encodeURIComponent(newUserName.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
     } catch (error) {
       alert(`Failed to create user: ${error.message}`);
+    }
+  }
+  
+
+  async function handleForcePasswordChange() {
+    setPasswordChangeError("");
+    
+    if (!currentPasswordForChange.trim()) {
+      setPasswordChangeError("Current password is required.");
+      return;
+    }
+    
+    if (!newPasswordForChange.trim()) {
+      setPasswordChangeError("New password cannot be empty.");
+      return;
+    }
+    
+    if (newPasswordForChange !== confirmPasswordForChange) {
+      setPasswordChangeError("New passwords do not match.");
+      return;
+    }
+    
+    if (newPasswordForChange.length < 6) {
+      setPasswordChangeError("New password must be at least 6 characters.");
+      return;
+    }
+    
+    try {
+      await api.changeUserPassword(authUser.id, currentPasswordForChange, newPasswordForChange);
+      const updatedAuth = JSON.parse(localStorage.getItem("uatAuth"));
+      updatedAuth.user.mustChangePassword = false;
+      localStorage.setItem("uatAuth", JSON.stringify(updatedAuth));
+      setCurrentPasswordForChange("");
+      setNewPasswordForChange("");
+      setConfirmPasswordForChange("");
+      setPasswordChangeError("");
+      setShowForcePasswordChange(false);
+      // Update authUser last — this triggers the intercept screen to dismiss and loads the app
+      setAuthUser({ ...authUser, mustChangePassword: false });
+    } catch (error) {
+      setPasswordChangeError(error.message || "Failed to change password.");
     }
   }
 
@@ -1870,7 +1982,72 @@ export default function App() {
         onPasswordChange={setLoginPassword}
         onSubmit={handleLogin}
         onContactAdmin={handleContactAdministrator}
+        onForgotPassword={handleForgotPassword}
       />
+    );
+  }
+
+  if (authUser.mustChangePassword || showForcePasswordChange) {
+    return (
+      <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter','Segoe UI',sans-serif", padding: 16 }}>
+        <div style={{ background: "#fff", borderRadius: 20, padding: 40, width: "100%", maxWidth: 460, boxShadow: "0 32px 80px rgba(0,0,0,0.12)", border: "1px solid #f1f5f9" }}>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ width: 52, height: 52, background: "linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 4px 12px #6366f155" }}>
+              <span style={{ fontSize: 22, color: "#fff" }}>🔒</span>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Update Your Password</div>
+            <div style={{ fontSize: 14, color: "#64748b", lineHeight: 1.5 }}>Welcome, <strong>{authUser.displayName}</strong>! For security, you must set a new password before continuing.</div>
+          </div>
+
+          <div style={{ display: "grid", gap: 16 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>Current Password <span style={{ color: "#ef4444" }}>*</span></label>
+              <input
+                type="password"
+                value={currentPasswordForChange}
+                onChange={e => setCurrentPasswordForChange(e.target.value)}
+                placeholder="Enter your initial password"
+                style={{ width: "100%", border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>New Password <span style={{ color: "#ef4444" }}>*</span></label>
+              <input
+                type="password"
+                value={newPasswordForChange}
+                onChange={e => setNewPasswordForChange(e.target.value)}
+                placeholder="Enter new password (min. 6 characters)"
+                style={{ width: "100%", border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>Confirm New Password <span style={{ color: "#ef4444" }}>*</span></label>
+              <input
+                type="password"
+                value={confirmPasswordForChange}
+                onChange={e => setConfirmPasswordForChange(e.target.value)}
+                placeholder="Re-enter new password"
+                style={{ width: "100%", border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {passwordChangeError && (
+              <div style={{ background: "#fee2e2", color: "#991b1b", padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
+                {passwordChangeError}
+              </div>
+            )}
+
+            <button
+              onClick={handleForcePasswordChange}
+              style={{ background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff", border: "none", borderRadius: 10, padding: "12px 20px", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 4 }}
+            >
+              Update Password & Continue
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -4015,7 +4192,9 @@ export default function App() {
           <div style={{ display: "grid", gap: 14 }}>
             <div><label style={lbl}>Username *</label><input type="email" value={newUserName} onChange={e => setNewUserName(e.target.value)} style={inp} placeholder="name@company.com" /></div>
             <div><label style={lbl}>Display Name *</label><input value={newUserDisplayName} onChange={e => setNewUserDisplayName(e.target.value)} style={inp} /></div>
-            <div><label style={lbl}>Password *</label><input type="password" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} style={inp} /></div>
+            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", color: "#475569", fontSize: 12, lineHeight: 1.5 }}>
+              Initial password will be auto-generated by system and sent in the email draft.
+            </div>
             <div><label style={lbl}>Role *</label>
               <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)} style={inp}>
                 {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
@@ -4030,7 +4209,7 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
             <button onClick={() => setShowAddUser(false)} style={btnS}>Cancel</button>
-            <button onClick={createUserAccount} style={{ ...btnP, opacity: (!newUserName.trim() || !newUserDisplayName.trim() || !newUserPassword || !isValidEmail(newUserName)) ? 0.5 : 1 }} disabled={!newUserName.trim() || !newUserDisplayName.trim() || !newUserPassword || !isValidEmail(newUserName)}>Create User</button>
+            <button onClick={createUserAccount} style={{ ...btnP, opacity: (!newUserName.trim() || !newUserDisplayName.trim() || !isValidEmail(newUserName)) ? 0.5 : 1 }} disabled={!newUserName.trim() || !newUserDisplayName.trim() || !isValidEmail(newUserName)}>Create User</button>
           </div>
         </Modal>
       )}
@@ -4226,5 +4405,3 @@ function AddTcToRunRow({ testCases, run, onAdd }) {
     </div>
   );
 }
-
-

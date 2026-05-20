@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using UATSystem.API.Models;
+using UATSystem.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +50,8 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod());
 });
+
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
 var app = builder.Build();
 

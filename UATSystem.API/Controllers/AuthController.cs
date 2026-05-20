@@ -51,7 +51,7 @@ public class AuthController : ControllerBase
         return Ok(new AuthResponse(
             token,
             DateTime.UtcNow.AddMinutes(GetTokenExpiryMinutes()),
-            new AuthUserDto(user.Id, user.Username, user.DisplayName, user.Role)
+            new AuthUserDto(user.Id, user.Username, user.DisplayName, user.Role, user.MustChangePassword)
         ));
     }
 
@@ -127,6 +127,6 @@ public class AuthController : ControllerBase
 }
 
 public record LoginRequest(string Username, string Password);
-public record AuthUserDto(int Id, string Username, string DisplayName, string Role);
+public record AuthUserDto(int Id, string Username, string DisplayName, string Role, bool MustChangePassword = false);
 public record AuthResponse(string Token, DateTime ExpiresAtUtc, AuthUserDto User);
 public record AdminContactsDto(List<string> Usernames);
