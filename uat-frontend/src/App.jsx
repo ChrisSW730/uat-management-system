@@ -1593,6 +1593,24 @@ export default function App() {
     };
   }
 
+  function runStatusPriorityStats(run) {
+    const byStatus = {};
+    (run.entries || []).forEach(entry => {
+      const status = entry.execStatus || "Not Run";
+      const tc = allTestCaseById[entry.testCaseId];
+      const priority = TEST_CASE_PRIORITIES.includes(tc?.priority) ? tc.priority : "Medium";
+
+      if (!byStatus[status]) {
+        byStatus[status] = { High: 0, Medium: 0, Low: 0, total: 0 };
+      }
+
+      byStatus[status][priority] += 1;
+      byStatus[status].total += 1;
+    });
+
+    return byStatus;
+  }
+
   function agedDays(dateStr) {
     if (!dateStr) return 0;
     return Math.floor((new Date() - new Date(dateStr)) / 86400000);
@@ -2455,6 +2473,7 @@ export default function App() {
           <div style={{ display: "grid", gap: 14 }}>
             {filteredRuns.map(run => {
               const st = runStats(run);
+              const byStatusPriority = runStatusPriorityStats(run);
               const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0;
               const isRunSelected = selectedRunIds.includes(run.id);
               const showRunCheckbox = hoveredRunId === run.id || isRunSelected;
@@ -2491,6 +2510,17 @@ export default function App() {
                     </div>
                   </div>
                   <div style={{ marginTop: 14 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                      {Object.keys(EXEC_STATUS).map(status => {
+                        const s = byStatusPriority[status];
+                        if (!s || s.total === 0) return null;
+                        return (
+                          <span key={status} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 999, padding: "3px 9px", fontSize: 11, color: "#475569", fontWeight: 700 }}>
+                            {status}: H{s.High} M{s.Medium} L{s.Low}
+                          </span>
+                        );
+                      })}
+                    </div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#94a3b8", marginBottom: 5 }}>
                       <span>Progress</span><span style={{ fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
                     </div>
@@ -2799,7 +2829,7 @@ export default function App() {
           </div>
 
           {(() => {
-            const st = runStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
+            const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
                 <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
                 <StatChip label="Pass" value={st.pass} color="#15803d" bg="#f0fdf4" />
@@ -2810,6 +2840,17 @@ export default function App() {
                     <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#22c55e" : "linear-gradient(90deg,#6366f1,#06b6d4)", borderRadius: 99 }} />
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
+                </div>
+                <div style={{ flexBasis: "100%", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {Object.keys(EXEC_STATUS).map(status => {
+                    const s = byStatusPriority[status];
+                    if (!s || s.total === 0) return null;
+                    return (
+                      <span key={status} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 999, padding: "4px 10px", fontSize: 12, color: "#475569", fontWeight: 700 }}>
+                        {status}: High {s.High} | Medium {s.Medium} | Low {s.Low}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             );
