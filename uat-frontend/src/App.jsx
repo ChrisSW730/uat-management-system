@@ -310,7 +310,7 @@ export default function App() {
   const [newRun, setNewRun] = useState(blankRun);
   const [newDef, setNewDef] = useState(blankDef);
 
-  const TABS = [["projects", "🗂  Projects"], ["testcases", "📋  Test Cases"], ["runs", "▶  Test Runs"], ["defects", "🐛  Defect Log"]];
+  const TABS = [["projects", "💼  Projects"], ["testcases", "📋  Test Cases"], ["runs", "▶  Test Runs"], ["defects", "🐛  Defect Log"]];
 
   const canWrite = !!authUser && authUser.role !== "Viewer" && authUser.role !== "Developer";
   const canComment = !!authUser && authUser.role !== "Viewer";
