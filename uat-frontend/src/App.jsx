@@ -232,8 +232,8 @@ export default function App() {
   const [defOpenRule, setDefOpenRule] = useState("Any");
   const [defOpenDate, setDefOpenDate] = useState("");
   const [defCloseRule, setDefCloseRule] = useState("Any");
-  const [users, setUsers] = useState([]);
   const [defCloseDate, setDefCloseDate] = useState("");
+  const [users, setUsers] = useState([]);
   const [defDateFilterPanel, setDefDateFilterPanel] = useState(null);
   const [runSearch, setRunSearch] = useState("");
   const [runDateRule, setRunDateRule] = useState("Any");
@@ -758,7 +758,7 @@ export default function App() {
         || run.tester?.toLowerCase().includes(q);
 
       let matchesDate = true;
-      if (runDateRule !== "All" && runDateValue) {
+      if (runDateRule !== "Any" && runDateValue) {
         const src = run.createdAt ? new Date(run.createdAt) : null;
         if (!src || Number.isNaN(src.getTime())) {
           matchesDate = false;
@@ -1030,7 +1030,6 @@ export default function App() {
       alert(`Failed to create user: ${error.message}`);
     }
   }
-  
 
   async function handleForcePasswordChange() {
     setPasswordChangeError("");
@@ -1453,7 +1452,14 @@ export default function App() {
   async function addTcToRun(runId, tcId) {
     try {
       const updatedRun = await api.addEntryToRun(runId, tcId);
-      setRuns(p => p.map(r => r.id === runId ? updatedRun : r));
+      setRuns(p => p.map(r => r.id !== runId ? r : {
+        ...r,
+        entries: r.entries.map(e =>
+          e.testCaseId !== tcId
+            ? e
+            : { ...e, defects: [...(e.defects || []), duped] }
+        )
+      }));
       setViewRun(updatedRun);
     } catch (e) { alert("Failed to add TC: " + e.message); }
   }
@@ -1462,9 +1468,11 @@ export default function App() {
     try {
       await api.removeEntryFromRun(runId, tcId);
       setRuns(p => p.map(r => r.id !== runId ? r : {
-        ...r, entries: r.entries.filter(e => e.testCaseId !== tcId)
+        ...r,
+        entries: r.entries.filter(e => e.testCaseId !== tcId)
       }));
-      setViewRun(r => ({ ...r, entries: r.entries.filter(e => e.testCaseId !== tcId) }));
+      setViewRun(r => ({ ...r,
+        entries: r.entries.filter(e => e.testCaseId !== tcId) }));
     } catch (e) { alert("Failed to remove TC: " + e.message); }
   }
 
@@ -1475,9 +1483,20 @@ export default function App() {
       if (!entry) return;
       await api.updateEntry(runId, tcId, { execStatus: status, comment: entry.comment });
       setRuns(p => p.map(r => r.id !== runId ? r : {
-        ...r, entries: r.entries.map(e => e.testCaseId !== tcId ? e : { ...e, execStatus: status })
+        ...r,
+        entries: r.entries.map(e =>
+          e.testCaseId !== tcId
+            ? e
+            : { ...e, execStatus: status }
+        )
       }));
-      setViewRun(r => ({ ...r, entries: r.entries.map(e => e.testCaseId !== tcId ? e : { ...e, execStatus: status }) }));
+      setViewRun(r => ({ ...r,
+        entries: r.entries.map(e =>
+          e.testCaseId !== tcId
+            ? e
+            : { ...e, execStatus: status }
+        )
+      }));
     } catch (e) { console.error("Failed to update status:", e); }
   }
 
@@ -1488,9 +1507,20 @@ export default function App() {
       if (!entry) return;
       await api.updateEntry(runId, tcId, { execStatus: entry.execStatus, comment });
       setRuns(p => p.map(r => r.id !== runId ? r : {
-        ...r, entries: r.entries.map(e => e.testCaseId !== tcId ? e : { ...e, comment })
+        ...r,
+        entries: r.entries.map(e =>
+          e.testCaseId !== tcId
+            ? e
+            : { ...e, comment }
+        )
       }));
-      setViewRun(r => ({ ...r, entries: r.entries.map(e => e.testCaseId !== tcId ? e : { ...e, comment }) }));
+      setViewRun(r => ({ ...r,
+        entries: r.entries.map(e =>
+          e.testCaseId !== tcId
+            ? e
+            : { ...e, comment }
+        )
+      }));
     } catch (e) { console.error("Failed to update comment:", e); }
   }
 
@@ -1635,14 +1665,21 @@ export default function App() {
       setDefects(p => [...p, defect]);
       if (runId && tcId) {
         setRuns(p => p.map(r => r.id !== runId ? r : {
-          ...r, entries: r.entries.map(e => e.testCaseId !== tcId ? e
-            : { ...e, defects: [...(e.defects || []), defect] })
-        }));
-        setViewRun(r => r?.id !== runId ? r : ({
           ...r,
-          entries: (r.entries || []).map(e => e.testCaseId !== tcId ? e
-            : { ...e, defects: [...(e.defects || []), defect] })
+          entries: r.entries.map(e =>
+            e.testCaseId !== tcId
+              ? e
+              : { ...e, defects: [...(e.defects || []), defect] }
+          )
         }));
+        setViewRun(r => !r || r?.id !== runId ? r : {
+          ...r,
+          entries: (r.entries || []).map(e =>
+            e.testCaseId !== tcId
+              ? e
+              : { ...e, defects: [...(e.defects || []), defect] }
+          )
+        });
       }
       setNewDef(blankDef);
       setNewDefAttachments([]);
@@ -1697,6 +1734,7 @@ export default function App() {
         testCaseId: tcId,
         market: editDef.market,
         description: editDef.description,
+        issueType: editDef.issueType,
         expectedResult: editDef.expectedResult,
         actualResult: editDef.actualResult,
         priority: editDef.priority,
@@ -1704,11 +1742,12 @@ export default function App() {
         assignedTo: editDef.assignedTo,
         dateRaised: editDef.dateRaised,
         targetFixDate: editDef.targetFixDate || null,
+        remarks: editDef.remarks,
         status: editDef.status,
       }, getCurrentUserName());
 
       setDefects(p => p.map(d => d.id === updated.id ? updated : d));
-      setViewDef(updated);
+      setViewDef(d => d?.id === updated.id ? updated : d);
       setEditDef(null);
     } catch (e) {
       alert("Failed to update defect: " + e.message);
@@ -1732,6 +1771,11 @@ export default function App() {
         : { ...d, comments: [...(d.comments || []), savedComment] }
       );
 
+      setEditDef(d => d?.id !== defectId
+        ? d
+        : { ...d, comments: [...(d.comments || []), savedComment] }
+      );
+
       setDefectCommentDrafts(p => ({
         ...p,
         [defectId]: "",
@@ -1747,12 +1791,23 @@ export default function App() {
 
       setDefects(p => p.map(d => d.id !== defectId
         ? d
-        : { ...d, comments: (d.comments || []).filter(c => c.id !== commentId) }
+        : { ...d, comments: (d.comments || []).filter(
+          c => c.id !== commentId
+        ) }
       ));
 
       setViewDef(d => d?.id !== defectId
         ? d
-        : { ...d, comments: (d.comments || []).filter(c => c.id !== commentId) }
+        : { ...d, comments: (d.comments || []).filter(
+          c => c.id !== commentId
+        ) }
+      );
+
+      setEditDef(d => d?.id !== defectId
+        ? d
+        : { ...d, comments: (d.comments || []).filter(
+          c => c.id !== commentId
+        ) }
       );
     } catch (error) {
       alert(`Failed to delete defect comment: ${error.message}`);
@@ -2462,10 +2517,9 @@ export default function App() {
                   ].map(h => (
                     <th
                       key={h.label}
-                      onClick={() => toggleUserSort(h.col)}
-                      style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none" }}
-                    >
-                      {h.label} {userSortCol === h.col ? (userSortDir === "asc" ? "▲" : "▼") : "↕"}
+                      onClick={col ? () => { if (tcSortCol === col) setTcSortDir(d => d === "asc" ? "desc" : "asc"); else { setTcSortCol(col); setTcSortDir("asc"); } } : undefined}
+                      style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && tcSortCol === col ? "#d4dff0" : undefined }}>
+                      {label}{col && tcSortCol === col ? (tcSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
                     </th>
                   ))}
                 </tr>
@@ -2819,9 +2873,6 @@ export default function App() {
                           </div>
                         )}
                       </td>
-                      <td style={{ padding: "13px 16px" }} onClick={() => setViewTC(tc)}>
-                        <span style={{ fontSize: 14, color: "#64748b", background: "#f1f5f9", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{tc.category.split("(")[0].trim().slice(0, 20)}</span>
-                      </td>
                       <td
                         style={{ padding: "13px 16px" }}
                         onClick={() => setViewTC(tc)}
@@ -2935,7 +2986,7 @@ export default function App() {
                   onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 24px rgba(99,102,241,0.1)"; setHoveredRunId(run.id); }}
                   onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.05)"; setHoveredRunId(null); }}
                   onClick={() => setViewRun(run)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                         <span
@@ -3072,7 +3123,7 @@ export default function App() {
                       style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
                     />
                   </th>
-                  {[{ label: "Actions", col: "" }, { label: "ID", col: "defectNumber" }, { label: "Run", col: "runNumber" }, { label: "TC", col: "tcNumber" }, { label: "Market", col: "market" }, { label: "Actual Result", col: "actualResult" }, { label: "Priority", col: "priority" }, { label: "Assigned", col: "assignedTo" }, { label: "Status", col: "status" }].map(({ label, col }) => (
+                  {[{ label: "Actions", col: "" }, { label: "ID", col: "defectNumber" }, { label: "Market", col: "market" }, { label: "Actual Result", col: "actualResult" }, { label: "Priority", col: "priority" }, { label: "Raised By", col: "raisedBy" }, { label: "Assigned To", col: "assignedTo" }, { label: "Status", col: "status" }].map(({ label, col }) => (
                     <th key={label} onClick={col ? () => { if (defSortCol === col) setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol(col); setDefSortDir("asc"); } } : undefined}
                       style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && defSortCol === col ? "#d4dff0" : undefined }}>
                       {label}{col && defSortCol === col ? (defSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
@@ -3117,8 +3168,8 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {defects.length === 0 && <tr><td colSpan={13} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects logged</td></tr>}
-                {defects.length > 0 && filteredDefects.length === 0 && <tr><td colSpan={13} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects match current filters</td></tr>}
+                {defects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects logged</td></tr>}
+                {defects.length > 0 && filteredDefects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects match current filters</td></tr>}
                 {sortedFilteredDefects.map((def, i) => {
                   const aged = agedDays(def.dateRaised);
                   const isSelected = selectedDefectIds.includes(def.id);
@@ -3167,8 +3218,6 @@ export default function App() {
                       <td style={{ padding: "13px 16px" }} onClick={() => setViewDef(def)}>
                         <span style={{ fontWeight: 800, color: "#ef4444", fontSize: 14, fontFamily: "monospace", background: "#fff1f2", padding: "2px 7px", borderRadius: 5 }}>{def.defectNumber}</span>
                       </td>
-                      <td style={{ padding: "13px 16px", color: "#6366f1", fontSize: 14, fontFamily: "monospace", fontWeight: 700 }} onClick={() => setViewDef(def)}>{def.runNumber}</td>
-                      <td style={{ padding: "13px 16px", color: "#6366f1", fontSize: 14, fontFamily: "monospace", fontWeight: 700 }} onClick={() => setViewDef(def)}>{def.tcNumber}</td>
                       <td style={{ padding: "13px 16px" }} onClick={() => setViewDef(def)}>
                         <span style={{ fontSize: 14, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{def.market}</span>
                       </td>
@@ -3178,6 +3227,7 @@ export default function App() {
                         </div>
                       </td>
                       <td style={{ padding: "13px 16px" }} onClick={() => setViewDef(def)}><PriBadge label={def.priority} /></td>
+                      <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>{def.raisedBy || "—"}</td>
                       <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>{def.assignedTo || "—"}</td>
                       <td style={{ padding: "13px 16px" }}>
                         <select value={def.status} onChange={e => updateDefStatus(def.id, e.target.value)} onClick={e => e.stopPropagation()} disabled={!canUpdateDefectStatus}
@@ -3366,7 +3416,9 @@ export default function App() {
                         </button>
                       </div>
                       <div style={{ marginTop: 10 }}>
-                        {(entry.comments || []).map(c => (
+                        {[...(entry.comments || [])]
+                          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+                          .map(c => (
                           <div
                             key={c.id}
                             style={{
@@ -3527,22 +3579,19 @@ export default function App() {
       {/* ── MODAL: DEFECT DETAIL ── */}
       {viewDef && (
         <Modal onClose={() => setViewDef(null)}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-            <div>
-              <span style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, color: "#ef4444", background: "#fff1f2", padding: "2px 10px", borderRadius: 6, border: "1px solid #fecdd3" }}>{viewDef.defectNumber}</span>
-              <div style={{ color: "#0f172a", fontSize: 14, fontWeight: 700, padding: "2px 5px", marginTop: 8, borderRadius: 6, border: "1px solid #fecdd3" }}>{viewDef.issueType}</div>
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+            <div style={{ fontSize: 17, fontWeight: 800 }}>Defect Details</div>
             <button onClick={() => setViewDef(null)} style={xBtn}>✕</button>
           </div>
           <div style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
             <DefBadge status={viewDef.status} />
             <PriBadge label={viewDef.priority} />
-            <span style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "3px 10px", borderRadius: 20, fontSize: 14, fontWeight: 700 }}>Run: {viewDef.runNumber}</span>
-            <span style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "3px 10px", borderRadius: 20, fontSize: 14, fontWeight: 700 }}>TC: {viewDef.tcNumber}</span>
-            <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 10px", borderRadius: 20, fontSize: 14, fontWeight: 700 }}>🌏 {viewDef.market}</span>
+            <span style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>Run: {viewDef.runNumber}</span>
+            <span style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>TC: {viewDef.tcNumber}</span>
+            <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>🌏 {viewDef.market}</span>
             {(() => {
               const aged = agedDays(viewDef.dateRaised); return (
-                <span style={{ background: aged > 7 ? "#fff1f2" : "#fefce8", color: aged > 7 ? "#ef4444" : "#a16207", border: `1px solid ${aged > 7 ? "#fecdd3" : "#fde68a"}`, padding: "3px 10px", borderRadius: 20, fontSize: 14, fontWeight: 700 }}>⏱ {aged}d</span>
+                <span style={{ background: aged > 7 ? "#fff1f2" : "#fefce8", color: aged > 7 ? "#ef4444" : "#a16207", border: `1px solid ${aged > 7 ? "#fecdd3" : "#fde68a"}`, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>⏱ {aged}d</span>
               );
             })()}
           </div>
@@ -3551,131 +3600,95 @@ export default function App() {
             <DetailBlock label="Expected Result" value={viewDef.expectedResult} accent />
             <DetailBlock label="Actual Result" value={viewDef.actualResult} danger />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <DetailBlock label="Raised By" value={viewDef.raisedBy} />
-              <DetailBlock label="Assigned To" value={viewDef.assignedTo || "—"} />
-              <DetailBlock label="Date Raised" value={viewDef.dateRaised?.slice(0, 10)} />
-              <DetailBlock label="Target Fix" value={viewDef.targetFixDate?.slice(0, 10) || "—"} />
-            </div>
-            {viewDef.remarks && <DetailBlock label="Remarks" value={viewDef.remarks} />}
-          </div>
-          <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
-            {canWrite && <button
-              onClick={() => setEditDef({
-                ...viewDef,
-                dateRaised: viewDef.dateRaised?.slice(0, 10) || "",
-                targetFixDate: viewDef.targetFixDate?.slice(0, 10) || "",
-                linkedRunId: runs.find(r => r.runNumber === viewDef.runNumber)?.id || "",
-                linkedTestCaseId: allTestCases.find(t => t.tcNumber === viewDef.tcNumber)?.id || "",
-              })}
-              style={{ ...btnP, padding: "8px 14px", fontSize: 14 }}
-            >
-              Edit Defect
-            </button>}
-          </div>
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1.5px solid #f1f5f9" }}>
-            <div style={{ ...lbl, marginBottom: 10 }}>Attachments</div>
-            {canWrite && <div
-              onPaste={e => onDefectPasteUpload(e, viewDef.id)}
-              style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-            >
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                Paste screenshot with Ctrl+V or attach file(s)
+              <div><label style={lbl}>Raised By</label>
+                <input value={viewDef.raisedBy} style={{ ...inp, background: "#f8fafc" }} readOnly />
               </div>
-              <input
-                type="file"
-                multiple
-                onChange={e => {
-                  uploadDefectFiles(viewDef.id, e.target.files);
-                  e.target.value = "";
-                }}
-                style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-              />
-            </div>}
-            <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-              {(defectAttachments[viewDef.id] || []).length === 0 && (
-                <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments yet.</div>
-              )}
-
-              {(defectAttachments[viewDef.id] || []).map(a => (
-                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                  <button
-                    type="button"
-                    onClick={() => openAttachment(a.url, a.fileName)}
-                    style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                    title="Open attachment"
-                  >
-                    {a.fileName}
-                  </button>
-                  <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
-                  <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
-                  <button onClick={() => deleteDefectAttachment(viewDef.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                </div>
-              ))}
-
-              {uploadingDefectId === viewDef.id && (
-                <div style={{ color: "#64748b", fontSize: 12 }}>Uploading...</div>
-              )}
+              <div><label style={lbl}>Assigned To</label>
+                <input value={viewDef.assignedTo} style={{ ...inp, background: "#f8fafc" }} readOnly />
+              </div>
+              <div><label style={lbl}>Date Raised</label>
+                <input value={viewDef.dateRaised} style={{ ...inp, background: "#f8fafc" }} readOnly />
+              </div>
+              <div><label style={lbl}>Target Fix</label>
+                <input value={viewDef.targetFixDate} style={{ ...inp, background: "#f8fafc" }} readOnly />
+              </div>
             </div>
-          </div>
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1.5px solid #f1f5f9" }}>
-            <div style={{ ...lbl, marginBottom: 10 }}>Comments</div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {(viewDef.comments || []).length === 0 && (
-                <div style={{ color: "#94a3b8", fontSize: 13 }}>No comments yet.</div>
-              )}
-
-              {(viewDef.comments || []).map(c => (
-                <div
-                  key={c.id}
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 8,
-                    padding: "8px 12px",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700, color: "#475569", fontSize: 12 }}>{c.tester}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(c.createdAt).toLocaleString()}</span>
-                      <button
-                        onClick={() => deleteDefectComment(viewDef.id, c.id)}
-                        style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer" }}
-                      >
-                        ✕
-                      </button>
-                    </div>
+            <div><label style={lbl}>Remarks</label>
+              <input value={viewDef.remarks} style={{ ...inp, background: "#f8fafc" }} readOnly />
+            </div>
+            <div>
+              <label style={lbl}>Attachments</label>
+              <div style={{ display: "grid", gap: 8 }}>
+                {(!viewDef.attachments || viewDef.attachments.length === 0) && (
+                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments</div>
+                )}
+                {(viewDef.attachments || []).map(att => (
+                  <div key={att.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                    <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.fileName}</span>
+                    <button
+                      onClick={() => openAttachment(att.filePath, att.fileName)}
+                      style={{ marginLeft: "auto", ...btnS, padding: "4px 10px", fontSize: 12 }}
+                    >
+                      Download
+                    </button>
                   </div>
-                  <div style={{ fontSize: 13, color: "#334155" }}>{c.message}</div>
-                </div>
-              ))}
-
-              {canComment && <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={lbl}>Comments</label>
+              <div style={{ display: "grid", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 2 }}>
+                {(!viewDef.comments || viewDef.comments.length === 0) && (
+                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No comments yet.</div>
+                )}
+                {[...(viewDef.comments || [])]
+                  .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+                  .map(c => (
+                  <div key={c.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                      <span style={{ color: "#475569", fontSize: 12, fontWeight: 700 }}>{c.tester || c.author || "User"}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: "#94a3b8", fontSize: 11 }}>{new Date(c.createdAt).toLocaleString()}</span>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => deleteDefectComment(viewDef.id, c.id)}
+                            style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ color: "#334155", fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{c.message}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <input
                   placeholder="Add comment... (use @Display Name to tag)"
                   value={defectCommentDrafts[viewDef.id] || ""}
                   onChange={e => {
                     const value = e.target.value;
-                    setDefectCommentDrafts(p => ({
-                      ...p,
-                      [viewDef.id]: value,
-                    }));
+                    setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: value }));
                     const result = getMentionSuggestions(value);
                     if (result && result.list.length > 0) {
-                      setMentionPicker({ type: "defect", key: viewDef.id, list: result.list });
+                      setMentionPicker({ type: "defect", key: `view-${viewDef.id}`, list: result.list });
                     } else {
-                      setMentionPicker(p => (p?.type === "defect" && p?.key === viewDef.id ? null : p));
+                      setMentionPicker(p => (p?.type === "defect" && p?.key === `view-${viewDef.id}` ? null : p));
                     }
                   }}
                   style={{ ...inp, fontSize: 12, flex: 1 }}
                 />
-                <button onClick={() => addDefectComment(viewDef.id)} style={btnP}>Add</button>
-              </div>}
-              {mentionPicker?.type === "defect" && mentionPicker?.key === viewDef.id && (
+                {canComment && (
+                  <button type="button" onClick={() => addDefectComment(viewDef.id)} style={btnP}>Add</button>
+                )}
+              </div>
+              {mentionPicker?.type === "defect" && mentionPicker?.key === `view-${viewDef.id}` && (
                 <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
                   {mentionPicker.list.map(u => (
                     <button
-                      key={`defect-mention-${viewDef.id}-${u.id}`}
+                      key={`defect-view-mention-${viewDef.id}-${u.id}`}
                       type="button"
                       onClick={() => {
                         const current = defectCommentDrafts[viewDef.id] || "";
@@ -3691,16 +3704,8 @@ export default function App() {
               )}
             </div>
           </div>
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1.5px solid #f1f5f9" }}>
-            <div style={{ ...lbl, marginBottom: 10 }}>Update Status</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {Object.entries(DEFECT_STATUS).map(([s, c]) => (
-                <button key={s} onClick={() => updateDefStatus(viewDef.id, s)} disabled={!canUpdateDefectStatus}
-                  style={{ background: viewDef.status === s ? c.bg : "#f8fafc", color: viewDef.status === s ? c.text : "#94a3b8", border: `1.5px solid ${viewDef.status === s ? c.border : "#e2e8f0"}`, borderRadius: 20, padding: "5px 13px", fontSize: 14, fontWeight: 700, cursor: canUpdateDefectStatus ? "pointer" : "not-allowed", opacity: canUpdateDefectStatus ? 1 : 0.6, transition: "all 0.15s" }}>
-                  {s}
-                </button>
-              ))}
-            </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
+            <button onClick={() => setViewDef(null)} style={btnS}>Close</button>
           </div>
         </Modal>
       )}
@@ -3712,7 +3717,6 @@ export default function App() {
             <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Defect</div>
             <button onClick={() => setEditDef(null)} style={xBtn}>✕</button>
           </div>
-
           <div style={{ display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
@@ -3769,6 +3773,17 @@ export default function App() {
             </div>
 
             <div>
+              <label style={lbl}>Issue Type</label>
+              <select
+                value={editDef.issueType || "Functional Issue"}
+                onChange={e => setEditDef(p => ({ ...p, issueType: e.target.value }))}
+                style={inp}
+              >
+                {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+
+            <div>
               <label style={lbl}>Description</label>
               <textarea
                 value={editDef.description || ""}
@@ -3797,9 +3812,18 @@ export default function App() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
+                <label style={lbl}>Priority</label>
+                <select
+                  value={editDef.priority} onChange={e => setEditDef(p => ({ ...p, priority: e.target.value }))}
+                  style={inp}
+                >
+                  {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
                 <label style={lbl}>Raised By</label>
                 <input
-                  value={editDef.raisedBy || ""}
+                  value={getCurrentUserDisplayName()}
                   style={{ ...inp, background: "#f8fafc" }}
                   readOnly
                 />
@@ -3807,25 +3831,12 @@ export default function App() {
               <div>
                 <label style={lbl}>Assigned To</label>
                 <select
-                  value={editDef.assignedTo || ""}
-                  onChange={e => setEditDef(p => ({ ...p, assignedTo: e.target.value }))}
+                  value={editDef.assignedTo} onChange={e => setEditDef(p => ({ ...p, assignedTo: e.target.value }))}
                   style={inp}
                 >
                   <option value="">Unassigned</option>
                   {allUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
                 </select>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Date Raised</label>
-                <input
-                  type="date"
-                  value={editDef.dateRaised || ""}
-                  onChange={e => setEditDef(p => ({ ...p, dateRaised: e.target.value }))}
-                  style={inp}
-                />
               </div>
               <div>
                 <label style={lbl}>Target Fix Date</label>
@@ -3839,25 +3850,117 @@ export default function App() {
             </div>
 
             <div>
-              <label style={lbl}>Status</label>
-              <select
-                value={editDef.status || "New"}
-                onChange={e => setEditDef(p => ({ ...p, status: e.target.value }))}
-                style={inp}
-              >
-                {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
-              </select>
+              <label style={lbl}>Remarks</label>
+              <textarea
+                value={editDef.remarks || ""}
+                onChange={e => setEditDef(p => ({ ...p, remarks: e.target.value }))}
+                style={{ ...inp, minHeight: 60, resize: "vertical" }}
+              />
             </div>
 
             <div>
-              <label style={lbl}>Priority</label>
-              <select
-                value={editDef.priority || "Medium"}
-                onChange={e => setEditDef(p => ({ ...p, priority: e.target.value }))}
-                style={inp}
+              <label style={lbl}>Attachments</label>
+              <div
+                onPaste={onDefectPasteUpload}
+                style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
               >
-                {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-              </select>
+                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+                  Paste screenshot with Ctrl+V or attach file(s)
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  onChange={e => {
+                    queueDefectFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                  style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                {newDefAttachments.length === 0 && (
+                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
+                )}
+
+                {newDefAttachments.map((f, i) => (
+                  <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                    <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                    <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
+                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is saved</span>
+                    <button onClick={() => removeQueuedDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label style={lbl}>Comments</label>
+              <div style={{ display: "grid", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 2 }}>
+                {(!editDef.comments || editDef.comments.length === 0) && (
+                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No comments yet.</div>
+                )}
+                {[...(editDef.comments || [])]
+                  .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+                  .map(c => (
+                  <div key={c.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                      <span style={{ color: "#475569", fontSize: 12, fontWeight: 700 }}>{c.tester || c.author || "User"}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: "#94a3b8", fontSize: 11 }}>{new Date(c.createdAt).toLocaleString()}</span>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => deleteDefectComment(editDef.id, c.id)}
+                            style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ color: "#334155", fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{c.message}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <input
+                  placeholder="Add comment... (use @Display Name to tag)"
+                  value={defectCommentDrafts[editDef.id] || ""}
+                  onChange={e => {
+                    const value = e.target.value;
+                    setDefectCommentDrafts(p => ({ ...p, [editDef.id]: value }));
+                    const result = getMentionSuggestions(value);
+                    if (result && result.list.length > 0) {
+                      setMentionPicker({ type: "defect", key: `edit-${editDef.id}`, list: result.list });
+                    } else {
+                      setMentionPicker(p => (p?.type === "defect" && p?.key === `edit-${editDef.id}` ? null : p));
+                    }
+                  }}
+                  style={{ ...inp, fontSize: 12, flex: 1 }}
+                />
+                {canComment && (
+                  <button type="button" onClick={() => addDefectComment(editDef.id)} style={btnP}>Add</button>
+                )}
+              </div>
+              {mentionPicker?.type === "defect" && mentionPicker?.key === `edit-${editDef.id}` && (
+                <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                  {mentionPicker.list.map(u => (
+                    <button
+                      key={`defect-edit-mention-${editDef.id}-${u.id}`}
+                      type="button"
+                      onClick={() => {
+                        const current = defectCommentDrafts[editDef.id] || "";
+                        setDefectCommentDrafts(p => ({ ...p, [editDef.id]: applyMentionText(current, u.displayName) }));
+                        setMentionPicker(null);
+                      }}
+                      style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                    >
+                      {u.displayName}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -4060,7 +4163,7 @@ export default function App() {
                 <span style={{ color: "#334155", fontWeight: 700 }}>{scope.name}</span>
                 <button
                   onClick={() => {
-                    if (window.confirm(`Delete testing scope \"${scope.name}\"?`)) deleteTestingScope(scope.id);
+                    if (window.confirm(`Delete testing scope "${scope.name}"?`)) deleteTestingScope(scope.id);
                   }}
                   style={btnD}
                 >
@@ -4438,56 +4541,145 @@ export default function App() {
 
       {/* ── MODAL: CREATE DEFECT ── */}
       {showAddDef && (
-        <Modal onClose={() => setShowAddDef(null)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+        <Modal onClose={() => { setShowAddDef(null); setNewDefAttachments([]); }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
             <div style={{ fontSize: 17, fontWeight: 800 }}>Create Defect</div>
             <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={xBtn}>✕</button>
           </div>
-          {showAddDef.runId && showAddDef.tcId
-            ? <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <span style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{runs.find(r => r.id === showAddDef.runId)?.runNumber}</span>
-              <span style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{allTestCaseById[showAddDef.tcId]?.tcNumber}</span>
-            </div>
-            : <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <span style={{ background: "#fff7ed", color: "#c2410c", border: "1px solid #fdba74", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>Standalone Defect</span>
-            </div>}
-          <div style={{ background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 8, padding: "10px 13px", fontSize: 12, color: "#64748b", marginBottom: 18 }}>{showAddDef.tcName}</div>
           <div style={{ display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div><label style={lbl}>Market</label>
-                <select value={newDef.market} onChange={e => setNewDef(p => ({ ...p, market: e.target.value }))} style={inp}>
+              <div>
+                <label style={lbl}>Market</label>
+                <select
+                  value={newDef.market || "SG"}
+                  onChange={e => setNewDef(p => ({ ...p, market: e.target.value }))}
+                  style={inp}
+                >
                   {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
                 </select>
               </div>
-              <div><label style={lbl}>Issue Type</label>
-                <select value={newDef.issueType} onChange={e => setNewDef(p => ({ ...p, issueType: e.target.value }))} style={inp}>
-                  {["UI Issue", "Functional Issue", "Performance Issue", "Compatibility Issue", "Data Issue", "Regression Issue"].map(t => <option key={t}>{t}</option>)}
+              <div>
+                <label style={lbl}>Run</label>
+                <select
+                  value={showAddDef.runId || ""}
+                  onChange={e => setShowAddDef(p => ({ ...p, runId: e.target.value || null }))}
+                  style={inp}
+                >
+                  <option value="">Standalone defect</option>
+                  {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
                 </select>
               </div>
+              {showAddDef.runId && (
+                <div>
+                  <label style={lbl}>Test Case</label>
+                  <select
+                    value={showAddDef.tcId || ""}
+                    onChange={e => setShowAddDef(p => ({ ...p, tcId: e.target.value || null }))}
+                    style={inp}
+                  >
+                    <option value="">No specific test case (run-level defect)</option>
+                    {(() => {
+                      const run = runs.find(r => String(r.id) === String(showAddDef.runId));
+                      const options = (run?.entries || [])
+                        .map(en => allTestCaseById[en.testCaseId])
+                        .filter(Boolean);
+                      return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
+                    })()}
+                  </select>
+                </div>
+              )}
             </div>
-            <div><label style={lbl}>Description *</label><textarea value={newDef.description} onChange={e => setNewDef(p => ({ ...p, description: e.target.value }))} style={{ ...inp, minHeight: 80, resize: "vertical" }} placeholder="Menu: … / Page: … / Issue: …" /></div>
-            <div><label style={lbl}>Expected Result</label><input value={newDef.expected} onChange={e => setNewDef(p => ({ ...p, expected: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Actual Result</label><input value={newDef.actual} onChange={e => setNewDef(p => ({ ...p, actual: e.target.value }))} style={inp} /></div>
+
+            <div>
+              <label style={lbl}>Issue Type</label>
+              <select
+                value={newDef.issueType || "Functional Issue"}
+                onChange={e => setNewDef(p => ({ ...p, issueType: e.target.value }))}
+                style={inp}
+              >
+                {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={lbl}>Description *</label>
+              <textarea
+                value={newDef.description || ""}
+                onChange={e => setNewDef(p => ({ ...p, description: e.target.value }))}
+                style={{ ...inp, minHeight: 80, resize: "vertical" }}
+              />
+            </div>
+
+            <div>
+              <label style={lbl}>Expected Result</label>
+              <textarea
+                value={newDef.expected || ""}
+                onChange={e => setNewDef(p => ({ ...p, expected: e.target.value }))}
+                style={{ ...inp, minHeight: 70, resize: "vertical" }}
+              />
+            </div>
+
+            <div>
+              <label style={lbl}>Actual Result</label>
+              <textarea
+                value={newDef.actual || ""}
+                onChange={e => setNewDef(p => ({ ...p, actual: e.target.value }))}
+                style={{ ...inp, minHeight: 70, resize: "vertical" }}
+              />
+            </div>
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div><label style={lbl}>Priority</label>
-                <select value={newDef.priority} onChange={e => setNewDef(p => ({ ...p, priority: e.target.value }))} style={inp}>
+              <div>
+                <label style={lbl}>Priority</label>
+                <select
+                  value={newDef.priority} onChange={e => setNewDef(p => ({ ...p, priority: e.target.value }))}
+                  style={inp}
+                >
                   {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
                 </select>
               </div>
-              <div><label style={lbl}>Raised By</label><input value={getCurrentUserDisplayName()} style={{ ...inp, background: "#f8fafc" }} readOnly /></div>
-              <div><label style={lbl}>Assigned To</label>
-                <select value={newDef.assignedTo} onChange={e => setNewDef(p => ({ ...p, assignedTo: e.target.value }))} style={inp}>
+              <div>
+                <label style={lbl}>Raised By</label>
+                <input
+                  value={getCurrentUserDisplayName()}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
+              </div>
+              <div>
+                <label style={lbl}>Assigned To</label>
+                <select
+                  value={newDef.assignedTo || ""} onChange={e => setNewDef(p => ({ ...p, assignedTo: e.target.value }))}
+                  style={inp}
+                >
                   <option value="">Unassigned</option>
                   {allUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
                 </select>
               </div>
-              <div><label style={lbl}>Target Fix Date</label><input type="date" value={newDef.targetFix} onChange={e => setNewDef(p => ({ ...p, targetFix: e.target.value }))} style={inp} /></div>
+              <div>
+                <label style={lbl}>Target Fix Date</label>
+                <input
+                  type="date"
+                  value={newDef.targetFix || ""}
+                  onChange={e => setNewDef(p => ({ ...p, targetFix: e.target.value }))}
+                  style={inp}
+                />
+              </div>
             </div>
-            <div><label style={lbl}>Remarks</label><input value={newDef.remarks} onChange={e => setNewDef(p => ({ ...p, remarks: e.target.value }))} style={inp} /></div>
-            <div style={{ marginTop: 2 }}>
+
+            <div>
+              <label style={lbl}>Remarks</label>
+              <textarea
+                value={newDef.remarks || ""}
+                onChange={e => setNewDef(p => ({ ...p, remarks: e.target.value }))}
+                style={{ ...inp, minHeight: 60, resize: "vertical" }}
+              />
+            </div>
+
+            <div>
               <label style={lbl}>Attachments</label>
               <div
-                onPaste={onNewDefectPasteUpload}
+                onPaste={onDefectPasteUpload}
                 style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
               >
                 <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
@@ -4497,12 +4689,13 @@ export default function App() {
                   type="file"
                   multiple
                   onChange={e => {
-                    queueNewDefectFiles(e.target.files);
+                    queueDefectFiles(e.target.files);
                     e.target.value = "";
                   }}
                   style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
                 />
               </div>
+
               <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
                 {newDefAttachments.length === 0 && (
                   <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
@@ -4512,8 +4705,8 @@ export default function App() {
                   <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
                     <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
                     <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
-                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is logged</span>
-                    <button onClick={() => removeQueuedNewDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is created</span>
+                    <button onClick={() => removeQueuedDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
                   </div>
                 ))}
               </div>
