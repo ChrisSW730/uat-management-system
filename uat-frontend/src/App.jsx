@@ -134,9 +134,9 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
           style={{
             width: "100%",
             height: "auto",
-            maxWidth: 640,
+            maxWidth: 520,
 
-            padding: "100px 42px",
+            padding: "80px 42px",
 
             borderRadius: 36,
 
