@@ -2979,6 +2979,9 @@ export default function App() {
                           </div>
                         )}
                       </td>
+                      <td style={{ padding: "13px 16px" }} onClick={() => setViewTC(tc)}>
+                        <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{tc.category || "-"}</span>
+                      </td>
                       <td
                         style={{ padding: "13px 16px" }}
                         onClick={() => setViewTC(tc)}
