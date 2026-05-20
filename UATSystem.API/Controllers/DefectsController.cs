@@ -68,6 +68,28 @@ public class DefectsController : ControllerBase
         return user?.DisplayName ?? username;
     }
 
+    private async Task NotifyUserByDisplayNameAsync(string? displayName, string message, string link)
+    {
+        var target = (displayName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(target)) return;
+
+        var lowered = target.ToLower();
+        var recipient = await _db.Users
+            .Where(u => u.IsActive)
+            .FirstOrDefaultAsync(u => u.DisplayName.ToLower() == lowered);
+
+        if (recipient == null) return;
+
+        _db.UserNotifications.Add(new UserNotification
+        {
+            RecipientUserId = recipient.Id,
+            Message = message,
+            Link = link,
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow,
+        });
+    }
+
     private async Task CreateMentionNotificationsAsync(string message, string actorDisplayName, string link, string defectNumber)
     {
         if (string.IsNullOrWhiteSpace(message)) return;
@@ -193,6 +215,7 @@ public class DefectsController : ControllerBase
         if (defect == null) return NotFound();
 
         var changedBy = GetChangedBy();
+        var oldStatus = defect.Status;
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
 
         var oldClose = defect.CloseDateTime;
@@ -208,6 +231,15 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(defect.CloseDateTime), changedBy);
         defect.Status = dto.Status;
 
+        if (!string.Equals(oldStatus, defect.Status, StringComparison.OrdinalIgnoreCase))
+        {
+            await NotifyUserByDisplayNameAsync(
+                defect.RaisedBy,
+                $"{changedBy} updated {defect.DefectNumber} status from {oldStatus} to {defect.Status}.",
+                $"/defects/{defect.Id}"
+            );
+        }
+
         await _db.SaveChangesAsync();
         return Ok(defect);
     }
@@ -218,6 +250,8 @@ public class DefectsController : ControllerBase
     {
         var defect = await _db.Defects.FindAsync(id);
         if (defect == null) return NotFound();
+
+        var oldStatus = defect.Status;
 
         if (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
         {
@@ -277,6 +311,32 @@ public class DefectsController : ControllerBase
         defect.CloseDateTime = newClose;
         defect.TargetFixDate = dto.TargetFixDate;
         defect.Status = dto.Status;
+
+        if (!string.Equals(oldStatus, defect.Status, StringComparison.OrdinalIgnoreCase))
+        {
+            await NotifyUserByDisplayNameAsync(
+                defect.RaisedBy,
+                $"{changedBy} updated {defect.DefectNumber} status from {oldStatus} to {defect.Status}.",
+                $"/defects/{defect.Id}"
+            );
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(defect);
+    }
+
+    [HttpPatch("{id}/assignee")]
+    [Authorize(Roles = "Admin,Test Lead,Tester,Developer")]
+    public async Task<IActionResult> UpdateAssignee(int id, UpdateAssigneeDto dto)
+    {
+        var defect = await _db.Defects.FindAsync(id);
+        if (defect == null) return NotFound();
+
+        var changedBy = GetChangedBy();
+        var newAssignedTo = (dto.AssignedTo ?? string.Empty).Trim();
+
+        AddAudit(defect, "AssignedTo", defect.AssignedTo, newAssignedTo, changedBy);
+        defect.AssignedTo = newAssignedTo;
 
         await _db.SaveChangesAsync();
         return Ok(defect);
@@ -472,6 +532,8 @@ public record UpdateDefectDto(
     DateTime DateRaised,
     DateTime? TargetFixDate,
     string Status);
+
+public record UpdateAssigneeDto(string AssignedTo);
 
 public record DefectAttachmentDto(
     int Id,

@@ -311,6 +311,23 @@ export const api = {
     },
     body: JSON.stringify({ status })
   }).then(r => r.json()),
+  async updateDefectAssignee(id, assignedTo, changedBy) {
+    const response = await fetch(`${BASE}/defects/${id}/assignee`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Name": changedBy || "Unknown"
+      },
+      body: JSON.stringify({ assignedTo: assignedTo || "" })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to update assignee");
+    }
+
+    return await response.json();
+  },
   getDefectAudits: (id) => fetch(`${BASE}/defects/${id}/audits`).then(r => r.json()),
   getDefectAttachments: (id) => fetch(`${BASE}/defects/${id}/attachments`).then(r => r.json()),
   uploadDefectAttachments: (id, files, uploadedBy) => {

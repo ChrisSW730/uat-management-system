@@ -328,6 +328,7 @@ export default function App() {
 
   const canWrite = !!authUser && authUser.role !== "Viewer" && authUser.role !== "Developer";
   const canComment = !!authUser && authUser.role !== "Viewer";
+  const canAssignDefect = !!authUser && authUser.role !== "Viewer";
   const canUpdateDefectStatus = !!authUser && ["Admin", "Test Lead", "Tester", "Developer"].includes(authUser.role);
   const canManageProjects = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
   const canDelete = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
@@ -343,6 +344,20 @@ export default function App() {
 
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
   }, [mentionUsers, users, authUser?.displayName]);
+
+  const assignableUserDisplayNames = useMemo(() => {
+    const names = [
+      ...(users || [])
+        .filter(u => (u.role || "").toLowerCase() !== "viewer")
+        .map(u => (u.displayName || "").trim()),
+      ...(mentionUsers || [])
+        .filter(u => !u.role || (u.role || "").toLowerCase() !== "viewer")
+        .map(u => (u.displayName || "").trim()),
+      authUser?.role !== "Viewer" ? (authUser?.displayName || "").trim() : "",
+    ].filter(Boolean);
+
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  }, [users, mentionUsers, authUser?.displayName, authUser?.role]);
 
   function getCurrentUserName() {
     return authUser?.username || localStorage.getItem("uatUserName") || "Chris";
@@ -385,6 +400,80 @@ export default function App() {
       const prefix = m.startsWith(" ") ? " " : "";
       return `${prefix}@${displayName} `;
     });
+  }
+
+  const mentionInputRefs = useRef({});
+
+  function registerMentionInputRef(key, node) {
+    if (!key) return;
+    if (node) mentionInputRefs.current[key] = node;
+    else delete mentionInputRefs.current[key];
+  }
+
+  function focusMentionInput(key) {
+    const input = mentionInputRefs.current[key];
+    if (!input) return;
+    input.focus();
+    const len = input.value?.length || 0;
+    if (input.setSelectionRange) input.setSelectionRange(len, len);
+  }
+
+  function handleMentionInputChange(pickerType, pickerKey, value, setValue) {
+    setValue(value);
+    const result = getMentionSuggestions(value);
+    if (result && result.list.length > 0) {
+      setMentionPicker({ type: pickerType, key: pickerKey, list: result.list, activeIndex: 0 });
+    } else {
+      setMentionPicker(p => (p?.type === pickerType && p?.key === pickerKey ? null : p));
+    }
+  }
+
+  function selectMention(pickerType, pickerKey, currentValue, setValue, displayName) {
+    const nextValue = applyMentionText(currentValue, displayName);
+    setValue(nextValue);
+    setMentionPicker(null);
+    requestAnimationFrame(() => focusMentionInput(pickerKey));
+  }
+
+  function handleMentionKeyDown(e, pickerType, pickerKey, currentValue, setValue) {
+    if (mentionPicker?.type !== pickerType || mentionPicker?.key !== pickerKey || !mentionPicker.list?.length) return;
+
+    const len = mentionPicker.list.length;
+    const currentIndex = Number.isInteger(mentionPicker.activeIndex) ? mentionPicker.activeIndex : 0;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMentionPicker(p => {
+        if (!p || p.type !== pickerType || p.key !== pickerKey || !p.list?.length) return p;
+        const nextIndex = (Number.isInteger(p.activeIndex) ? p.activeIndex : 0) + 1;
+        return { ...p, activeIndex: nextIndex % p.list.length };
+      });
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMentionPicker(p => {
+        if (!p || p.type !== pickerType || p.key !== pickerKey || !p.list?.length) return p;
+        const base = Number.isInteger(p.activeIndex) ? p.activeIndex : 0;
+        return { ...p, activeIndex: (base - 1 + p.list.length) % p.list.length };
+      });
+      return;
+    }
+
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      const selected = mentionPicker.list[currentIndex] || mentionPicker.list[0];
+      if (selected) {
+        selectMention(pickerType, pickerKey, currentValue, setValue, selected.displayName);
+      }
+      return;
+    }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setMentionPicker(null);
+    }
   }
 
   async function handleLogin(e) {
@@ -1715,6 +1804,20 @@ export default function App() {
       setDefects(p => p.map(d => d.id === id ? updated : d));
       setViewDef(d => d?.id === id ? updated : d);
     } catch (e) { console.error("Failed to update defect status:", e); }
+  }
+
+  async function updateDefAssignedTo(def, assignedTo) {
+    if (!canAssignDefect) return;
+
+    try {
+      const updated = await api.updateDefectAssignee(def.id, assignedTo, getCurrentUserName());
+
+      setDefects(p => p.map(d => d.id === def.id ? updated : d));
+      setViewDef(d => d?.id === def.id ? updated : d);
+      setEditDef(d => d?.id === def.id ? updated : d);
+    } catch (e) {
+      alert("Failed to update assignee: " + e.message);
+    }
   }
 
   async function saveDefectEdits() {
@@ -3228,7 +3331,20 @@ export default function App() {
                       </td>
                       <td style={{ padding: "13px 16px" }} onClick={() => setViewDef(def)}><PriBadge label={def.priority} /></td>
                       <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>{def.raisedBy || "—"}</td>
-                      <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>{def.assignedTo || "—"}</td>
+                      <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
+                        <select
+                          value={def.assignedTo || ""}
+                          onChange={e => updateDefAssignedTo(def, e.target.value)}
+                          disabled={!canAssignDefect}
+                          style={{ ...inp, minWidth: 170, fontSize: 13, padding: "6px 8px", color: "#334155" }}
+                        >
+                          <option value="">Unassigned</option>
+                          {def.assignedTo && !assignableUserDisplayNames.includes(def.assignedTo) && (
+                            <option value={def.assignedTo}>{def.assignedTo} (current)</option>
+                          )}
+                          {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                      </td>
                       <td style={{ padding: "13px 16px" }}>
                         <select value={def.status} onChange={e => updateDefStatus(def.id, e.target.value)} onClick={e => e.stopPropagation()} disabled={!canUpdateDefectStatus}
                           style={{ background: DEFECT_STATUS[def.status]?.bg, color: DEFECT_STATUS[def.status]?.text, border: `1.5px solid ${DEFECT_STATUS[def.status]?.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 14, fontWeight: 700, cursor: "pointer", outline: "none" }}>
@@ -3492,19 +3608,23 @@ export default function App() {
                           <input
                             placeholder="Add comment... (use @Display Name to tag)"
                             value={commentDrafts[entry.testCaseId] || ""}
+                            ref={node => registerMentionInputRef(`run-${entry.testCaseId}`, node)}
                             onChange={e => {
                               const value = e.target.value;
-                              setCommentDrafts(p => ({
-                                ...p,
-                                [entry.testCaseId]: value
-                              }));
-                              const result = getMentionSuggestions(value);
-                              if (result && result.list.length > 0) {
-                                setMentionPicker({ type: "run", key: entry.testCaseId, list: result.list });
-                              } else {
-                                setMentionPicker(p => (p?.type === "run" && p?.key === entry.testCaseId ? null : p));
-                              }
+                              handleMentionInputChange(
+                                "run",
+                                `run-${entry.testCaseId}`,
+                                value,
+                                next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
+                              );
                             }}
+                            onKeyDown={e => handleMentionKeyDown(
+                              e,
+                              "run",
+                              `run-${entry.testCaseId}`,
+                              commentDrafts[entry.testCaseId] || "",
+                              next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
+                            )}
                             style={{
                               ...inp,
                               fontSize: 12,
@@ -3524,18 +3644,24 @@ export default function App() {
                             Add
                           </button>}
                         </div>
-                        {mentionPicker?.type === "run" && mentionPicker?.key === entry.testCaseId && (
+                        {mentionPicker?.type === "run" && mentionPicker?.key === `run-${entry.testCaseId}` && (
                           <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
-                            {mentionPicker.list.map(u => (
+                            {mentionPicker.list.map((u, idx) => (
                               <button
                                 key={`run-mention-${entry.testCaseId}-${u.id}`}
                                 type="button"
+                                onMouseDown={e => e.preventDefault()}
                                 onClick={() => {
                                   const current = commentDrafts[entry.testCaseId] || "";
-                                  setCommentDrafts(p => ({ ...p, [entry.testCaseId]: applyMentionText(current, u.displayName) }));
-                                  setMentionPicker(null);
+                                  selectMention(
+                                    "run",
+                                    `run-${entry.testCaseId}`,
+                                    current,
+                                    next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next })),
+                                    u.displayName
+                                  );
                                 }}
-                                style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: mentionPicker.activeIndex === idx ? "#eff6ff" : "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                               >
                                 {u.displayName}
                               </button>
@@ -3668,16 +3794,23 @@ export default function App() {
                 <input
                   placeholder="Add comment... (use @Display Name to tag)"
                   value={defectCommentDrafts[viewDef.id] || ""}
+                  ref={node => registerMentionInputRef(`view-${viewDef.id}`, node)}
                   onChange={e => {
                     const value = e.target.value;
-                    setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: value }));
-                    const result = getMentionSuggestions(value);
-                    if (result && result.list.length > 0) {
-                      setMentionPicker({ type: "defect", key: `view-${viewDef.id}`, list: result.list });
-                    } else {
-                      setMentionPicker(p => (p?.type === "defect" && p?.key === `view-${viewDef.id}` ? null : p));
-                    }
+                    handleMentionInputChange(
+                      "defect",
+                      `view-${viewDef.id}`,
+                      value,
+                      next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next }))
+                    );
                   }}
+                  onKeyDown={e => handleMentionKeyDown(
+                    e,
+                    "defect",
+                    `view-${viewDef.id}`,
+                    defectCommentDrafts[viewDef.id] || "",
+                    next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next }))
+                  )}
                   style={{ ...inp, fontSize: 12, flex: 1 }}
                 />
                 {canComment && (
@@ -3686,16 +3819,22 @@ export default function App() {
               </div>
               {mentionPicker?.type === "defect" && mentionPicker?.key === `view-${viewDef.id}` && (
                 <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
-                  {mentionPicker.list.map(u => (
+                  {mentionPicker.list.map((u, idx) => (
                     <button
                       key={`defect-view-mention-${viewDef.id}-${u.id}`}
                       type="button"
+                      onMouseDown={e => e.preventDefault()}
                       onClick={() => {
                         const current = defectCommentDrafts[viewDef.id] || "";
-                        setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: applyMentionText(current, u.displayName) }));
-                        setMentionPicker(null);
+                        selectMention(
+                          "defect",
+                          `view-${viewDef.id}`,
+                          current,
+                          next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next })),
+                          u.displayName
+                        );
                       }}
-                      style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                      style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: mentionPicker.activeIndex === idx ? "#eff6ff" : "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                     >
                       {u.displayName}
                     </button>
@@ -3835,7 +3974,7 @@ export default function App() {
                   style={inp}
                 >
                   <option value="">Unassigned</option>
-                  {allUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                  {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
                 </select>
               </div>
               <div>
@@ -3927,16 +4066,23 @@ export default function App() {
                 <input
                   placeholder="Add comment... (use @Display Name to tag)"
                   value={defectCommentDrafts[editDef.id] || ""}
+                  ref={node => registerMentionInputRef(`edit-${editDef.id}`, node)}
                   onChange={e => {
                     const value = e.target.value;
-                    setDefectCommentDrafts(p => ({ ...p, [editDef.id]: value }));
-                    const result = getMentionSuggestions(value);
-                    if (result && result.list.length > 0) {
-                      setMentionPicker({ type: "defect", key: `edit-${editDef.id}`, list: result.list });
-                    } else {
-                      setMentionPicker(p => (p?.type === "defect" && p?.key === `edit-${editDef.id}` ? null : p));
-                    }
+                    handleMentionInputChange(
+                      "defect",
+                      `edit-${editDef.id}`,
+                      value,
+                      next => setDefectCommentDrafts(p => ({ ...p, [editDef.id]: next }))
+                    );
                   }}
+                  onKeyDown={e => handleMentionKeyDown(
+                    e,
+                    "defect",
+                    `edit-${editDef.id}`,
+                    defectCommentDrafts[editDef.id] || "",
+                    next => setDefectCommentDrafts(p => ({ ...p, [editDef.id]: next }))
+                  )}
                   style={{ ...inp, fontSize: 12, flex: 1 }}
                 />
                 {canComment && (
@@ -3945,16 +4091,22 @@ export default function App() {
               </div>
               {mentionPicker?.type === "defect" && mentionPicker?.key === `edit-${editDef.id}` && (
                 <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
-                  {mentionPicker.list.map(u => (
+                  {mentionPicker.list.map((u, idx) => (
                     <button
                       key={`defect-edit-mention-${editDef.id}-${u.id}`}
                       type="button"
+                      onMouseDown={e => e.preventDefault()}
                       onClick={() => {
                         const current = defectCommentDrafts[editDef.id] || "";
-                        setDefectCommentDrafts(p => ({ ...p, [editDef.id]: applyMentionText(current, u.displayName) }));
-                        setMentionPicker(null);
+                        selectMention(
+                          "defect",
+                          `edit-${editDef.id}`,
+                          current,
+                          next => setDefectCommentDrafts(p => ({ ...p, [editDef.id]: next })),
+                          u.displayName
+                        );
                       }}
-                      style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                      style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: mentionPicker.activeIndex === idx ? "#eff6ff" : "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                     >
                       {u.displayName}
                     </button>
@@ -4653,7 +4805,7 @@ export default function App() {
                   style={inp}
                 >
                   <option value="">Unassigned</option>
-                  {allUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                  {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
                 </select>
               </div>
               <div>
