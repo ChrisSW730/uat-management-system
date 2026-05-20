@@ -55,6 +55,15 @@ export const api = {
     return await response.json();
   },
 
+  getMentionUsers: async () => {
+    const response = await fetch(`${BASE}/auth/mention-users`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to load mention users");
+    }
+    return await response.json();
+  },
+
   getUsers: () => fetch(`${BASE}/users`).then(r => r.json()),
   createUser: (data) => fetch(`${BASE}/users`, {
     method: "POST",
@@ -80,6 +89,31 @@ export const api = {
   }).then(async r => {
     if (!r.ok) throw new Error(await r.text());
     return r.json();
+  }),
+
+  getNotifications: (unreadOnly = false) => fetch(`${BASE}/notifications?unreadOnly=${unreadOnly}`).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
+  markNotificationRead: (id) => fetch(`${BASE}/notifications/${id}/read`, {
+    method: "POST"
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+  }),
+  markAllNotificationsRead: () => fetch(`${BASE}/notifications/read-all`, {
+    method: "POST"
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+  }),
+  deleteNotification: (id) => fetch(`${BASE}/notifications/${id}`, {
+    method: "DELETE"
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+  }),
+  clearAllNotifications: () => fetch(`${BASE}/notifications/clear-all`, {
+    method: "DELETE"
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
   }),
 
   // Projects and Test Plans

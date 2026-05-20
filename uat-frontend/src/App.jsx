@@ -257,6 +257,10 @@ export default function App() {
   const [hoveredRunId, setHoveredRunId] = useState(null);
   const [commentDrafts, setCommentDrafts] = useState({});
   const [defectCommentDrafts, setDefectCommentDrafts] = useState({});
+  const [mentionUsers, setMentionUsers] = useState([]);
+  const [mentionPicker, setMentionPicker] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [defectAttachments, setDefectAttachments] = useState({});
   const [uploadingDefectId, setUploadingDefectId] = useState(null);
   const [newDefAttachments, setNewDefAttachments] = useState([]);
@@ -331,6 +335,7 @@ export default function App() {
   const canDelete = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
   const isAdmin = authUser?.role === "Admin";
   const fallbackAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || "admin@uatsystem.local").trim();
+  const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
   function getCurrentUserName() {
     return authUser?.username || localStorage.getItem("uatUserName") || "Chris";
@@ -338,6 +343,37 @@ export default function App() {
 
   function isValidEmail(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value || "").trim());
+  }
+
+  function formatTimeAgo(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const diffMs = Date.now() - date.getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  function getMentionSuggestions(text) {
+    const match = (text || "").match(/(?:^|\s)@([^\s@]*)$/);
+    if (!match) return null;
+    const query = (match[1] || "").trim().toLowerCase();
+    const list = mentionUsers
+      .filter(u => (u.displayName || "").toLowerCase().includes(query))
+      .slice(0, 8);
+    return { query, list };
+  }
+
+  function applyMentionText(text, displayName) {
+    return (text || "").replace(/(?:^|\s)@([^\s@]*)$/, m => {
+      const prefix = m.startsWith(" ") ? " " : "";
+      return `${prefix}@${displayName} `;
+    });
   }
 
   async function handleLogin(e) {
@@ -447,6 +483,10 @@ export default function App() {
     setRuns([]);
     setDefects([]);
     setUsers([]);
+    setMentionUsers([]);
+    setMentionPicker(null);
+    setNotifications([]);
+    setShowNotifications(false);
     setSelectedProjectId("");
     setSelectedTestPlanId("");
     setActiveTab("testcases");
@@ -539,6 +579,9 @@ export default function App() {
    }, []);*/
   useEffect(() => {
     if (!authUser) {
+      setMentionUsers([]);
+      setMentionPicker(null);
+      setNotifications([]);
       setLoading(false);
       return;
     }
@@ -560,7 +603,9 @@ export default function App() {
       }),
       api.getTestRuns().then(setRuns),
       api.getDefects().then(setDefects),
+      api.getMentionUsers().then(setMentionUsers).catch(err => console.error("Mention users error:", err)),
       isAdmin ? api.getUsers().then(setUsers).catch(err => console.error("Users Error:", err)) : Promise.resolve([]),
+      api.getNotifications(false).then(setNotifications).catch(err => console.error("Notifications Error:", err)),
     ])
       .catch(err => console.error("Failed to load data:", err))
       .finally(() => setLoading(false));
@@ -578,6 +623,7 @@ export default function App() {
       setContextMenu(null);
       setDefDateFilterPanel(null);
       setRunDateFilterPanel(null);
+      setShowNotifications(false);
       setShowSettingsMenu(false);
     }
     window.addEventListener("click", handleClick);
@@ -1080,6 +1126,87 @@ export default function App() {
       window.location.href = mailto;
     } catch (error) {
       alert(`Failed to reset password: ${error.message}`);
+    }
+  }
+
+  async function toggleNotificationsPanel() {
+    const next = !showNotifications;
+    setShowNotifications(next);
+    if (!next) return;
+
+    try {
+      const items = await api.getNotifications(false);
+      setNotifications(items || []);
+    } catch (error) {
+      console.error("Failed to load notifications:", error);
+    }
+  }
+
+  async function markNotificationAsRead(notification) {
+    try {
+      if (!notification.isRead) {
+        await api.markNotificationRead(notification.id);
+        setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n));
+      }
+
+      const link = (notification.link || "").trim();
+      const runMatch = link.match(/^\/runs\/(\d+)$/);
+      const defectMatch = link.match(/^\/defects\/(\d+)$/);
+
+      if (runMatch) {
+        const runId = Number(runMatch[1]);
+        setActiveTab("runs");
+
+        let targetRun = (runs || []).find(r => r.id === runId);
+        if (!targetRun) {
+          const refreshedRuns = await api.getTestRuns();
+          setRuns(refreshedRuns || []);
+          targetRun = (refreshedRuns || []).find(r => r.id === runId);
+        }
+
+        if (targetRun) {
+          setViewRun(targetRun);
+          setShowNotifications(false);
+        }
+        return;
+      }
+
+      if (defectMatch) {
+        const defectId = Number(defectMatch[1]);
+        setActiveTab("defects");
+
+        let targetDefect = (defects || []).find(d => d.id === defectId);
+        if (!targetDefect) {
+          const refreshedDefects = await api.getDefects();
+          setDefects(refreshedDefects || []);
+          targetDefect = (refreshedDefects || []).find(d => d.id === defectId);
+        }
+
+        if (targetDefect) {
+          setViewDef(targetDefect);
+          setShowNotifications(false);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+    }
+  }
+
+  async function markAllNotificationsAsRead() {
+    try {
+      await api.markAllNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+    }
+  }
+
+  async function clearAllNotifications() {
+    try {
+      await api.clearAllNotifications();
+      setNotifications([]);
+    } catch (error) {
+      console.error("Failed to clear all notifications:", error);
     }
   }
 
@@ -1693,6 +1820,37 @@ export default function App() {
     }
   }
 
+  async function openAttachment(url, fileName) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("Session expired or access denied. Please login again.");
+        }
+        if (response.status === 404) {
+          throw new Error("Attachment file was not found on server.");
+        }
+
+        const text = await response.text();
+        throw new Error(text || `Failed to open attachment (HTTP ${response.status}).`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.download = fileName || "attachment";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+    } catch (e) {
+      alert("Failed to open attachment: " + e.message);
+    }
+  }
+
   function onTestCasePasteUpload(e, testCaseId) {
     const files = Array.from(e.clipboardData?.files || []);
     if (files.length === 0) return;
@@ -2105,6 +2263,74 @@ export default function App() {
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>{authUser.displayName || authUser.username}</div>
             <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{authUser.role}</div>
+          </div>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleNotificationsPanel();
+              }}
+              style={{ ...btnS, padding: "8px 10px", fontSize: 16, lineHeight: 1, position: "relative" }}
+              aria-label="Notifications"
+              title="Notifications"
+            >
+              🔔
+              {unreadNotificationsCount > 0 && (
+                <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 999, background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px", border: "2px solid #fff" }}>
+                  {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+            {showNotifications && (
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "calc(100% + 8px)",
+                  width: 360,
+                  maxHeight: 360,
+                  overflowY: "auto",
+                  background: "#fff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: 10,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+                  padding: 8,
+                  zIndex: 2600,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 8px", borderBottom: "1px solid #f1f5f9", marginBottom: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Notifications</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button onClick={markAllNotificationsAsRead} style={{ border: "none", background: "none", color: "#4f46e5", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Mark all read</button>
+                    <button
+                      type="button"
+                      onClick={clearAllNotifications}
+                      title="Clear all notifications"
+                      aria-label="Clear all notifications"
+                      style={{ border: "1px solid #e2e8f0", background: "#fff", color: "#475569", borderRadius: 8, height: 28, cursor: "pointer", fontSize: 12, fontWeight: 700, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "0 9px" }}
+                    >
+                      <span style={{ fontSize: 13, lineHeight: 1 }}>🗑</span>
+                      <span>Clear all</span>
+                    </button>
+                  </div>
+                </div>
+                {notifications.length === 0 && (
+                  <div style={{ padding: "10px 8px", color: "#94a3b8", fontSize: 13 }}>No notifications yet.</div>
+                )}
+                {notifications.map(n => (
+                  <button
+                    key={n.id}
+                    onClick={() => markNotificationAsRead(n)}
+                    style={{ width: "100%", textAlign: "left", border: "1px solid #f1f5f9", background: n.isRead ? "#fff" : "#eef2ff", borderRadius: 8, padding: "9px 10px", marginBottom: 6, cursor: "pointer" }}
+                    title={n.link || ""}
+                  >
+                    <div style={{ color: "#0f172a", fontSize: 13, fontWeight: n.isRead ? 600 : 800, lineHeight: 1.35 }}>{n.message}</div>
+                    <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 4 }}>{formatTimeAgo(n.createdAt)}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           {isAdmin && (
             <div style={{ position: "relative" }}>
@@ -3016,9 +3242,14 @@ export default function App() {
 
               {(testCaseAttachments[viewTC.id] || []).map(a => (
                 <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                  <a href={a.url} target="_blank" rel="noreferrer" style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => openAttachment(a.url, a.fileName)}
+                    style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                    title="Open attachment"
+                  >
                     {a.fileName}
-                  </a>
+                  </button>
                   <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
                   <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
                   <button onClick={() => deleteTestCaseAttachment(viewTC.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
@@ -3197,14 +3428,21 @@ export default function App() {
                           gap: 8
                         }}>
                           <input
-                            placeholder="Add comment..."
+                            placeholder="Add comment... (use @Display Name to tag)"
                             value={commentDrafts[entry.testCaseId] || ""}
-                            onChange={e =>
+                            onChange={e => {
+                              const value = e.target.value;
                               setCommentDrafts(p => ({
                                 ...p,
-                                [entry.testCaseId]: e.target.value
-                              }))
-                            }
+                                [entry.testCaseId]: value
+                              }));
+                              const result = getMentionSuggestions(value);
+                              if (result && result.list.length > 0) {
+                                setMentionPicker({ type: "run", key: entry.testCaseId, list: result.list });
+                              } else {
+                                setMentionPicker(p => (p?.type === "run" && p?.key === entry.testCaseId ? null : p));
+                              }
+                            }}
                             style={{
                               ...inp,
                               fontSize: 12,
@@ -3224,6 +3462,24 @@ export default function App() {
                             Add
                           </button>}
                         </div>
+                        {mentionPicker?.type === "run" && mentionPicker?.key === entry.testCaseId && (
+                          <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                            {mentionPicker.list.map(u => (
+                              <button
+                                key={`run-mention-${entry.testCaseId}-${u.id}`}
+                                type="button"
+                                onClick={() => {
+                                  const current = commentDrafts[entry.testCaseId] || "";
+                                  setCommentDrafts(p => ({ ...p, [entry.testCaseId]: applyMentionText(current, u.displayName) }));
+                                  setMentionPicker(null);
+                                }}
+                                style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                              >
+                                {u.displayName}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
@@ -3332,9 +3588,14 @@ export default function App() {
 
               {(defectAttachments[viewDef.id] || []).map(a => (
                 <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                  <a href={a.url} target="_blank" rel="noreferrer" style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => openAttachment(a.url, a.fileName)}
+                    style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                    title="Open attachment"
+                  >
                     {a.fileName}
-                  </a>
+                  </button>
                   <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
                   <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
                   <button onClick={() => deleteDefectAttachment(viewDef.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
@@ -3381,16 +3642,43 @@ export default function App() {
 
               {canComment && <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
                 <input
-                  placeholder="Add comment..."
+                  placeholder="Add comment... (use @Display Name to tag)"
                   value={defectCommentDrafts[viewDef.id] || ""}
-                  onChange={e => setDefectCommentDrafts(p => ({
-                    ...p,
-                    [viewDef.id]: e.target.value,
-                  }))}
+                  onChange={e => {
+                    const value = e.target.value;
+                    setDefectCommentDrafts(p => ({
+                      ...p,
+                      [viewDef.id]: value,
+                    }));
+                    const result = getMentionSuggestions(value);
+                    if (result && result.list.length > 0) {
+                      setMentionPicker({ type: "defect", key: viewDef.id, list: result.list });
+                    } else {
+                      setMentionPicker(p => (p?.type === "defect" && p?.key === viewDef.id ? null : p));
+                    }
+                  }}
                   style={{ ...inp, fontSize: 12, flex: 1 }}
                 />
                 <button onClick={() => addDefectComment(viewDef.id)} style={btnP}>Add</button>
               </div>}
+              {mentionPicker?.type === "defect" && mentionPicker?.key === viewDef.id && (
+                <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                  {mentionPicker.list.map(u => (
+                    <button
+                      key={`defect-mention-${viewDef.id}-${u.id}`}
+                      type="button"
+                      onClick={() => {
+                        const current = defectCommentDrafts[viewDef.id] || "";
+                        setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: applyMentionText(current, u.displayName) }));
+                        setMentionPicker(null);
+                      }}
+                      style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                    >
+                      {u.displayName}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1.5px solid #f1f5f9" }}>
@@ -4052,9 +4340,14 @@ export default function App() {
 
                 {(testCaseAttachments[editTC.id] || []).map(a => (
                   <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                    <a href={a.url} target="_blank" rel="noreferrer" style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => openAttachment(a.url, a.fileName)}
+                      style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                      title="Open attachment"
+                    >
                       {a.fileName}
-                    </a>
+                    </button>
                     <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
                     <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
                     <button onClick={() => deleteTestCaseAttachment(editTC.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>

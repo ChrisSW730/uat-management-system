@@ -83,7 +83,20 @@ public class AuthController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
         if (user == null) return Unauthorized();
 
-        return Ok(new AuthUserDto(user.Id, user.Username, user.DisplayName, user.Role));
+        return Ok(new AuthUserDto(user.Id, user.Username, user.DisplayName, user.Role, user.MustChangePassword));
+    }
+
+    [Authorize]
+    [HttpGet("mention-users")]
+    public async Task<IActionResult> GetMentionUsers()
+    {
+        var users = await _db.Users
+            .Where(u => u.IsActive)
+            .OrderBy(u => u.DisplayName)
+            .Select(u => new MentionUserDto(u.Id, u.DisplayName, u.Username))
+            .ToListAsync();
+
+        return Ok(users);
     }
 
     private int GetTokenExpiryMinutes()
@@ -130,3 +143,4 @@ public record LoginRequest(string Username, string Password);
 public record AuthUserDto(int Id, string Username, string DisplayName, string Role, bool MustChangePassword = false);
 public record AuthResponse(string Token, DateTime ExpiresAtUtc, AuthUserDto User);
 public record AdminContactsDto(List<string> Usernames);
+public record MentionUserDto(int Id, string DisplayName, string Username);

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using UATSystem.API.Data;
 using UATSystem.API.Models;
 
@@ -29,6 +30,39 @@ public class TestRunsController : ControllerBase
 
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
         return user?.DisplayName ?? username;
+    }
+
+    private async Task CreateMentionNotificationsAsync(string message, string actorDisplayName, string link, string testCaseNumber)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return;
+
+        var actorUserIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int.TryParse(actorUserIdRaw, out var actorUserId);
+
+        var activeUsers = await _db.Users
+            .Where(u => u.IsActive && !string.IsNullOrWhiteSpace(u.DisplayName))
+            .ToListAsync();
+
+        var matchedIds = activeUsers
+            .Where(u => u.Id != actorUserId && message.Contains($"@{u.DisplayName}", StringComparison.OrdinalIgnoreCase))
+            .Select(u => u.Id)
+            .Distinct()
+            .ToList();
+
+        if (matchedIds.Count == 0) return;
+
+        var now = DateTime.UtcNow;
+        foreach (var uid in matchedIds)
+        {
+            _db.UserNotifications.Add(new UserNotification
+            {
+                RecipientUserId = uid,
+                Message = $"{actorDisplayName} mentioned you in a test run comment (TC ID: {testCaseNumber}).",
+                Link = link,
+                IsRead = false,
+                CreatedAt = now,
+            });
+        }
     }
 
     [HttpGet]
@@ -129,15 +163,22 @@ public class TestRunsController : ControllerBase
             .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
         if (entry == null) return NotFound();
 
+        var testCaseNumber = await _db.TestCases
+            .Where(tc => tc.Id == testCaseId)
+            .Select(tc => tc.TcNumber)
+            .FirstOrDefaultAsync() ?? testCaseId.ToString();
+
+        var actorDisplayName = await GetCommentTesterAsync();
         var comment = new TestRunEntryComment
         {
             TestRunEntryId = entry.Id,
-            Tester = await GetCommentTesterAsync(),
+            Tester = actorDisplayName,
             Message = dto.Message.Trim(),
             CreatedAt = DateTime.UtcNow,
         };
 
         _db.TestRunEntryComments.Add(comment);
+        await CreateMentionNotificationsAsync(dto.Message.Trim(), actorDisplayName, $"/runs/{id}", testCaseNumber);
         await _db.SaveChangesAsync();
         return Ok(comment);
     }

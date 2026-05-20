@@ -20,6 +20,7 @@ public class UATDbContext : DbContext
     public DbSet<DefectAttachment> DefectAttachments => Set<DefectAttachment>();
     public DbSet<TestCaseAttachment> TestCaseAttachments => Set<TestCaseAttachment>();
     public DbSet<UserAccount> Users => Set<UserAccount>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -98,5 +99,14 @@ public class UATDbContext : DbContext
         modelBuilder.Entity<UserAccount>()
             .HasIndex(u => u.Username)
             .IsUnique();
+
+        modelBuilder.Entity<UserNotification>()
+            .HasOne(n => n.Recipient)
+            .WithMany()
+            .HasForeignKey(n => n.RecipientUserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserNotification>()
+            .HasIndex(n => new { n.RecipientUserId, n.IsRead, n.CreatedAt });
     }
 }
