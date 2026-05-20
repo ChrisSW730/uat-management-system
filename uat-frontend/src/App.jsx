@@ -1611,6 +1611,14 @@ export default function App() {
     return byStatus;
   }
 
+  function sortRunEntriesByTestCaseId(entries) {
+    return [...(entries || [])].sort((a, b) => {
+      const aId = Number(a.testCaseId) || 0;
+      const bId = Number(b.testCaseId) || 0;
+      return aId - bId;
+    });
+  }
+
   function agedDays(dateStr) {
     if (!dateStr) return 0;
     return Math.floor((new Date() - new Date(dateStr)) / 86400000);
@@ -2819,6 +2827,10 @@ export default function App() {
       {/* ── MODAL: RUN DETAIL ── */}
       {viewRun && (
         <Modal onClose={() => setViewRun(null)} wide>
+          {(() => {
+            const sortedRunEntries = sortRunEntriesByTestCaseId(viewRun.entries);
+            return (
+              <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
             <div>
               <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 5 }}>{viewRun.runNumber}</span>
@@ -2859,8 +2871,8 @@ export default function App() {
           {canWrite && <AddTcToRunRow testCases={allTestCases} run={viewRun} onAdd={tcId => addTcToRun(viewRun.id, tcId)} />}
 
           <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-            {(viewRun.entries || []).length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases in this run yet.</div>}
-            {(viewRun.entries || []).map(entry => {
+            {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases in this run yet.</div>}
+            {sortedRunEntries.map(entry => {
               const tc = allTestCaseById[entry.testCaseId];
               const ec = EXEC_STATUS[entry.execStatus] || EXEC_STATUS["Not Run"];
               const entryDefects = entry.defects || [];
@@ -3001,6 +3013,9 @@ export default function App() {
               );
             })}
           </div>
+              </>
+            );
+          })()}
         </Modal>
       )}
 
