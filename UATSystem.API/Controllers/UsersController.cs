@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Net.Mail;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -43,6 +44,11 @@ public class UsersController : ControllerBase
             return BadRequest("Username, display name, and password are required.");
         }
 
+        if (!IsValidEmail(username))
+        {
+            return BadRequest("Username must be a valid email address.");
+        }
+
         if (!IsValidRole(role))
         {
             return BadRequest("Invalid role.");
@@ -82,6 +88,11 @@ public class UsersController : ControllerBase
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(displayName))
         {
             return BadRequest("Username and display name are required.");
+        }
+
+        if (!IsValidEmail(username))
+        {
+            return BadRequest("Username must be a valid email address.");
         }
 
         if (!IsValidRole(role))
@@ -127,6 +138,19 @@ public class UsersController : ControllerBase
     }
 
     private static bool IsValidRole(string? role) => role is "Admin" or "Test Lead" or "Tester" or "Viewer";
+    private static bool IsValidEmail(string value)
+    {
+        try
+        {
+            _ = new MailAddress(value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static UserDto ToDto(UserAccount user) => new(user.Id, user.Username, user.DisplayName, user.Role, user.IsActive, user.CreatedAt, user.UpdatedAt);
 }
 

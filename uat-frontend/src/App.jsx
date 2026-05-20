@@ -735,6 +735,10 @@ export default function App() {
     return authUser?.username || localStorage.getItem("uatUserName") || "Chris";
   }
 
+  function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value || "").trim());
+  }
+
   async function handleLogin(e) {
     e.preventDefault();
     setLoginError("");
@@ -1216,10 +1220,15 @@ export default function App() {
   }
 
   async function createUserAccount() {
+    if (!isValidEmail(newUserName)) {
+      alert("Username must be a valid email address.");
+      return;
+    }
+
     try {
       const user = await api.createUser({
-        username: newUserName,
-        displayName: newUserDisplayName,
+        username: newUserName.trim(),
+        displayName: newUserDisplayName.trim(),
         password: newUserPassword,
         role: newUserRole,
         isActive: newUserActive,
@@ -1236,10 +1245,15 @@ export default function App() {
   }
 
   async function saveUserAccount() {
+    if (!isValidEmail(editUser?.username)) {
+      alert("Username must be a valid email address.");
+      return;
+    }
+
     try {
       const updated = await api.updateUser(editUser.id, {
-        username: editUser.username,
-        displayName: editUser.displayName,
+        username: editUser.username.trim(),
+        displayName: editUser.displayName.trim(),
         password: editUser.password || "",
         role: editUser.role,
         isActive: editUser.isActive,
@@ -4056,7 +4070,7 @@ export default function App() {
             <button onClick={() => setShowAddUser(false)} style={xBtn}>✕</button>
           </div>
           <div style={{ display: "grid", gap: 14 }}>
-            <div><label style={lbl}>Username *</label><input value={newUserName} onChange={e => setNewUserName(e.target.value)} style={inp} /></div>
+            <div><label style={lbl}>Username *</label><input type="email" value={newUserName} onChange={e => setNewUserName(e.target.value)} style={inp} placeholder="name@company.com" /></div>
             <div><label style={lbl}>Display Name *</label><input value={newUserDisplayName} onChange={e => setNewUserDisplayName(e.target.value)} style={inp} /></div>
             <div><label style={lbl}>Password *</label><input type="password" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} style={inp} /></div>
             <div><label style={lbl}>Role *</label>
@@ -4067,10 +4081,13 @@ export default function App() {
             <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 700 }}>
               <input type="checkbox" checked={newUserActive} onChange={e => setNewUserActive(e.target.checked)} /> Active
             </label>
+            {newUserName && !isValidEmail(newUserName) && (
+              <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Username must be a valid email address.</div>
+            )}
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
             <button onClick={() => setShowAddUser(false)} style={btnS}>Cancel</button>
-            <button onClick={createUserAccount} style={btnP}>Create User</button>
+            <button onClick={createUserAccount} style={{ ...btnP, opacity: (!newUserName.trim() || !newUserDisplayName.trim() || !newUserPassword || !isValidEmail(newUserName)) ? 0.5 : 1 }} disabled={!newUserName.trim() || !newUserDisplayName.trim() || !newUserPassword || !isValidEmail(newUserName)}>Create User</button>
           </div>
         </Modal>
       )}
@@ -4081,7 +4098,7 @@ export default function App() {
             <button onClick={() => setEditUser(null)} style={xBtn}>✕</button>
           </div>
           <div style={{ display: "grid", gap: 14 }}>
-            <div><label style={lbl}>Username *</label><input value={editUser.username || ""} onChange={e => setEditUser(p => ({ ...p, username: e.target.value }))} style={inp} /></div>
+            <div><label style={lbl}>Username *</label><input type="email" value={editUser.username || ""} onChange={e => setEditUser(p => ({ ...p, username: e.target.value }))} style={inp} placeholder="name@company.com" /></div>
             <div><label style={lbl}>Display Name *</label><input value={editUser.displayName || ""} onChange={e => setEditUser(p => ({ ...p, displayName: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>New Password</label><input type="password" value={editUser.password || ""} onChange={e => setEditUser(p => ({ ...p, password: e.target.value }))} style={inp} placeholder="Leave blank to keep current password" /></div>
             <div><label style={lbl}>Role *</label>
@@ -4092,10 +4109,13 @@ export default function App() {
             <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 700 }}>
               <input type="checkbox" checked={!!editUser.isActive} onChange={e => setEditUser(p => ({ ...p, isActive: e.target.checked }))} /> Active
             </label>
+            {editUser.username && !isValidEmail(editUser.username) && (
+              <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Username must be a valid email address.</div>
+            )}
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
             <button onClick={() => setEditUser(null)} style={btnS}>Cancel</button>
-            <button onClick={saveUserAccount} style={btnP}>Save Changes</button>
+            <button onClick={saveUserAccount} style={{ ...btnP, opacity: (!(editUser.username || "").trim() || !(editUser.displayName || "").trim() || !isValidEmail(editUser.username || "")) ? 0.5 : 1 }} disabled={!(editUser.username || "").trim() || !(editUser.displayName || "").trim() || !isValidEmail(editUser.username || "")}>Save Changes</button>
           </div>
         </Modal>
       )}
