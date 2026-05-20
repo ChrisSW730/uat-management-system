@@ -48,6 +48,16 @@ function Dot({ color }) {
   return <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />;
 }
 
+function DiamondMark({ size = 32, outer = "#ffffff", inner = "#4f46e5", stroke = 6 }) {
+  return (
+    <span style={{ width: size, height: size, transform: "rotate(45deg)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ width: "100%", height: "100%", boxSizing: "border-box", border: `${stroke}px solid ${outer}`, borderRadius: 4, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ width: "48%", height: "48%", background: inner, borderRadius: 1 }} />
+      </span>
+    </span>
+  );
+}
+
 function ExecBadge({ status }) {
   const c = EXEC_STATUS[status] || EXEC_STATUS["Not Run"];
   return (
@@ -106,7 +116,7 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
       <div style={{ position: "relative", zIndex: 2, minHeight: "100vh", display: "flex", justifyContent: "flex-end", alignItems: "center", paddingRight: "8%" }}>
         <div style={{ width: "100%", height: "auto", maxWidth: 520, padding: "80px 42px", borderRadius: 36, background: "rgba(255,255,255,0.32)", backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)", border: "1px solid rgba(255,255,255,0.28)", boxShadow: "0 8px 32px rgba(31,38,135,0.12), inset 0 1px 1px rgba(255,255,255,0.18)", position: "absolute", right: "8%", top: "50%", transform: "translateY(-50%)", overflow: "hidden" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-            <div style={{ width: 78, height: 78, borderRadius: 24, background: "linear-gradient(135deg,#6366f1,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 28, fontWeight: 900, boxShadow: "0 14px 30px rgba(99,102,241,0.22)" }}>◈</div>
+            <div style={{ width: 78, height: 78, borderRadius: 24, background: "linear-gradient(135deg,#6366f1,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 30px rgba(99,102,241,0.22)" }}><DiamondMark size={34} outer="#ffffff" inner="#4f46e5" stroke={6} /></div>
           </div>
 
           <div style={{ textAlign: "center", marginBottom: 90 }}>
@@ -1774,7 +1784,7 @@ export default function App() {
       {/* ── Header ── */}
       <div style={{ background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "0 52px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 180, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 58, height: 58, background: "linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 40, boxShadow: "0 4px 12px #6366f155" }}>◈</div>
+          <div style={{ width: 58, height: 58, background: "linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px #6366f155" }}><DiamondMark size={34} outer="#ffffff" inner="#4f46e5" stroke={6} /></div>
           <div>
             <div style={{ fontSize: 35, fontWeight: 700, color: "#0f172a" }}>Test Management System</div>
             <div style={{ padding: "0 1px", fontSize: 18, color: "#94a3b8", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>User Acceptance Testing & Defect Tracking</div>
