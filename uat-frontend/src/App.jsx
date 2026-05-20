@@ -8,8 +8,6 @@ import loginBg from "../public/login.png";
 ----------------------------------------- */
 const EXEC_STATUS = {
   "Not Run": { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0", dot: "#cbd5e1" },
-  Pass: { bg: "#f0fdf4", text: "#15803d", border: "#bbf7d0", dot: "#22c55e" },
-  Fail: { bg: "#fff1f2", text: "#be123c", border: "#fecdd3", dot: "#f43f5e" },
   Blocked: { bg: "#fff7ed", text: "#c2410c", border: "#fed7aa", dot: "#f97316" },
   Skip: { bg: "#faf5ff", text: "#6d28d9", border: "#ddd6fe", dot: "#8b5cf6" },
   Deferred: { bg: "#fefce8", text: "#a16207", border: "#fde68a", dot: "#eab308" },
@@ -336,9 +334,22 @@ export default function App() {
   const isAdmin = authUser?.role === "Admin";
   const fallbackAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || "admin@uatsystem.local").trim();
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
+  const allUserDisplayNames = useMemo(() => {
+    const names = [
+      ...(mentionUsers || []).map(u => (u.displayName || "").trim()),
+      ...(users || []).map(u => (u.displayName || "").trim()),
+      (authUser?.displayName || "").trim(),
+    ].filter(Boolean);
+
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  }, [mentionUsers, users, authUser?.displayName]);
 
   function getCurrentUserName() {
     return authUser?.username || localStorage.getItem("uatUserName") || "Chris";
+  }
+
+  function getCurrentUserDisplayName() {
+    return authUser?.displayName || getCurrentUserName();
   }
 
   function isValidEmail(value) {
@@ -1587,14 +1598,13 @@ export default function App() {
 
   function createDefect(runId, tcId) {
     const tc = allTestCaseById[tcId];
-    const run = runs.find(r => r.id === runId);
-    setNewDef({ ...blankDef, raisedBy: run?.tester || "" });
+    setNewDef({ ...blankDef, raisedBy: getCurrentUserDisplayName() });
     setNewDefAttachments([]);
     setShowAddDef({ runId, tcId, tcName: tc?.name || tcId });
   }
 
   function createStandaloneDefect() {
-    setNewDef({ ...blankDef, issueType: "Functional Issue" });
+    setNewDef({ ...blankDef, issueType: "Functional Issue", raisedBy: getCurrentUserDisplayName() });
     setNewDefAttachments([]);
     setShowAddDef({ runId: null, tcId: null, tcName: "No linked test case" });
   }
@@ -1611,7 +1621,7 @@ export default function App() {
         expectedResult: newDef.expected,
         actualResult: newDef.actual,
         priority: newDef.priority,
-        raisedBy: newDef.raisedBy,
+        raisedBy: getCurrentUserDisplayName(),
         assignedTo: newDef.assignedTo,
         targetFixDate: newDef.targetFix || null,
         remarks: newDef.remarks,
@@ -3790,17 +3800,20 @@ export default function App() {
                 <label style={lbl}>Raised By</label>
                 <input
                   value={editDef.raisedBy || ""}
-                  onChange={e => setEditDef(p => ({ ...p, raisedBy: e.target.value }))}
-                  style={inp}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
                 />
               </div>
               <div>
                 <label style={lbl}>Assigned To</label>
-                <input
+                <select
                   value={editDef.assignedTo || ""}
                   onChange={e => setEditDef(p => ({ ...p, assignedTo: e.target.value }))}
                   style={inp}
-                />
+                >
+                  <option value="">Unassigned</option>
+                  {allUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
               </div>
             </div>
 
@@ -4461,8 +4474,13 @@ export default function App() {
                   {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
                 </select>
               </div>
-              <div><label style={lbl}>Raised By</label><input value={newDef.raisedBy} onChange={e => setNewDef(p => ({ ...p, raisedBy: e.target.value }))} style={inp} /></div>
-              <div><label style={lbl}>Assigned To</label><input value={newDef.assignedTo} onChange={e => setNewDef(p => ({ ...p, assignedTo: e.target.value }))} style={inp} /></div>
+              <div><label style={lbl}>Raised By</label><input value={getCurrentUserDisplayName()} style={{ ...inp, background: "#f8fafc" }} readOnly /></div>
+              <div><label style={lbl}>Assigned To</label>
+                <select value={newDef.assignedTo} onChange={e => setNewDef(p => ({ ...p, assignedTo: e.target.value }))} style={inp}>
+                  <option value="">Unassigned</option>
+                  {allUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
+              </div>
               <div><label style={lbl}>Target Fix Date</label><input type="date" value={newDef.targetFix} onChange={e => setNewDef(p => ({ ...p, targetFix: e.target.value }))} style={inp} /></div>
             </div>
             <div><label style={lbl}>Remarks</label><input value={newDef.remarks} onChange={e => setNewDef(p => ({ ...p, remarks: e.target.value }))} style={inp} /></div>
@@ -4485,7 +4503,6 @@ export default function App() {
                   style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
                 />
               </div>
-
               <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
                 {newDefAttachments.length === 0 && (
                   <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
