@@ -8,6 +8,9 @@ import loginBg from "../public/login.png";
 ----------------------------------------- */
 const EXEC_STATUS = {
   "Not Run": { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0", dot: "#cbd5e1" },
+  Passed: { bg: "#f0fdf4", text: "#15803d", border: "#bbf7d0", dot: "#22c55e" },
+  Failed: { bg: "#fff1f2", text: "#be123c", border: "#fecdd3", dot: "#f43f5e" },
+  Invalid: { bg: "#eef2ff", text: "#3730a3", border: "#c7d2fe", dot: "#6366f1" },
   Blocked: { bg: "#fff7ed", text: "#c2410c", border: "#fed7aa", dot: "#f97316" },
   Skip: { bg: "#faf5ff", text: "#6d28d9", border: "#ddd6fe", dot: "#8b5cf6" },
   Deferred: { bg: "#fefce8", text: "#a16207", border: "#fde68a", dot: "#eab308" },
@@ -2056,8 +2059,8 @@ export default function App() {
     const entries = run.entries || [];
     return {
       total: entries.length,
-      pass: entries.filter(e => e.execStatus === "Pass").length,
-      fail: entries.filter(e => e.execStatus === "Fail").length,
+      pass: entries.filter(e => e.execStatus === "Pass" || e.execStatus === "Passed").length,
+      fail: entries.filter(e => e.execStatus === "Fail" || e.execStatus === "Failed").length,
       notRun: entries.filter(e => e.execStatus === "Not Run").length,
     };
   }
@@ -3111,8 +3114,8 @@ export default function App() {
                     </div>
                     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                       <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
-                      <StatChip label="Pass" value={st.pass} color="#15803d" bg="#f0fdf4" />
-                      <StatChip label="Fail" value={st.fail} color="#be123c" bg="#fff1f2" />
+                      <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
+                      <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
                       <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
                     </div>
                   </div>
@@ -3318,8 +3321,8 @@ export default function App() {
                           </button>}
                         </div>
                       </td>
-                      <td style={{ padding: "13px 16px" }} onClick={() => setViewDef(def)}>
-                        <span style={{ fontWeight: 800, color: "#ef4444", fontSize: 14, fontFamily: "monospace", background: "#fff1f2", padding: "2px 7px", borderRadius: 5 }}>{def.defectNumber}</span>
+                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                        <span style={{ fontWeight: 800, color: "#ef4444", fontSize: 14, fontFamily: "monospace", background: "#fff1f2", padding: "2px 7px", borderRadius: 5, display: "inline-block", whiteSpace: "nowrap" }}>{def.defectNumber}</span>
                       </td>
                       <td style={{ padding: "13px 16px" }} onClick={() => setViewDef(def)}>
                         <span style={{ fontSize: 14, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{def.market}</span>
@@ -3460,8 +3463,8 @@ export default function App() {
             const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
                 <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
-                <StatChip label="Pass" value={st.pass} color="#15803d" bg="#f0fdf4" />
-                <StatChip label="Fail" value={st.fail} color="#be123c" bg="#fff1f2" />
+                <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
+                <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
                 <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 120, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
@@ -3681,7 +3684,7 @@ export default function App() {
                             style={{ background: "#f1f5f9", border: "none", color: "#94a3b8", width: 28, height: 28, borderRadius: 6, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                         )}
                       </div>
-                      {canWrite && entry.execStatus === "Fail" && entryDefects.length === 0 && (
+                      {canWrite && (entry.execStatus === "Fail" || entry.execStatus === "Failed") && entryDefects.length === 0 && (
                         <button onClick={() => createDefect(viewRun.id, entry.testCaseId)} style={btnD}>🐛 Create Defect</button>
                       )}
                       {entryDefects.map(d => (

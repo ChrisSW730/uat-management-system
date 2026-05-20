@@ -51,7 +51,7 @@ public class DefectsController : ControllerBase
         return "Unknown";
     }
 
-    private async Task<string> GetCommentTesterAsync()
+    private async Task<string> GetCurrentUserDisplayNameAsync()
     {
         var username = User.Identity?.Name;
         if (string.IsNullOrWhiteSpace(username) && Request.Headers.TryGetValue("X-User-Name", out var headerUser))
@@ -215,7 +215,6 @@ public class DefectsController : ControllerBase
         if (defect == null) return NotFound();
 
         var changedBy = GetChangedBy();
-        var oldStatus = defect.Status;
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
 
         var oldClose = defect.CloseDateTime;
@@ -231,15 +230,6 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(defect.CloseDateTime), changedBy);
         defect.Status = dto.Status;
 
-        if (!string.Equals(oldStatus, defect.Status, StringComparison.OrdinalIgnoreCase))
-        {
-            await NotifyUserByDisplayNameAsync(
-                defect.RaisedBy,
-                $"{changedBy} updated {defect.DefectNumber} status from {oldStatus} to {defect.Status}.",
-                $"/defects/{defect.Id}"
-            );
-        }
-
         await _db.SaveChangesAsync();
         return Ok(defect);
     }
@@ -251,7 +241,7 @@ public class DefectsController : ControllerBase
         var defect = await _db.Defects.FindAsync(id);
         if (defect == null) return NotFound();
 
-        var oldStatus = defect.Status;
+        var oldAssignedTo = defect.AssignedTo;
 
         if (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
         {
@@ -312,11 +302,13 @@ public class DefectsController : ControllerBase
         defect.TargetFixDate = dto.TargetFixDate;
         defect.Status = dto.Status;
 
-        if (!string.Equals(oldStatus, defect.Status, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), (defect.AssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(defect.AssignedTo))
         {
+            var actorDisplayName = await GetCurrentUserDisplayNameAsync();
             await NotifyUserByDisplayNameAsync(
-                defect.RaisedBy,
-                $"{changedBy} updated {defect.DefectNumber} status from {oldStatus} to {defect.Status}.",
+                defect.AssignedTo,
+                $"{actorDisplayName} assigned {defect.DefectNumber} to you.",
                 $"/defects/{defect.Id}"
             );
         }
@@ -333,10 +325,22 @@ public class DefectsController : ControllerBase
         if (defect == null) return NotFound();
 
         var changedBy = GetChangedBy();
+        var oldAssignedTo = defect.AssignedTo;
         var newAssignedTo = (dto.AssignedTo ?? string.Empty).Trim();
 
         AddAudit(defect, "AssignedTo", defect.AssignedTo, newAssignedTo, changedBy);
         defect.AssignedTo = newAssignedTo;
+
+        if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), (newAssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(newAssignedTo))
+        {
+            var actorDisplayName = await GetCurrentUserDisplayNameAsync();
+            await NotifyUserByDisplayNameAsync(
+                newAssignedTo,
+                $"{actorDisplayName} assigned {defect.DefectNumber} to you.",
+                $"/defects/{defect.Id}"
+            );
+        }
 
         await _db.SaveChangesAsync();
         return Ok(defect);
@@ -379,7 +383,7 @@ public class DefectsController : ControllerBase
         var defect = await _db.Defects.FirstOrDefaultAsync(d => d.Id == id);
         if (defect == null) return NotFound();
 
-        var actorDisplayName = await GetCommentTesterAsync();
+        var actorDisplayName = await GetCurrentUserDisplayNameAsync();
         var comment = new DefectComment
         {
             DefectId = id,
