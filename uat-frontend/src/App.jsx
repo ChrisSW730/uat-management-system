@@ -81,9 +81,9 @@ function PriBadge({ label }) {
   return <span style={{ background: m.bg, color: m.text, padding: "3px 10px", borderRadius: 6, fontSize: 14, fontWeight: 700, textTransform: "uppercase", boxShadow: `0 2px 8px ${m.shadow}`, whiteSpace: "nowrap" }}>{label}</span>;
 }
 
-function Modal({ children, onClose, wide }) {
+function Modal({ children, onClose, wide, zIndex = 1000 }) {
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(5px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(5px)", zIndex, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, padding: 32, width: "100%", maxWidth: wide ? 900 : 700, maxHeight: "93vh", overflowY: "auto", boxShadow: "0 32px 80px rgba(0,0,0,0.18)", border: "1px solid #f1f5f9" }}>
         {children}
       </div>
@@ -2760,7 +2760,7 @@ export default function App() {
 
       {/* ── MODAL: VIEW TC ── */}
       {viewTC && (
-        <Modal onClose={() => setViewTC(null)}>
+        <Modal onClose={() => setViewTC(null)} zIndex={1300}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
             <div>
               <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 10px", borderRadius: 6, border: "1px solid #c7d2fe" }}>{viewTC.tcNumber}</span>
@@ -2884,7 +2884,37 @@ export default function App() {
                         <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#fff", padding: "1px 7px", borderRadius: 5, border: "1px solid #c7d2fe", flexShrink: 0 }}>{tc?.tcNumber}</span>
                         <PriBadge label={tc?.priority || "Medium"} />
                       </div>
-                      <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 15, lineHeight: 1.4, marginBottom: 6 }}>{tc?.name || entry.testCaseId}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 15, lineHeight: 1.4 }}>{tc?.name || entry.testCaseId}</div>
+                        <button
+                          type="button"
+                          title={tc ? "Click to view test case details" : "Test case details unavailable"}
+                          onClick={() => {
+                            if (!tc) return;
+                            setViewTC(tc);
+                          }}
+                          disabled={!tc}
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: "50%",
+                            border: "1px solid #cbd5e1",
+                            background: tc ? "#fff" : "#f1f5f9",
+                            color: tc ? "#475569" : "#94a3b8",
+                            fontSize: 12,
+                            fontWeight: 800,
+                            lineHeight: 1,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: tc ? "pointer" : "not-allowed",
+                            padding: 0,
+                            flexShrink: 0
+                          }}
+                        >
+                          i
+                        </button>
+                      </div>
                       <div style={{ marginTop: 10 }}>
                         {(entry.comments || []).map(c => (
                           <div
