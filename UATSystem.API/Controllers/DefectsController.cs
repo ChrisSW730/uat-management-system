@@ -50,6 +50,23 @@ public class DefectsController : ControllerBase
         return "Unknown";
     }
 
+    private async Task<string> GetCommentTesterAsync()
+    {
+        var username = User.Identity?.Name;
+        if (string.IsNullOrWhiteSpace(username) && Request.Headers.TryGetValue("X-User-Name", out var headerUser))
+        {
+            username = headerUser.ToString();
+        }
+
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return "Unknown";
+        }
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+        return user?.DisplayName ?? username;
+    }
+
     private static string AuditDate(DateTime value) => value.ToString("o");
     private static string AuditDate(DateTime? value) => value?.ToString("o") ?? string.Empty;
 
@@ -73,7 +90,10 @@ public class DefectsController : ControllerBase
 
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
-        Ok(await _db.Defects.OrderByDescending(d => d.CreatedAt).ToListAsync());
+        Ok(await _db.Defects
+            .Include(d => d.Comments)
+            .OrderByDescending(d => d.CreatedAt)
+            .ToListAsync());
 
     [HttpPost]
     [Authorize(Roles = "Admin,Test Lead,Tester")]
@@ -132,7 +152,7 @@ public class DefectsController : ControllerBase
     }
 
     [HttpPatch("{id}/status")]
-    [Authorize(Roles = "Admin,Test Lead,Tester")]
+    [Authorize(Roles = "Admin,Test Lead,Tester,Developer")]
     public async Task<IActionResult> UpdateStatus(int id, UpdateStatusDto dto)
     {
         var defect = await _db.Defects.FindAsync(id);
@@ -251,6 +271,44 @@ public class DefectsController : ControllerBase
         _db.Defects.Remove(defect);
         await _db.SaveChangesAsync();
         return Ok();
+    }
+
+    [HttpPost("{id}/comments")]
+    [Authorize(Roles = "Admin,Test Lead,Tester,Developer")]
+    public async Task<IActionResult> AddComment(int id, AddDefectCommentDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Message))
+        {
+            return BadRequest("Comment message is required.");
+        }
+
+        var defect = await _db.Defects.FirstOrDefaultAsync(d => d.Id == id);
+        if (defect == null) return NotFound();
+
+        var comment = new DefectComment
+        {
+            DefectId = id,
+            Tester = await GetCommentTesterAsync(),
+            Message = dto.Message.Trim(),
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.DefectComments.Add(comment);
+        await _db.SaveChangesAsync();
+        return Ok(comment);
+    }
+
+    [HttpDelete("{id}/comments/{commentId}")]
+    [Authorize(Roles = "Admin,Test Lead")]
+    public async Task<IActionResult> DeleteComment(int id, int commentId)
+    {
+        var comment = await _db.DefectComments
+            .FirstOrDefaultAsync(c => c.Id == commentId && c.DefectId == id);
+        if (comment == null) return NotFound();
+
+        _db.DefectComments.Remove(comment);
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 
     [HttpGet("{id}/audits")]
@@ -387,3 +445,5 @@ public record DefectAttachmentDto(
     string UploadedBy,
     DateTime UploadedAt,
     string Url);
+
+public record AddDefectCommentDto(string Message);

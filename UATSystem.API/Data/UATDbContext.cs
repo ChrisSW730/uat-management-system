@@ -12,7 +12,9 @@ public class UATDbContext : DbContext
     public DbSet<TestCase> TestCases => Set<TestCase>();
     public DbSet<TestRun> TestRuns => Set<TestRun>();
     public DbSet<TestRunEntry> TestRunEntries => Set<TestRunEntry>();
+    public DbSet<TestRunEntryComment> TestRunEntryComments => Set<TestRunEntryComment>();
     public DbSet<Defect> Defects => Set<Defect>();
+    public DbSet<DefectComment> DefectComments => Set<DefectComment>();
     public DbSet<DefectAuditLog> DefectAuditLogs => Set<DefectAuditLog>();
     public DbSet<DefectAttachment> DefectAttachments => Set<DefectAttachment>();
     public DbSet<TestCaseAttachment> TestCaseAttachments => Set<TestCaseAttachment>();
@@ -49,6 +51,18 @@ public class UATDbContext : DbContext
             .WithMany(e => e.Defects)
             .HasForeignKey(d => d.TestRunEntryId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<TestRunEntryComment>()
+            .HasOne(c => c.TestRunEntry)
+            .WithMany(e => e.Comments)
+            .HasForeignKey(c => c.TestRunEntryId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DefectComment>()
+            .HasOne(c => c.Defect)
+            .WithMany(d => d.Comments)
+            .HasForeignKey(c => c.DefectId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<DefectAuditLog>()
             .HasOne(a => a.Defect)

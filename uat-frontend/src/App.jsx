@@ -3,9 +3,9 @@ import * as XLSX from "xlsx";
 import { api } from "./api";
 import loginBg from "../public/login.png";
 
-/* ─────────────────────────────────────────
+/* -----------------------------------------
    CONSTANTS
-───────────────────────────────────────── */
+----------------------------------------- */
 const EXEC_STATUS = {
   "Not Run": { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0", dot: "#cbd5e1" },
   Pass: { bg: "#f0fdf4", text: "#15803d", border: "#bbf7d0", dot: "#22c55e" },
@@ -41,9 +41,9 @@ const CATEGORIES = [
   "Payout Approval", "BMM", "PAF", "Data Insight",
 ];
 
-/* ─────────────────────────────────────────
+/* -----------------------------------------
    SMALL UI COMPONENTS
-───────────────────────────────────────── */
+----------------------------------------- */
 function Dot({ color }) {
   return <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />;
 }
@@ -53,6 +53,15 @@ function ExecBadge({ status }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: c.bg, color: c.text, border: `1.5px solid ${c.border}`, padding: "3px 10px 3px 7px", borderRadius: 20, fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
       <Dot color={c.dot} />{status}
+    </span>
+  );
+}
+
+function DefBadge({ status }) {
+  const c = DEFECT_STATUS[status] || DEFECT_STATUS.New;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: c.bg, color: c.text, border: `1.5px solid ${c.border}`, padding: "3px 10px 3px 7px", borderRadius: 20, fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+      <Dot color={c.dot} />{status || "New"}
     </span>
   );
 }
@@ -91,504 +100,68 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
   const [rememberMe, setRememberMe] = useState(false);
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        position: "relative",
-        overflow: "hidden",
-        fontFamily: "'Inter','Segoe UI',sans-serif",
-        background: "#f8faff",
-      }}
-    >
-      {/* ── Background Image ── */}
-      <img
-        src={loginBg}
-        alt="Test Management System"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          objectPosition: "center",
-        }}
-      />
+    <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", fontFamily: "'Inter','Segoe UI',sans-serif", background: "#f8faff" }}>
+      <img src={loginBg} alt="Test Management System" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} />
 
-      {/* ── Overlay ── */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          minHeight: "100vh",
-
-          display: "flex",
-          justifyContent: "flex-end",
-          alignItems: "center",
-
-          paddingRight: "8%",
-        }}
-      >
-        {/* ── Login Card ── */}
-        <div
-
-          style={{
-            width: "100%",
-            height: "auto",
-            maxWidth: 520,
-
-            padding: "80px 42px",
-
-            borderRadius: 36,
-
-            background: "rgba(255,255,255,0.32)",
-
-            backdropFilter: "blur(22px)",
-            WebkitBackdropFilter: "blur(22px)",
-
-            border: "1px solid rgba(255,255,255,0.28)",
-
-            boxShadow: `
-    0 8px 32px rgba(31,38,135,0.12),
-    inset 0 1px 1px rgba(255,255,255,0.18)
-  `,
-
-            position: "absolute",
-            right: "8%",
-            top: "50%",
-            transform: "translateY(-50%)",
-
-            overflow: "hidden",
-          }}
-        >
-          {/* Logo */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              marginBottom: 28,
-            }}
-          >
-            <div
-              style={{
-                width: 78,
-                height: 78,
-
-                borderRadius: 24,
-
-                background:
-                  "linear-gradient(135deg,#6366f1,#4f46e5)",
-
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-
-                color: "#fff",
-
-                fontSize: 28,
-                fontWeight: 900,
-
-                boxShadow:
-                  "0 14px 30px rgba(99,102,241,0.22)",
-              }}
-            >
-              ◈
-            </div>
+      <div style={{ position: "relative", zIndex: 2, minHeight: "100vh", display: "flex", justifyContent: "flex-end", alignItems: "center", paddingRight: "8%" }}>
+        <div style={{ width: "100%", height: "auto", maxWidth: 520, padding: "80px 42px", borderRadius: 36, background: "rgba(255,255,255,0.32)", backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)", border: "1px solid rgba(255,255,255,0.28)", boxShadow: "0 8px 32px rgba(31,38,135,0.12), inset 0 1px 1px rgba(255,255,255,0.18)", position: "absolute", right: "8%", top: "50%", transform: "translateY(-50%)", overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+            <div style={{ width: 78, height: 78, borderRadius: 24, background: "linear-gradient(135deg,#6366f1,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 28, fontWeight: 900, boxShadow: "0 14px 30px rgba(99,102,241,0.22)" }}>◈</div>
           </div>
 
-          {/* Heading */}
-          <div
-            style={{
-              textAlign: "center",
-              marginBottom: 90,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 34,
-                fontWeight: 800,
-
-                color: "#0f172a",
-
-                letterSpacing: "-0.03em",
-
-                marginBottom: 10,
-              }}
-            >
-              Welcome Back
-            </div>
-
-            <div
-              style={{
-                fontSize: 15,
-                color: "#64748b",
-                lineHeight: 1.6,
-              }}
-            >
-              Sign in to continue to your account
-            </div>
+          <div style={{ textAlign: "center", marginBottom: 90 }}>
+            <div style={{ fontSize: 34, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.03em", marginBottom: 10 }}>Welcome Back</div>
+            <div style={{ fontSize: 15, color: "#64748b", lineHeight: 1.6 }}>Sign in to continue to your account</div>
           </div>
 
-          {/* Form */}
-          <form
-            onSubmit={onSubmit}
-            style={{
-              display: "grid",
-              gap: 22,
-            }}
-          >
-            {/* Username */}
+          <form onSubmit={onSubmit} style={{ display: "grid", gap: 22 }}>
             <div>
-              <label
-                style={{
-                  display: "block",
-
-                  marginBottom: 8,
-
-                  fontSize: 14,
-                  fontWeight: 700,
-
-                  color: "#334155",
-
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Username
-              </label>
-
+              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 700, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase" }}>Username</label>
               <div style={{ position: "relative" }}>
-                <span
-                  style={{
-                    position: "absolute",
-                    left: 16,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-
-                    color: "#94a3b8",
-                    fontSize: 16,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-
-                    zIndex: 2,
-                    pointerEvents: "none",
-                  }}
-                >
-                  👤
-                </span>
-
+                <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 16, zIndex: 2, pointerEvents: "none" }}>👤</span>
                 <input
                   value={username}
-                  onChange={(e) =>
-                    onUsernameChange(e.target.value)
-                  }
+                  onChange={e => onUsernameChange(e.target.value)}
                   autoComplete="username"
-
                   placeholder="Enter your email address"
-
-                  style={{
-                    width: "100%",
-
-                    padding:
-                      "15px 18px 15px 48px",
-
-                    borderRadius: 16,
-
-                    border:
-                      "1px solid rgba(255,255,255,0.65)",
-
-                    background:
-                      "rgba(255,255,255,0.78)",
-
-                    backdropFilter: "blur(10px)",
-
-                    fontSize: 15,
-
-                    color: "#0f172a",
-
-                    outline: "none",
-
-                    boxSizing: "border-box",
-
-                    boxShadow:
-                      "0 8px 20px rgba(15,23,42,0.03)",
-
-                    transition: "all 0.18s ease",
-                  }}
-
-                  onFocus={(e) => {
-                    e.target.style.borderColor =
-                      "#6366f1";
-
-                    e.target.style.boxShadow =
-                      "0 0 0 4px rgba(99,102,241,0.10)";
-                  }}
-
-                  onBlur={(e) => {
-                    e.target.style.borderColor =
-                      "rgba(255,255,255,0.65)";
-
-                    e.target.style.boxShadow =
-                      "0 8px 20px rgba(15,23,42,0.03)";
-                  }}
+                  style={{ width: "100%", padding: "15px 18px 15px 48px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.78)", backdropFilter: "blur(10px)", fontSize: 15, color: "#0f172a", outline: "none", boxSizing: "border-box", boxShadow: "0 8px 20px rgba(15,23,42,0.03)", transition: "all 0.18s ease" }}
                 />
               </div>
             </div>
 
-            {/* Password */}
             <div>
-              <label
-                style={{
-                  display: "block",
-
-                  marginBottom: 8,
-
-                  fontSize: 14,
-                  fontWeight: 700,
-
-                  color: "#334155",
-
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Password
-              </label>
-
+              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 700, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase" }}>Password</label>
               <div style={{ position: "relative" }}>
-                <span
-                  style={{
-                    position: "absolute",
-                    left: 16,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-
-                    color: "#94a3b8",
-                    fontSize: 16,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-
-                    zIndex: 2,
-                    pointerEvents: "none",
-                  }}
-                >
-                  🔒
-                </span>
-
+                <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 16, zIndex: 2, pointerEvents: "none" }}>🔒</span>
                 <input
                   type={showPw ? "text" : "password"}
                   value={password}
-                  onChange={(e) =>
-                    onPasswordChange(e.target.value)
-                  }
+                  onChange={e => onPasswordChange(e.target.value)}
                   autoComplete="current-password"
-
                   placeholder="Enter your password"
-
-                  style={{
-                    width: "100%",
-
-                    padding:
-                      "15px 52px 15px 48px",
-
-                    borderRadius: 16,
-
-                    border:
-                      "1px solid rgba(255,255,255,0.65)",
-
-                    background:
-                      "rgba(255,255,255,0.78)",
-
-                    backdropFilter: "blur(10px)",
-
-                    fontSize: 15,
-
-                    color: "#0f172a",
-
-                    outline: "none",
-
-                    boxSizing: "border-box",
-
-                    boxShadow:
-                      "0 8px 20px rgba(15,23,42,0.03)",
-
-                    transition: "all 0.18s ease",
-                  }}
-
-                  onFocus={(e) => {
-                    e.target.style.borderColor =
-                      "#6366f1";
-
-                    e.target.style.boxShadow =
-                      "0 0 0 4px rgba(99,102,241,0.10)";
-                  }}
-
-                  onBlur={(e) => {
-                    e.target.style.borderColor =
-                      "rgba(255,255,255,0.65)";
-
-                    e.target.style.boxShadow =
-                      "0 8px 20px rgba(15,23,42,0.03)";
-                  }}
+                  style={{ width: "100%", padding: "15px 52px 15px 48px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.78)", backdropFilter: "blur(10px)", fontSize: 15, color: "#0f172a", outline: "none", boxSizing: "border-box", boxShadow: "0 8px 20px rgba(15,23,42,0.03)", transition: "all 0.18s ease" }}
                 />
-
-                <button
-                  type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  style={{
-                    position: "absolute",
-                    right: 14,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-
-                    background: "none",
-                    border: "none",
-
-                    cursor: "pointer",
-
-                    color: "#94a3b8",
-                    fontSize: 16,
-                  }}
-                >
-                  {showPw ? "🙈" : "👁"}
-                </button>
+                <button type="button" onClick={() => setShowPw(v => !v)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 16 }}>{showPw ? "🙈" : "👁"}</button>
               </div>
             </div>
 
-            {/* Remember */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-
-                marginTop: -2,
-              }}
-            >
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-
-                  fontSize: 14,
-                  color: "#475569",
-
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) =>
-                    setRememberMe(e.target.checked)
-                  }
-
-                  style={{
-                    width: 16,
-                    height: 16,
-
-                    accentColor: "#6366f1",
-                  }}
-                />
-
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: -2 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "#475569", cursor: "pointer" }}>
+                <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#6366f1" }} />
                 Remember me
               </label>
-
-              <span
-                style={{
-                  color: "#4f46e5",
-                  fontWeight: 700,
-                  cursor: "default",
-                  fontSize: 14,
-                }}
-              >
-                Forgot password?
-              </span>
+              <span style={{ color: "#4f46e5", fontWeight: 700, cursor: "default", fontSize: 14 }}>Forgot password?</span>
             </div>
 
-            {/* Error */}
-            {error && (
-              <div
-                style={{
-                  background:
-                    "rgba(255,240,242,0.92)",
+            {error && <div style={{ background: "rgba(255,240,242,0.92)", border: "1px solid rgba(244,63,94,0.12)", color: "#be123c", padding: "12px 14px", borderRadius: 14, fontSize: 13 }}>{error}</div>}
 
-                  border:
-                    "1px solid rgba(244,63,94,0.12)",
-
-                  color: "#be123c",
-
-                  padding: "12px 14px",
-
-                  borderRadius: 14,
-
-                  fontSize: 13,
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            {/* Login Button */}
-            <button
-              type="submit"
-              disabled={busy}
-
-              style={{
-                marginTop: 4,
-
-                width: "100%",
-
-                padding: "16px 18px",
-
-                border: "none",
-
-                borderRadius: 16,
-
-                background:
-                  "linear-gradient(135deg,#6366f1,#4f46e5)",
-
-                color: "#fff",
-
-                fontSize: 17,
-                fontWeight: 800,
-
-                cursor: "pointer",
-
-                boxShadow:
-                  "0 14px 35px rgba(99,102,241,0.22)",
-
-                transition: "all 0.18s ease",
-              }}
-            >
+            <button type="submit" disabled={busy} style={{ marginTop: 4, width: "100%", padding: "16px 18px", border: "none", borderRadius: 16, background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff", fontSize: 17, fontWeight: 800, cursor: "pointer", boxShadow: "0 14px 35px rgba(99,102,241,0.22)", transition: "all 0.18s ease" }}>
               {busy ? "Signing in..." : "→ Login"}
             </button>
 
-            {/* Signup */}
-            <div
-              style={{
-                textAlign: "center",
-
-                marginTop: 4,
-
-                fontSize: 15,
-                color: "#475569",
-              }}
-            >
-              Don’t have an account?{" "}
-              <span
-                onClick={onContactAdmin}
-                style={{
-                  color: "#4f46e5",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                }}
-              >
-                Contact Administrator
-              </span>
+            <div style={{ textAlign: "center", marginTop: 4, fontSize: 15, color: "#475569" }}>
+              Don't have an account?{" "}
+              <span onClick={onContactAdmin} style={{ color: "#4f46e5", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Contact Administrator</span>
             </div>
           </form>
         </div>
@@ -597,10 +170,9 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
   );
 }
 
-/* ─────────────────────────────────────────
+/* -----------------------------------------
    SHARED STYLES
-───────────────────────────────────────── */
-//const inp  = { background:"#f8fafc", border:"1.5px solid #e2e8f0", borderRadius:8, color:"#0f172a", padding:"9px 13px", width:"100%", fontSize:15, outline:"none", boxSizing:"border-box", fontFamily:"inherit" };
+----------------------------------------- */
 const vw = window.innerWidth;
 const scale = vw < 1280 ? vw / 1280 : 1;
 const inp = { background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#0f172a", padding: "9px 13px", width: "100%", fontSize: 15, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
@@ -610,9 +182,9 @@ const btnS = { background: "#fff", color: "#64748b", border: "1.5px solid #e2e8f
 const btnD = { background: "#fff1f2", color: "#be123c", border: "1.5px solid #fecdd3", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" };
 const xBtn = { background: "#f1f5f9", border: "none", color: "#64748b", width: 32, height: 32, borderRadius: 8, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
 
-/* ─────────────────────────────────────────
+/* -----------------------------------------
    MAIN APP
-───────────────────────────────────────── */
+----------------------------------------- */
 export default function App() {
   const [activeTab, setActiveTab] = useState("testcases");
   const [projects, setProjects] = useState([]);
@@ -658,6 +230,11 @@ export default function App() {
   const [tcSortDir, setTcSortDir] = useState("asc");
   const [defSortCol, setDefSortCol] = useState("");
   const [defSortDir, setDefSortDir] = useState("asc");
+  const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("All");
+  const [userActiveFilter, setUserActiveFilter] = useState("All");
+  const [userSortCol, setUserSortCol] = useState("username");
+  const [userSortDir, setUserSortDir] = useState("asc");
   const [selectedTcIds, setSelectedTcIds] = useState([]);
   const [selectedRunIds, setSelectedRunIds] = useState([]);
   const [selectedDefectIds, setSelectedDefectIds] = useState([]);
@@ -725,7 +302,9 @@ export default function App() {
 
   const TABS = [["projects", "🗂  Projects"], ["testcases", "📋  Test Cases"], ["runs", "▶  Test Runs"], ["defects", "🐛  Defect Log"]];
 
-  const canWrite = !!authUser && authUser.role !== "Viewer";
+  const canWrite = !!authUser && authUser.role !== "Viewer" && authUser.role !== "Developer";
+  const canComment = !!authUser && authUser.role !== "Viewer";
+  const canUpdateDefectStatus = !!authUser && ["Admin", "Test Lead", "Tester", "Developer"].includes(authUser.role);
   const canManageProjects = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
   const canDelete = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
   const isAdmin = authUser?.role === "Admin";
@@ -1073,6 +652,54 @@ export default function App() {
       return matchesSearch && matchesDate;
     });
   }, [sortedRuns, runSearch, runDateRule, runDateValue]);
+
+  const filteredSortedUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    const filtered = (users || []).filter(user => {
+      const matchesSearch = !q
+        || user.username?.toLowerCase().includes(q)
+        || user.displayName?.toLowerCase().includes(q)
+        || user.role?.toLowerCase().includes(q);
+
+      const matchesRole = userRoleFilter === "All" || user.role === userRoleFilter;
+      const matchesActive = userActiveFilter === "All"
+        || (userActiveFilter === "Active" && user.isActive)
+        || (userActiveFilter === "Inactive" && !user.isActive);
+
+      return matchesSearch && matchesRole && matchesActive;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      let av;
+      let bv;
+
+      if (userSortCol === "createdAt") {
+        av = new Date(a.createdAt || 0).getTime();
+        bv = new Date(b.createdAt || 0).getTime();
+      } else if (userSortCol === "isActive") {
+        av = a.isActive ? 1 : 0;
+        bv = b.isActive ? 1 : 0;
+      } else {
+        av = (a[userSortCol] ?? "").toString().toLowerCase();
+        bv = (b[userSortCol] ?? "").toString().toLowerCase();
+      }
+
+      if (av < bv) return userSortDir === "asc" ? -1 : 1;
+      if (av > bv) return userSortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  }, [users, userSearch, userRoleFilter, userActiveFilter, userSortCol, userSortDir]);
+
+  function toggleUserSort(col) {
+    if (userSortCol === col) {
+      setUserSortDir(d => d === "asc" ? "desc" : "asc");
+      return;
+    }
+    setUserSortCol(col);
+    setUserSortDir("asc");
+  }
 
   const selectedProject = useMemo(
     () => projects.find(p => String(p.id) === String(selectedProjectId)) || null,
@@ -1505,98 +1132,100 @@ export default function App() {
 
     if (!message?.trim()) return;
 
-    const tester = "Chris";
+    try {
+      const savedComment = await api.addRunEntryComment(runId, tcId, message.trim());
 
-    const newComment = {
-      id: Date.now(),
-      tester,
-      message,
-      createdAt: new Date().toISOString()
-    };
-
-    setRuns(p =>
-      p.map(r =>
-        r.id !== runId
-          ? r
-          : {
-            ...r,
-            entries: r.entries.map(e =>
-              e.testCaseId !== tcId
-                ? e
-                : {
-                  ...e,
-                  comments: [
-                    ...(e.comments || []),
-                    newComment
-                  ]
-                }
-            )
-          }
-      )
-    );
-
-    setViewRun(r => r && r.id === runId
-      ? {
-        ...r,
-        entries: (r.entries || []).map(e =>
-          e.testCaseId !== tcId
-            ? e
+      setRuns(p =>
+        p.map(r =>
+          r.id !== runId
+            ? r
             : {
-              ...e,
-              comments: [
-                ...(e.comments || []),
-                newComment
-              ]
-            }
-        )
-      }
-      : r
-    );
-
-    setCommentDrafts(p => ({
-      ...p,
-      [tcId]: ""
-    }));
-  }
-
-  function deleteComment(runId, tcId, commentId) {
-
-    setRuns(p =>
-      p.map(r =>
-        r.id !== runId
-          ? r
-          : {
-            ...r,
-            entries: r.entries.map(e =>
-              e.testCaseId !== tcId
-                ? e
-                : {
-                  ...e,
-                  comments: (e.comments || []).filter(
-                    c => c.id !== commentId
-                  )
-                }
-            )
-          }
-      )
-    );
-
-    setViewRun(r => r && r.id === runId
-      ? {
-        ...r,
-        entries: (r.entries || []).map(e =>
-          e.testCaseId !== tcId
-            ? e
-            : {
-              ...e,
-              comments: (e.comments || []).filter(
-                c => c.id !== commentId
+              ...r,
+              entries: r.entries.map(e =>
+                e.testCaseId !== tcId
+                  ? e
+                  : {
+                    ...e,
+                    comments: [
+                      ...(e.comments || []),
+                      savedComment
+                    ]
+                  }
               )
             }
         )
-      }
-      : r
-    );
+      );
+
+      setViewRun(r => r && r.id === runId
+        ? {
+          ...r,
+          entries: (r.entries || []).map(e =>
+            e.testCaseId !== tcId
+              ? e
+              : {
+                ...e,
+                comments: [
+                  ...(e.comments || []),
+                  savedComment
+                ]
+              }
+          )
+        }
+        : r
+      );
+
+      setCommentDrafts(p => ({
+        ...p,
+        [tcId]: ""
+      }));
+    } catch (error) {
+      alert(`Failed to add comment: ${error.message}`);
+    }
+  }
+
+  async function deleteComment(runId, tcId, commentId) {
+    try {
+      await api.deleteRunEntryComment(runId, tcId, commentId);
+
+      setRuns(p =>
+        p.map(r =>
+          r.id !== runId
+            ? r
+            : {
+              ...r,
+              entries: r.entries.map(e =>
+                e.testCaseId !== tcId
+                  ? e
+                  : {
+                    ...e,
+                    comments: (e.comments || []).filter(
+                      c => c.id !== commentId
+                    )
+                  }
+              )
+            }
+        )
+      );
+
+      setViewRun(r => r && r.id === runId
+        ? {
+          ...r,
+          entries: (r.entries || []).map(e =>
+            e.testCaseId !== tcId
+              ? e
+              : {
+                ...e,
+                comments: (e.comments || []).filter(
+                  c => c.id !== commentId
+                )
+              }
+          )
+        }
+        : r
+      );
+    } catch (error) {
+      alert(`Failed to delete comment: ${error.message}`);
+    }
   }
 
   function createDefect(runId, tcId) {
@@ -1676,6 +1305,7 @@ export default function App() {
   }
 
   async function updateDefStatus(id, v) {
+    if (!canUpdateDefectStatus) return;
     try {
       const updated = await api.updateDefectStatus(id, v, getCurrentUserName());
       setDefects(p => p.map(d => d.id === id ? updated : d));
@@ -1718,43 +1348,48 @@ export default function App() {
     }
   }
 
-  function addDefectComment(defectId) {
+  async function addDefectComment(defectId) {
     const message = defectCommentDrafts[defectId];
     if (!message?.trim()) return;
 
-    const newComment = {
-      id: Date.now(),
-      tester: "Chris",
-      message,
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const savedComment = await api.addDefectComment(defectId, message.trim());
 
-    setDefects(p => p.map(d => d.id !== defectId
-      ? d
-      : { ...d, comments: [...(d.comments || []), newComment] }
-    ));
+      setDefects(p => p.map(d => d.id !== defectId
+        ? d
+        : { ...d, comments: [...(d.comments || []), savedComment] }
+      ));
 
-    setViewDef(d => d?.id !== defectId
-      ? d
-      : { ...d, comments: [...(d.comments || []), newComment] }
-    );
+      setViewDef(d => d?.id !== defectId
+        ? d
+        : { ...d, comments: [...(d.comments || []), savedComment] }
+      );
 
-    setDefectCommentDrafts(p => ({
-      ...p,
-      [defectId]: "",
-    }));
+      setDefectCommentDrafts(p => ({
+        ...p,
+        [defectId]: "",
+      }));
+    } catch (error) {
+      alert(`Failed to add defect comment: ${error.message}`);
+    }
   }
 
-  function deleteDefectComment(defectId, commentId) {
-    setDefects(p => p.map(d => d.id !== defectId
-      ? d
-      : { ...d, comments: (d.comments || []).filter(c => c.id !== commentId) }
-    ));
+  async function deleteDefectComment(defectId, commentId) {
+    try {
+      await api.deleteDefectComment(defectId, commentId);
 
-    setViewDef(d => d?.id !== defectId
-      ? d
-      : { ...d, comments: (d.comments || []).filter(c => c.id !== commentId) }
-    );
+      setDefects(p => p.map(d => d.id !== defectId
+        ? d
+        : { ...d, comments: (d.comments || []).filter(c => c.id !== commentId) }
+      ));
+
+      setViewDef(d => d?.id !== defectId
+        ? d
+        : { ...d, comments: (d.comments || []).filter(c => c.id !== commentId) }
+      );
+    } catch (error) {
+      alert(`Failed to delete defect comment: ${error.message}`);
+    }
   }
 
   async function uploadDefectFiles(defectId, files) {
@@ -2222,21 +1857,65 @@ export default function App() {
       ══════════════════════════════════ */}
       {activeTab === "users" && isAdmin && (
         <div style={{ padding: "20px 2.5%" }}>
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
             <button onClick={openAddUser} style={btnP}>+ Add User</button>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14 }}>🔍</span>
+              <input
+                placeholder="Search username, display name, role..."
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                style={{ ...inp, paddingLeft: 32, width: 300 }}
+              />
+            </div>
+            <select value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)} style={{ ...inp, width: 170 }}>
+              <option value="All">All Roles</option>
+              {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
+            </select>
+            <select value={userActiveFilter} onChange={e => setUserActiveFilter(e.target.value)} style={{ ...inp, width: 140 }}>
+              <option value="All">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <button
+              onClick={() => {
+                setUserSearch("");
+                setUserRoleFilter("All");
+                setUserActiveFilter("All");
+                setUserSortCol("username");
+                setUserSortDir("asc");
+              }}
+              style={btnS}
+            >
+              Clear
+            </button>
           </div>
+          <div style={{ marginBottom: 12, color: "#64748b", fontSize: 13, fontWeight: 700 }}>Showing {filteredSortedUsers.length} of {users.length} users</div>
           <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
                 <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
-                  {["Actions", "Username", "Display Name", "Role", "Active", "Created"].map(h => (
-                    <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
+                  <th style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Actions</th>
+                  {[
+                    { label: "Username", col: "username" },
+                    { label: "Display Name", col: "displayName" },
+                    { label: "Role", col: "role" },
+                    { label: "Active", col: "isActive" },
+                    { label: "Created", col: "createdAt" },
+                  ].map(h => (
+                    <th
+                      key={h.label}
+                      onClick={() => toggleUserSort(h.col)}
+                      style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none" }}
+                    >
+                      {h.label} {userSortCol === h.col ? (userSortDir === "asc" ? "▲" : "▼") : "↕"}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {users.length === 0 && <tr><td colSpan={6} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No users found</td></tr>}
-                {users.map((user, i) => (
+                {filteredSortedUsers.length === 0 && <tr><td colSpan={6} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No users found</td></tr>}
+                {filteredSortedUsers.map((user, i) => (
                   <tr key={user.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                     <td style={{ padding: "13px 16px", width: 170, minWidth: 170 }}>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
@@ -2912,7 +2591,7 @@ export default function App() {
                       <td style={{ padding: "13px 16px" }} onClick={() => setViewDef(def)}><PriBadge label={def.priority} /></td>
                       <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>{def.assignedTo || "—"}</td>
                       <td style={{ padding: "13px 16px" }}>
-                        <select value={def.status} onChange={e => updateDefStatus(def.id, e.target.value)} onClick={e => e.stopPropagation()} disabled={!canWrite}
+                        <select value={def.status} onChange={e => updateDefStatus(def.id, e.target.value)} onClick={e => e.stopPropagation()} disabled={!canUpdateDefectStatus}
                           style={{ background: DEFECT_STATUS[def.status]?.bg, color: DEFECT_STATUS[def.status]?.text, border: `1.5px solid ${DEFECT_STATUS[def.status]?.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 14, fontWeight: 700, cursor: "pointer", outline: "none" }}>
                           {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
                         </select>
@@ -3132,7 +2811,7 @@ export default function App() {
                             }}
                           />
 
-                          {canWrite && <button
+                          {canComment && <button
                             onClick={() =>
                               addComment(
                                 viewRun.id,
@@ -3296,7 +2975,7 @@ export default function App() {
                 </div>
               ))}
 
-              {canWrite && <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+              {canComment && <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
                 <input
                   placeholder="Add comment..."
                   value={defectCommentDrafts[viewDef.id] || ""}
@@ -3314,8 +2993,8 @@ export default function App() {
             <div style={{ ...lbl, marginBottom: 10 }}>Update Status</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {Object.entries(DEFECT_STATUS).map(([s, c]) => (
-                <button key={s} onClick={() => updateDefStatus(viewDef.id, s)}
-                  style={{ background: viewDef.status === s ? c.bg : "#f8fafc", color: viewDef.status === s ? c.text : "#94a3b8", border: `1.5px solid ${viewDef.status === s ? c.border : "#e2e8f0"}`, borderRadius: 20, padding: "5px 13px", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}>
+                <button key={s} onClick={() => updateDefStatus(viewDef.id, s)} disabled={!canUpdateDefectStatus}
+                  style={{ background: viewDef.status === s ? c.bg : "#f8fafc", color: viewDef.status === s ? c.text : "#94a3b8", border: `1.5px solid ${viewDef.status === s ? c.border : "#e2e8f0"}`, borderRadius: 20, padding: "5px 13px", fontSize: 14, fontWeight: 700, cursor: canUpdateDefectStatus ? "pointer" : "not-allowed", opacity: canUpdateDefectStatus ? 1 : 0.6, transition: "all 0.15s" }}>
                   {s}
                 </button>
               ))}
@@ -4075,7 +3754,7 @@ export default function App() {
             <div><label style={lbl}>Password *</label><input type="password" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} style={inp} /></div>
             <div><label style={lbl}>Role *</label>
               <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)} style={inp}>
-                {["Admin", "Test Lead", "Tester", "Viewer"].map(role => <option key={role}>{role}</option>)}
+                {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
               </select>
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 700 }}>
@@ -4103,7 +3782,7 @@ export default function App() {
             <div><label style={lbl}>New Password</label><input type="password" value={editUser.password || ""} onChange={e => setEditUser(p => ({ ...p, password: e.target.value }))} style={inp} placeholder="Leave blank to keep current password" /></div>
             <div><label style={lbl}>Role *</label>
               <select value={editUser.role || "Viewer"} onChange={e => setEditUser(p => ({ ...p, role: e.target.value }))} style={inp}>
-                {["Admin", "Test Lead", "Tester", "Viewer"].map(role => <option key={role}>{role}</option>)}
+                {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
               </select>
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 700 }}>

@@ -11,4 +11,5 @@ public class TestRunEntry
     public TestRun TestRun { get; set; } = null!;
     public TestCase TestCase { get; set; } = null!;
     public ICollection<Defect> Defects { get; set; } = new List<Defect>();
+    public ICollection<TestRunEntryComment> Comments { get; set; } = new List<TestRunEntryComment>();
 }

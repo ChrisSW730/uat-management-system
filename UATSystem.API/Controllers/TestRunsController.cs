@@ -14,6 +14,23 @@ public class TestRunsController : ControllerBase
     private readonly UATDbContext _db;
     public TestRunsController(UATDbContext db) => _db = db;
 
+    private async Task<string> GetCommentTesterAsync()
+    {
+        var username = User.Identity?.Name;
+        if (string.IsNullOrWhiteSpace(username) && Request.Headers.TryGetValue("X-User-Name", out var headerUser))
+        {
+            username = headerUser.ToString();
+        }
+
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return "Unknown";
+        }
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+        return user?.DisplayName ?? username;
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -22,6 +39,8 @@ public class TestRunsController : ControllerBase
                 .ThenInclude(e => e.TestCase)
             .Include(r => r.Entries)
                 .ThenInclude(e => e.Defects)
+            .Include(r => r.Entries)
+                .ThenInclude(e => e.Comments)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
         return Ok(runs);
@@ -35,6 +54,8 @@ public class TestRunsController : ControllerBase
                 .ThenInclude(e => e.TestCase)
             .Include(r => r.Entries)
                 .ThenInclude(e => e.Defects)
+            .Include(r => r.Entries)
+                .ThenInclude(e => e.Comments)
             .FirstOrDefaultAsync(r => r.Id == id);
         return run == null ? NotFound() : Ok(run);
     }
@@ -95,6 +116,46 @@ public class TestRunsController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("{id}/entries/{testCaseId}/comments")]
+    [Authorize(Roles = "Admin,Test Lead,Tester,Developer")]
+    public async Task<IActionResult> AddComment(int id, int testCaseId, AddEntryCommentDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Message))
+        {
+            return BadRequest("Comment message is required.");
+        }
+
+        var entry = await _db.TestRunEntries
+            .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
+        if (entry == null) return NotFound();
+
+        var comment = new TestRunEntryComment
+        {
+            TestRunEntryId = entry.Id,
+            Tester = await GetCommentTesterAsync(),
+            Message = dto.Message.Trim(),
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.TestRunEntryComments.Add(comment);
+        await _db.SaveChangesAsync();
+        return Ok(comment);
+    }
+
+    [HttpDelete("{id}/entries/{testCaseId}/comments/{commentId}")]
+    [Authorize(Roles = "Admin,Test Lead")]
+    public async Task<IActionResult> DeleteComment(int id, int testCaseId, int commentId)
+    {
+        var comment = await _db.TestRunEntryComments
+            .Include(c => c.TestRunEntry)
+            .FirstOrDefaultAsync(c => c.Id == commentId && c.TestRunEntry.TestRunId == id && c.TestRunEntry.TestCaseId == testCaseId);
+        if (comment == null) return NotFound();
+
+        _db.TestRunEntryComments.Remove(comment);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpPatch("{id}/entries/{testCaseId}")]
     [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> UpdateEntry(int id, int testCaseId, UpdateEntryDto dto)
@@ -124,3 +185,4 @@ public class TestRunsController : ControllerBase
 public record CreateRunDto(string Name, string Tester, List<int> TestCaseIds);
 public record AddEntryDto(int TestCaseId);
 public record UpdateEntryDto(string ExecStatus, string Comment);
+public record AddEntryCommentDto(string Message);

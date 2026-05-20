@@ -207,6 +207,19 @@ export const api = {
     method: "PATCH", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   }).then(r => r.json()),
+  addRunEntryComment: (runId, testCaseId, message) => fetch(`${BASE}/testruns/${runId}/entries/${testCaseId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message })
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
+  deleteRunEntryComment: (runId, testCaseId, commentId) => fetch(`${BASE}/testruns/${runId}/entries/${testCaseId}/comments/${commentId}`, {
+    method: "DELETE"
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+  }),
 
   // Defects
   getDefects: () => fetch(`${BASE}/defects`).then(r => r.json()),
@@ -256,5 +269,18 @@ export const api = {
   },
   deleteDefectAttachment: (id, attachmentId) => fetch(`${BASE}/defects/${id}/attachments/${attachmentId}`, {
     method: "DELETE"
+  }),
+  addDefectComment: (id, message) => fetch(`${BASE}/defects/${id}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message })
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
+  deleteDefectComment: (id, commentId) => fetch(`${BASE}/defects/${id}/comments/${commentId}`, {
+    method: "DELETE"
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
   }),
 };

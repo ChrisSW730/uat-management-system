@@ -137,7 +137,7 @@ public class UsersController : ControllerBase
         return NoContent();
     }
 
-    private static bool IsValidRole(string? role) => role is "Admin" or "Test Lead" or "Tester" or "Viewer";
+    private static bool IsValidRole(string? role) => role is "Admin" or "Test Lead" or "Tester" or "Developer" or "Viewer";
     private static bool IsValidEmail(string value)
     {
         try
