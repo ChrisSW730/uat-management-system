@@ -55,6 +55,24 @@ public class AuthController : ControllerBase
         ));
     }
 
+    [AllowAnonymous]
+    [HttpGet("admin-contact")]
+    public async Task<IActionResult> GetAdminContact()
+    {
+        var admins = await _db.Users
+            .Where(u => u.IsActive && u.Role == "Admin")
+            .OrderBy(u => u.Id)
+            .Select(u => u.Username)
+            .ToListAsync();
+
+        if (admins.Count == 0)
+        {
+            return NotFound("No active admin user found.");
+        }
+
+        return Ok(new AdminContactsDto(admins));
+    }
+
     [Authorize]
     [HttpGet("me")]
     public async Task<IActionResult> Me()
@@ -111,3 +129,4 @@ public class AuthController : ControllerBase
 public record LoginRequest(string Username, string Password);
 public record AuthUserDto(int Id, string Username, string DisplayName, string Role);
 public record AuthResponse(string Token, DateTime ExpiresAtUtc, AuthUserDto User);
+public record AdminContactsDto(List<string> Usernames);

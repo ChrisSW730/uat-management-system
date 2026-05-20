@@ -46,6 +46,15 @@ export const api = {
     return await response.json();
   },
 
+  getAdminContacts: async () => {
+    const response = await rawFetch(`${BASE}/auth/admin-contact`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to load admin contacts");
+    }
+    return await response.json();
+  },
+
   getUsers: () => fetch(`${BASE}/users`).then(r => r.json()),
   createUser: (data) => fetch(`${BASE}/users`, {
     method: "POST",

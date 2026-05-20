@@ -86,7 +86,7 @@ function DetailBlock({ label, value, pre, accent, danger }) {
   );
 }
 
-function LoginScreen({ username, password, error, busy, onUsernameChange, onPasswordChange, onSubmit }) {
+function LoginScreen({ username, password, error, busy, onUsernameChange, onPasswordChange, onSubmit, onContactAdmin }) {
   const [showPw, setShowPw] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -199,7 +199,7 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
           <div
             style={{
               textAlign: "center",
-              marginBottom: 104,
+              marginBottom: 90,
             }}
           >
             <div
@@ -284,7 +284,7 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
                   }
                   autoComplete="username"
 
-                  placeholder="Enter your username"
+                  placeholder="Enter your email address"
 
                   style={{
                     width: "100%",
@@ -500,7 +500,7 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
                 style={{
                   color: "#4f46e5",
                   fontWeight: 700,
-                  cursor: "pointer",
+                  cursor: "default",
                   fontSize: 14,
                 }}
               >
@@ -579,13 +579,15 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
             >
               Don’t have an account?{" "}
               <span
+                onClick={onContactAdmin}
                 style={{
                   color: "#4f46e5",
                   fontWeight: 700,
                   cursor: "pointer",
+                  textDecoration: "underline",
                 }}
               >
-                Sign up
+                Contact Administrator
               </span>
             </div>
           </form>
@@ -727,6 +729,7 @@ export default function App() {
   const canManageProjects = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
   const canDelete = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
   const isAdmin = authUser?.role === "Admin";
+  const fallbackAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || "admin@uatsystem.local").trim();
 
   function getCurrentUserName() {
     return authUser?.username || localStorage.getItem("uatUserName") || "Chris";
@@ -750,6 +753,38 @@ export default function App() {
     } finally {
       setLoginBusy(false);
     }
+  }
+
+  async function handleContactAdministrator() {
+    const subject = "Test Management System: Access Request";
+    const body = [
+      "Hello Admin,",
+      "",
+      "I need help with my system account.",
+      loginUsername ? `Username: ${loginUsername}` : "",
+      "",
+      "Thank you."
+    ].filter(Boolean).join("\n");
+
+    let recipient = fallbackAdminEmail;
+    try {
+      const adminContacts = await api.getAdminContacts();
+      const recipients = Array.isArray(adminContacts?.usernames)
+        ? adminContacts.usernames.filter(Boolean)
+        : adminContacts?.username
+          ? [adminContacts.username]
+          : [];
+
+      if (recipients.length > 0) {
+        recipient = recipients.join(",");
+      }
+    } catch (error) {
+      console.warn("Failed to load admin contacts from database:", error);
+    }
+
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedBody = encodeURIComponent(body);
+    window.location.href = `mailto:${recipient}?subject=${encodedSubject}&body=${encodedBody}`;
   }
 
   function handleLogout() {
@@ -2072,6 +2107,7 @@ export default function App() {
         onUsernameChange={setLoginUsername}
         onPasswordChange={setLoginPassword}
         onSubmit={handleLogin}
+        onContactAdmin={handleContactAdministrator}
       />
     );
   }
