@@ -117,7 +117,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPost("{projectId}/testplans")]
-    [Authorize(Roles = "Admin,Test Lead,Tester")]
+    [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> CreateTestPlan(int projectId, CreateTestPlanDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Test plan name is required.");
@@ -155,7 +155,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPut("testplans/{testPlanId}")]
-    [Authorize(Roles = "Admin,Test Lead,Tester")]
+    [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> UpdateTestPlan(int testPlanId, UpdateTestPlanDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Test plan name is required.");

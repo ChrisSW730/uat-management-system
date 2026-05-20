@@ -2148,7 +2148,7 @@ export default function App() {
                   >
                     🎯
                   </button>}
-                  <button
+                  {canManageProjects && <button
                     onClick={() => {
                       setEditingPlanId(tp.id);
                       setEditPlanName(tp.name || "");
@@ -2159,7 +2159,7 @@ export default function App() {
                     style={{ ...btnS, padding: "5px 11px", fontSize: 13 }}
                   >
                     Edit
-                  </button>
+                  </button>}
                   {canDelete && <button
                     onClick={() => {
                       if (window.confirm(`Delete test plan "${tp.name}"?`)) {
@@ -3508,7 +3508,7 @@ export default function App() {
         </Modal>
       )}
 
-      {showEditPlan && (
+      {showEditPlan && canManageProjects && (
         <Modal onClose={() => setShowEditPlan(false)}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Test Plan</div>
