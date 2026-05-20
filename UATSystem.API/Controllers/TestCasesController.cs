@@ -75,6 +75,15 @@ public class TestCasesController : ControllerBase
             return BadRequest("Invalid TestPlanId.");
         }
 
+        if (tc.TestScopeId.HasValue)
+        {
+            var validScope = await _db.TestScopes.AnyAsync(ts => ts.Id == tc.TestScopeId.Value && ts.TestPlanId == tc.TestPlanId.Value);
+            if (!validScope)
+            {
+                return BadRequest("Invalid TestScopeId for selected TestPlanId.");
+            }
+        }
+
         var count = await _db.TestCases.CountAsync();
         tc.TcNumber = $"TC-{(count + 1):D3}";
         tc.CreatedAt = DateTime.UtcNow;
@@ -89,6 +98,27 @@ public class TestCasesController : ControllerBase
     {
         var tc = await _db.TestCases.FindAsync(id);
         if (tc == null) return NotFound();
+
+        if (!updated.TestPlanId.HasValue)
+        {
+            return BadRequest("TestPlanId is required.");
+        }
+
+        var planExists = await _db.TestPlans.AnyAsync(tp => tp.Id == updated.TestPlanId.Value);
+        if (!planExists)
+        {
+            return BadRequest("Invalid TestPlanId.");
+        }
+
+        if (updated.TestScopeId.HasValue)
+        {
+            var validScope = await _db.TestScopes.AnyAsync(ts => ts.Id == updated.TestScopeId.Value && ts.TestPlanId == updated.TestPlanId.Value);
+            if (!validScope)
+            {
+                return BadRequest("Invalid TestScopeId for selected TestPlanId.");
+            }
+        }
+
         tc.Name = updated.Name;
         tc.Description = updated.Description;
         tc.Steps = updated.Steps;
@@ -97,6 +127,7 @@ public class TestCasesController : ControllerBase
         tc.Category = updated.Category;
         tc.Remarks = updated.Remarks;
         tc.TestPlanId = updated.TestPlanId;
+        tc.TestScopeId = updated.TestScopeId;
         await _db.SaveChangesAsync();
         return Ok(tc);
     }

@@ -260,6 +260,9 @@ export default function App() {
   const [newTCAttachments, setNewTCAttachments] = useState([]);
   const [showAddProject, setShowAddProject] = useState(false);
   const [showAddPlan, setShowAddPlan] = useState(false);
+  const [showManageScopes, setShowManageScopes] = useState(false);
+  const [managingTestPlan, setManagingTestPlan] = useState(null);
+  const [newScopeName, setNewScopeName] = useState("");
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showEditProject, setShowEditProject] = useState(false);
   const [showEditPlan, setShowEditPlan] = useState(false);
@@ -295,7 +298,7 @@ export default function App() {
   const [editTC, setEditTC] = useState(null);
   const [editDef, setEditDef] = useState(null);
 
-  const blankTC = { name: "", description: "", steps: "", expected: "", priority: "Medium", category: "User Authentication", remarks: "" };
+  const blankTC = { name: "", description: "", steps: "", expected: "", priority: "Medium", category: "User Authentication", remarks: "", testScopeId: "" };
   const blankRun = { name: "", selectedTcIds: [] };
   const defaultDefectTemplate = [
     "Marketing Company: ",
@@ -739,6 +742,26 @@ export default function App() {
     return map;
   }, [projects]);
 
+  const testScopesByPlanId = useMemo(() => {
+    const map = {};
+    (projects || []).forEach(p => {
+      (p.testPlans || []).forEach(tp => {
+        map[tp.id] = tp.testScopes || [];
+      });
+    });
+    return map;
+  }, [projects]);
+
+  const testScopeNameById = useMemo(() => {
+    const map = {};
+    Object.values(testScopesByPlanId).forEach(scopes => {
+      (scopes || []).forEach(scope => {
+        map[scope.id] = scope.name;
+      });
+    });
+    return map;
+  }, [testScopesByPlanId]);
+
   const visibleTabs = TABS;
 
   useEffect(() => {
@@ -757,6 +780,7 @@ export default function App() {
     try {
       const tc = await api.createTestCase({
         testPlanId: Number(selectedTestPlanId),
+        testScopeId: newTC.testScopeId ? Number(newTC.testScopeId) : null,
         name: newTC.name,
         description: newTC.description,
         steps: newTC.steps,
@@ -782,6 +806,8 @@ export default function App() {
   async function updateTC() {
     try {
       const updated = await api.updateTestCase(editTC.id, {
+        testPlanId: editTC.testPlanId,
+        testScopeId: editTC.testScopeId ? Number(editTC.testScopeId) : null,
         name: editTC.name,
         description: editTC.description,
         steps: editTC.steps,
@@ -918,6 +944,7 @@ export default function App() {
     try {
       const duped = await api.createTestCase({
         testPlanId: tc.testPlanId || (selectedTestPlanId ? Number(selectedTestPlanId) : null),
+        testScopeId: tc.testScopeId || null,
         name: tc.name + " (Copy)",
         description: tc.description,
         steps: tc.steps,
@@ -1063,8 +1090,58 @@ export default function App() {
       if (String(selectedTestPlanId) === String(testPlanId)) {
         setSelectedTestPlanId("");
       }
+
+      if (managingTestPlan?.id === testPlanId) {
+        setShowManageScopes(false);
+        setManagingTestPlan(null);
+      }
     } catch (e) {
       alert("Failed to delete test plan: " + e.message);
+    }
+  }
+
+  function openManageScopes(tp) {
+    setManagingTestPlan({ id: tp.id, name: tp.name });
+    setNewScopeName("");
+    setShowManageScopes(true);
+  }
+
+  async function addTestingScope() {
+    if (!managingTestPlan?.id || !newScopeName.trim()) return;
+    try {
+      const created = await api.createTestPlanScope(managingTestPlan.id, newScopeName.trim());
+      setProjects(prev => prev.map(project => ({
+        ...project,
+        testPlans: (project.testPlans || []).map(plan =>
+          plan.id !== managingTestPlan.id
+            ? plan
+            : { ...plan, testScopes: [...(plan.testScopes || []), created].sort((a, b) => a.name.localeCompare(b.name)) }
+        )
+      })));
+      setNewScopeName("");
+    } catch (error) {
+      alert(`Failed to add testing scope: ${error.message}`);
+    }
+  }
+
+  async function deleteTestingScope(scopeId) {
+    if (!managingTestPlan?.id) return;
+    try {
+      await api.deleteTestPlanScope(managingTestPlan.id, scopeId);
+      setProjects(prev => prev.map(project => ({
+        ...project,
+        testPlans: (project.testPlans || []).map(plan =>
+          plan.id !== managingTestPlan.id
+            ? plan
+            : { ...plan, testScopes: (plan.testScopes || []).filter(scope => scope.id !== scopeId) }
+        )
+      })));
+
+      setNewTC(prev => String(prev.testScopeId) === String(scopeId) ? { ...prev, testScopeId: "" } : prev);
+      setEditTC(prev => prev && String(prev.testScopeId) === String(scopeId) ? { ...prev, testScopeId: "" } : prev);
+      setViewTC(prev => prev && String(prev.testScopeId) === String(scopeId) ? { ...prev, testScopeId: null } : prev);
+    } catch (error) {
+      alert(`Failed to delete testing scope: ${error.message}`);
     }
   }
 
@@ -2028,7 +2105,7 @@ export default function App() {
               {selectedProject && selectedProjectPlans.length === 0 && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>No test plans yet.</div>}
               {selectedProjectPlans.map(tp => (
                 <div key={tp.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f8fafc", padding: "8px 10px", background: String(selectedTestPlanId) === String(tp.id) ? "#eff6ff" : "#fff" }}>
-                  <button onClick={() => { setSelectedTestPlanId(String(tp.id)); setActiveTab("testcases"); }}
+                  <button onClick={() => { setSelectedTestPlanId(String(tp.id)); setNewTC(p => ({ ...p, testScopeId: "" })); setActiveTab("testcases"); }}
                     style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", padding: "6px 4px", cursor: "pointer", fontWeight: 700, fontSize: 16, color: String(selectedTestPlanId) === String(tp.id) ? "#1d4ed8" : "#334155" }}>
                     <div>{tp.name}</div>
                     {(() => {
@@ -2064,6 +2141,13 @@ export default function App() {
                       );
                     })()}
                   </button>
+                  {canManageProjects && <button
+                    onClick={() => openManageScopes(tp)}
+                    style={{ ...btnS, padding: "5px 10px", fontSize: 13 }}
+                    title="Manage testing scopes"
+                  >
+                    🎯
+                  </button>}
                   <button
                     onClick={() => {
                       setEditingPlanId(tp.id);
@@ -2121,6 +2205,7 @@ export default function App() {
                 const p = projects.find(x => String(x.id) === String(pid));
                 const fp = (p?.testPlans || [])[0];
                 setSelectedTestPlanId(fp ? String(fp.id) : "");
+                setNewTC(prev => ({ ...prev, testScopeId: "" }));
               }}
               style={{ ...inp, width: 190 }}
             >
@@ -2129,7 +2214,10 @@ export default function App() {
             </select>
             <select
               value={selectedTestPlanId}
-              onChange={e => setSelectedTestPlanId(e.target.value)}
+              onChange={e => {
+                setSelectedTestPlanId(e.target.value);
+                setNewTC(prev => ({ ...prev, testScopeId: "" }));
+              }}
               style={{ ...inp, width: 210 }}
             >
               <option value="">Select Test Plan</option>
@@ -2223,7 +2311,8 @@ export default function App() {
                           {canWrite && <button
                             onClick={() => setEditTC({
                               ...tc,
-                              expected: tc.expectedResult
+                              expected: tc.expectedResult,
+                              testScopeId: tc.testScopeId ? String(tc.testScopeId) : ""
                             })}
                             style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
                           >
@@ -2251,6 +2340,13 @@ export default function App() {
                       </td>
                       <td style={{ padding: "13px 16px", maxWidth: 340 }} onClick={() => setViewTC(tc)}>
                         <div style={{ fontWeight: 700, color: "#1e293b", lineHeight: 1.4 }}>{tc.name}</div>
+                        {tc.testScopeId && testScopeNameById[tc.testScopeId] && (
+                          <div style={{ marginTop: 5 }}>
+                            <span style={{ fontSize: 12, color: "#4338ca", background: "#eef2ff", border: "1px solid #c7d2fe", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>
+                              Scope: {testScopeNameById[tc.testScopeId]}
+                            </span>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "13px 16px" }} onClick={() => setViewTC(tc)}>
                         <span style={{ fontSize: 14, color: "#64748b", background: "#f1f5f9", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{tc.category.split("(")[0].trim().slice(0, 20)}</span>
@@ -2642,6 +2738,9 @@ export default function App() {
             {viewTC.description && <DetailBlock label="Description" value={viewTC.description} />}
             <DetailBlock label="Test Steps" value={viewTC.steps} pre />
             <DetailBlock label="Expected Result" value={viewTC.expectedResult} accent />
+            {viewTC.testScopeId && testScopeNameById[viewTC.testScopeId] && (
+              <DetailBlock label="Testing Scope" value={testScopeNameById[viewTC.testScopeId]} />
+            )}
             {viewTC.remarks && <DetailBlock label="Remarks" value={viewTC.remarks} />}
           </div>
           <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1.5px solid #f1f5f9" }}>
@@ -3197,6 +3296,14 @@ export default function App() {
                 </select>
               </div>
             </div>
+            <div><label style={lbl}>Testing Scope</label>
+              <select value={newTC.testScopeId} onChange={e => setNewTC(p => ({ ...p, testScopeId: e.target.value }))} style={inp}>
+                <option value="">No scope</option>
+                {(testScopesByPlanId[selectedTestPlanId] || []).map(scope => (
+                  <option key={scope.id} value={scope.id}>{scope.name}</option>
+                ))}
+              </select>
+            </div>
             <div><label style={lbl}>Remarks</label><input value={newTC.remarks} onChange={e => setNewTC(p => ({ ...p, remarks: e.target.value }))} style={inp} /></div>
             <div style={{ marginTop: 2 }}>
               <label style={lbl}>Attachments</label>
@@ -3323,6 +3430,48 @@ export default function App() {
           <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
             <button onClick={() => setShowAddPlan(false)} style={btnS}>Cancel</button>
             <button onClick={addTestPlan} style={{ ...btnP, opacity: (!newPlanName.trim() || !selectedProjectId || !isValidDateRange(newPlanStartDate, newPlanEndDate)) ? 0.5 : 1 }} disabled={!newPlanName.trim() || !selectedProjectId || !isValidDateRange(newPlanStartDate, newPlanEndDate)}>Create Test Plan</button>
+          </div>
+        </Modal>
+      )}
+
+      {showManageScopes && managingTestPlan && canManageProjects && (
+        <Modal onClose={() => { setShowManageScopes(false); setManagingTestPlan(null); }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ fontSize: 17, fontWeight: 800 }}>Testing Scopes - {managingTestPlan.name}</div>
+            <button onClick={() => { setShowManageScopes(false); setManagingTestPlan(null); }} style={xBtn}>✕</button>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+            <input
+              value={newScopeName}
+              onChange={e => setNewScopeName(e.target.value)}
+              style={inp}
+              placeholder="Add a scope name"
+            />
+            <button
+              onClick={addTestingScope}
+              style={{ ...btnP, opacity: newScopeName.trim() ? 1 : 0.5 }}
+              disabled={!newScopeName.trim()}
+            >
+              + Add
+            </button>
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {(testScopesByPlanId[managingTestPlan.id] || []).length === 0 && (
+              <div style={{ color: "#94a3b8", fontSize: 14, padding: "8px 0" }}>No testing scopes yet.</div>
+            )}
+            {(testScopesByPlanId[managingTestPlan.id] || []).map(scope => (
+              <div key={scope.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                <span style={{ color: "#334155", fontWeight: 700 }}>{scope.name}</span>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Delete testing scope \"${scope.name}\"?`)) deleteTestingScope(scope.id);
+                  }}
+                  style={btnD}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
           </div>
         </Modal>
       )}
@@ -3560,6 +3709,25 @@ export default function App() {
                 }
                 style={inp}
               />
+            </div>
+
+            <div>
+              <label style={lbl}>Testing Scope</label>
+              <select
+                value={editTC.testScopeId || ""}
+                onChange={e =>
+                  setEditTC(p => ({
+                    ...p,
+                    testScopeId: e.target.value
+                  }))
+                }
+                style={inp}
+              >
+                <option value="">No scope</option>
+                {(testScopesByPlanId[editTC.testPlanId] || []).map(scope => (
+                  <option key={scope.id} value={scope.id}>{scope.name}</option>
+                ))}
+              </select>
             </div>
 
             <div style={{ marginTop: 2 }}>

@@ -140,6 +140,23 @@ export const api = {
   deleteTestPlan: (id) => fetch(`${BASE}/projects/testplans/${id}`, {
     method: "DELETE"
   }),
+  getTestPlanScopes: (testPlanId) => fetch(`${BASE}/projects/testplans/${testPlanId}/scopes`).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
+  createTestPlanScope: (testPlanId, name) => fetch(`${BASE}/projects/testplans/${testPlanId}/scopes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
+  deleteTestPlanScope: (testPlanId, scopeId) => fetch(`${BASE}/projects/testplans/${testPlanId}/scopes/${scopeId}`, {
+    method: "DELETE"
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+  }),
 
   // Test Cases
   getTestCases: (testPlanId) => {

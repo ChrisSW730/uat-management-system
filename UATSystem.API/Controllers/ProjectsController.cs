@@ -23,6 +23,7 @@ public class ProjectsController : ControllerBase
     {
         var projects = await _db.Projects
             .Include(p => p.TestPlans)
+                .ThenInclude(tp => tp.TestScopes)
             .OrderBy(p => p.Name)
             .ToListAsync();
 
@@ -34,7 +35,18 @@ public class ProjectsController : ControllerBase
             p.CreatedAt,
             p.TestPlans
                 .OrderBy(tp => tp.Name)
-                .Select(tp => new TestPlanDto(tp.Id, tp.ProjectId, tp.Name, tp.StartDate, tp.EndDate, tp.CreatedAt))
+                .Select(tp => new TestPlanDto(
+                    tp.Id,
+                    tp.ProjectId,
+                    tp.Name,
+                    tp.StartDate,
+                    tp.EndDate,
+                    tp.CreatedAt,
+                    tp.TestScopes
+                        .OrderBy(ts => ts.Name)
+                        .Select(ts => new TestScopeDto(ts.Id, ts.TestPlanId, ts.Name, ts.CreatedAt))
+                        .ToList()
+                ))
                 .ToList()
         )));
     }
@@ -139,7 +151,7 @@ public class ProjectsController : ControllerBase
         _db.TestPlans.Add(testPlan);
         await _db.SaveChangesAsync();
 
-        return Ok(new TestPlanDto(testPlan.Id, testPlan.ProjectId, testPlan.Name, testPlan.StartDate, testPlan.EndDate, testPlan.CreatedAt));
+        return Ok(new TestPlanDto(testPlan.Id, testPlan.ProjectId, testPlan.Name, testPlan.StartDate, testPlan.EndDate, testPlan.CreatedAt, new List<TestScopeDto>()));
     }
 
     [HttpPut("testplans/{testPlanId}")]
@@ -172,7 +184,66 @@ public class ProjectsController : ControllerBase
         testPlan.EndDate = endDate;
         await _db.SaveChangesAsync();
 
-        return Ok(new TestPlanDto(testPlan.Id, testPlan.ProjectId, testPlan.Name, testPlan.StartDate, testPlan.EndDate, testPlan.CreatedAt));
+        return Ok(new TestPlanDto(testPlan.Id, testPlan.ProjectId, testPlan.Name, testPlan.StartDate, testPlan.EndDate, testPlan.CreatedAt, new List<TestScopeDto>()));
+    }
+
+    [HttpGet("testplans/{testPlanId}/scopes")]
+    public async Task<IActionResult> GetTestScopes(int testPlanId)
+    {
+        var exists = await _db.TestPlans.AnyAsync(tp => tp.Id == testPlanId);
+        if (!exists) return NotFound();
+
+        var scopes = await _db.TestScopes
+            .Where(ts => ts.TestPlanId == testPlanId)
+            .OrderBy(ts => ts.Name)
+            .Select(ts => new TestScopeDto(ts.Id, ts.TestPlanId, ts.Name, ts.CreatedAt))
+            .ToListAsync();
+
+        return Ok(scopes);
+    }
+
+    [HttpPost("testplans/{testPlanId}/scopes")]
+    [Authorize(Roles = "Admin,Test Lead")]
+    public async Task<IActionResult> CreateTestScope(int testPlanId, CreateTestScopeDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Testing scope name is required.");
+
+        var testPlan = await _db.TestPlans.FirstOrDefaultAsync(tp => tp.Id == testPlanId);
+        if (testPlan is null) return NotFound();
+
+        var normalized = dto.Name.Trim();
+        var duplicateExists = await _db.TestScopes.AnyAsync(ts => ts.TestPlanId == testPlanId && ts.Name == normalized);
+        if (duplicateExists) return BadRequest("This testing scope already exists in the test plan.");
+
+        var scope = new TestScope
+        {
+            TestPlanId = testPlanId,
+            Name = normalized,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.TestScopes.Add(scope);
+        await _db.SaveChangesAsync();
+
+        return Ok(new TestScopeDto(scope.Id, scope.TestPlanId, scope.Name, scope.CreatedAt));
+    }
+
+    [HttpDelete("testplans/{testPlanId}/scopes/{scopeId}")]
+    [Authorize(Roles = "Admin,Test Lead")]
+    public async Task<IActionResult> DeleteTestScope(int testPlanId, int scopeId)
+    {
+        var scope = await _db.TestScopes.FirstOrDefaultAsync(ts => ts.Id == scopeId && ts.TestPlanId == testPlanId);
+        if (scope is null) return NotFound();
+
+        var linkedCases = await _db.TestCases.Where(tc => tc.TestScopeId == scopeId).ToListAsync();
+        foreach (var testCase in linkedCases)
+        {
+            testCase.TestScopeId = null;
+        }
+
+        _db.TestScopes.Remove(scope);
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 
     [HttpDelete("testplans/{testPlanId}")]
@@ -216,5 +287,7 @@ public record CreateProjectDto(string Name, DateTime? StartDate, DateTime? EndDa
 public record UpdateProjectDto(string Name, DateTime? StartDate, DateTime? EndDate);
 public record CreateTestPlanDto(string Name, DateTime? StartDate, DateTime? EndDate);
 public record UpdateTestPlanDto(string Name, DateTime? StartDate, DateTime? EndDate);
-public record TestPlanDto(int Id, int ProjectId, string Name, DateTime? StartDate, DateTime? EndDate, DateTime CreatedAt);
+public record CreateTestScopeDto(string Name);
+public record TestScopeDto(int Id, int TestPlanId, string Name, DateTime CreatedAt);
+public record TestPlanDto(int Id, int ProjectId, string Name, DateTime? StartDate, DateTime? EndDate, DateTime CreatedAt, List<TestScopeDto> TestScopes);
 public record ProjectDto(int Id, string Name, DateTime? StartDate, DateTime? EndDate, DateTime CreatedAt, List<TestPlanDto> TestPlans);

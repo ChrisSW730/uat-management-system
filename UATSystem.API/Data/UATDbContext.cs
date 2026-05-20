@@ -9,6 +9,7 @@ public class UATDbContext : DbContext
 
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<TestPlan> TestPlans => Set<TestPlan>();
+    public DbSet<TestScope> TestScopes => Set<TestScope>();
     public DbSet<TestCase> TestCases => Set<TestCase>();
     public DbSet<TestRun> TestRuns => Set<TestRun>();
     public DbSet<TestRunEntry> TestRunEntries => Set<TestRunEntry>();
@@ -33,6 +34,18 @@ public class UATDbContext : DbContext
             .WithMany(tp => tp.TestCases)
             .HasForeignKey(tc => tc.TestPlanId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<TestScope>()
+            .HasOne(ts => ts.TestPlan)
+            .WithMany(tp => tp.TestScopes)
+            .HasForeignKey(ts => ts.TestPlanId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TestCase>()
+            .HasOne(tc => tc.TestScope)
+            .WithMany(ts => ts.TestCases)
+            .HasForeignKey(tc => tc.TestScopeId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         modelBuilder.Entity<TestRunEntry>()
             .HasOne(e => e.TestRun)
