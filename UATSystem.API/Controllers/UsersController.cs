@@ -253,6 +253,22 @@ Test Management System
 
         return Ok(ToDto(user));
     }
+
+    [HttpPost("{id}/reset-password")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ResetPassword(int id)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (user == null) return NotFound();
+
+        var newInitialPassword = GenerateInitialPassword();
+        user.PasswordHash = new PasswordHasher<UserAccount>().HashPassword(user, newInitialPassword);
+        user.MustChangePassword = true;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return Ok(new ResetPasswordResponse(ToDto(user), newInitialPassword));
+    }
 }
 
 public record UserDto(int Id, string Username, string DisplayName, string Role, bool IsActive, bool MustChangePassword, DateTime CreatedAt, DateTime? UpdatedAt);
@@ -261,3 +277,4 @@ public record CreateUserResponse(UserDto User, string InitialPassword);
 public record UpdateUserRequest(string Username, string DisplayName, string? Password, string Role, bool IsActive = true);
 public record SendInitialPasswordRequest(string Email, string InitialPassword, string CreatedBy);
 public record ChangePasswordRequest(string OldPassword, string NewPassword);
+public record ResetPasswordResponse(UserDto User, string InitialPassword);

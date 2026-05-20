@@ -1052,6 +1052,37 @@ export default function App() {
     }
   }
 
+  async function resetUserPassword(user) {
+    const ok = window.confirm(`Reset password for ${user.username}? A new temporary password will be generated.`);
+    if (!ok) return;
+
+    try {
+      const result = await api.resetUserPassword(user.id);
+      setUsers(prev => prev.map(u => (u.id === result.user.id ? result.user : u)));
+
+      const subject = "Test Management System - Your Password Has Been Reset";
+      const body = [
+        `Dear ${user.displayName},`,
+        "",
+        "Your password has been reset by the administrator.",
+        "",
+        "Your updated login credentials:",
+        `  Username (Email): ${user.username}`,
+        `  Password: ${result.initialPassword}`,
+        "",
+        "Please log in and update your password immediately when prompted.",
+        "",
+        "Best regards,",
+        getCurrentUserName() || "System Administrator",
+      ].join("\n");
+
+      const mailto = `mailto:${encodeURIComponent(user.username)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+    } catch (error) {
+      alert(`Failed to reset password: ${error.message}`);
+    }
+  }
+
   async function duplicateTC(tc) {
     try {
       const duped = await api.createTestCase({
@@ -2210,6 +2241,7 @@ export default function App() {
                     <td style={{ padding: "13px 16px", width: 170, minWidth: 170 }}>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
                         <button onClick={() => openEditUser({ ...user, password: "" })} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>Edit</button>
+                        <button onClick={() => resetUserPassword(user)} style={{ ...btnS, padding: "5px 10px", fontSize: 12, borderColor: "#c7d2fe", color: "#4338ca" }}>Reset Password</button>
                         <button onClick={() => { if (window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }} style={xBtn}>✕</button>
                       </div>
                     </td>

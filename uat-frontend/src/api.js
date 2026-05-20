@@ -75,6 +75,12 @@ export const api = {
   deleteUser: (id) => fetch(`${BASE}/users/${id}`, {
     method: "DELETE"
   }),
+  resetUserPassword: (id) => fetch(`${BASE}/users/${id}/reset-password`, {
+    method: "POST"
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }),
 
   // Projects and Test Plans
   getProjects: () => fetch(`${BASE}/projects`).then(r => r.json()),
