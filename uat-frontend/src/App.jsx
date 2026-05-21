@@ -280,6 +280,20 @@ export default function App() {
   const [managingTestPlan, setManagingTestPlan] = useState(null);
   const [newScopeName, setNewScopeName] = useState("");
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showCategorySettings, setShowCategorySettings] = useState(false);
+  const [categories, setCategories] = useState(() => {
+    try {
+      const stored = localStorage.getItem("uat_categories");
+      if (stored) return JSON.parse(stored);
+    } catch { }
+    return [
+      "User Authentication", "User Management",
+      "Payout & Clawback Creation (Charity Live Campaign)",
+      "Payout & Clawback Creation (Commercial Live Campaign)",
+      "Payout Approval", "BMM", "PAF", "Data Insight",
+    ];
+  });
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [showEditProject, setShowEditProject] = useState(false);
   const [showEditPlan, setShowEditPlan] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
@@ -499,7 +513,7 @@ export default function App() {
       localStorage.setItem("uatUserRole", result.user.role);
       setAuthUser(result.user);
       setLoginPassword("");
-      
+
       if (result.user.mustChangePassword) {
         setShowForcePasswordChange(true);
         setCurrentPasswordForChange("");
@@ -1150,27 +1164,27 @@ export default function App() {
 
   async function handleForcePasswordChange() {
     setPasswordChangeError("");
-    
+
     if (!currentPasswordForChange.trim()) {
       setPasswordChangeError("Current password is required.");
       return;
     }
-    
+
     if (!newPasswordForChange.trim()) {
       setPasswordChangeError("New password cannot be empty.");
       return;
     }
-    
+
     if (newPasswordForChange !== confirmPasswordForChange) {
       setPasswordChangeError("New passwords do not match.");
       return;
     }
-    
+
     if (newPasswordForChange.length < 6) {
       setPasswordChangeError("New password must be at least 6 characters.");
       return;
     }
-    
+
     try {
       await api.changeUserPassword(authUser.id, currentPasswordForChange, newPasswordForChange);
       const updatedAuth = JSON.parse(localStorage.getItem("uatAuth"));
@@ -1587,8 +1601,10 @@ export default function App() {
         ...r,
         entries: r.entries.filter(e => e.testCaseId !== tcId)
       }));
-      setViewRun(r => ({ ...r,
-        entries: r.entries.filter(e => e.testCaseId !== tcId) }));
+      setViewRun(r => ({
+        ...r,
+        entries: r.entries.filter(e => e.testCaseId !== tcId)
+      }));
     } catch (e) { alert("Failed to remove TC: " + e.message); }
   }
 
@@ -1606,7 +1622,8 @@ export default function App() {
             : { ...e, execStatus: status, statusChangedAt: result.statusChangedAt, statusChangedBy: result.statusChangedBy }
         )
       }));
-      setViewRun(r => ({ ...r,
+      setViewRun(r => ({
+        ...r,
         entries: r.entries.map(e =>
           e.testCaseId !== tcId
             ? e
@@ -1630,7 +1647,8 @@ export default function App() {
             : { ...e, comment }
         )
       }));
-      setViewRun(r => ({ ...r,
+      setViewRun(r => ({
+        ...r,
         entries: r.entries.map(e =>
           e.testCaseId !== tcId
             ? e
@@ -1676,10 +1694,12 @@ export default function App() {
           entries: (r.entries || []).map(e =>
             e.testCaseId !== tcId
               ? e
-              : { ...e, comments: [
-                ...(e.comments || []),
-                savedComment
-              ] }
+              : {
+                ...e, comments: [
+                  ...(e.comments || []),
+                  savedComment
+                ]
+              }
           )
         }
         : r
@@ -1724,9 +1744,11 @@ export default function App() {
           entries: (r.entries || []).map(e =>
             e.testCaseId !== tcId
               ? e
-              : { ...e, comments: (e.comments || []).filter(
-                c => c.id !== commentId
-              ) }
+              : {
+                ...e, comments: (e.comments || []).filter(
+                  c => c.id !== commentId
+                )
+              }
           )
         }
         : r
@@ -1915,23 +1937,29 @@ export default function App() {
 
       setDefects(p => p.map(d => d.id !== defectId
         ? d
-        : { ...d, comments: (d.comments || []).filter(
-          c => c.id !== commentId
-        ) }
+        : {
+          ...d, comments: (d.comments || []).filter(
+            c => c.id !== commentId
+          )
+        }
       ));
 
       setViewDef(d => d?.id !== defectId
         ? d
-        : { ...d, comments: (d.comments || []).filter(
-          c => c.id !== commentId
-        ) }
+        : {
+          ...d, comments: (d.comments || []).filter(
+            c => c.id !== commentId
+          )
+        }
       );
 
       setEditDef(d => d?.id !== defectId
         ? d
-        : { ...d, comments: (d.comments || []).filter(
-          c => c.id !== commentId
-        ) }
+        : {
+          ...d, comments: (d.comments || []).filter(
+            c => c.id !== commentId
+          )
+        }
       );
     } catch (error) {
       alert(`Failed to delete defect comment: ${error.message}`);
@@ -2557,18 +2585,78 @@ export default function App() {
                     }}
                     style={{
                       width: "100%",
+
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+
                       textAlign: "left",
+
                       border: "none",
-                      background: activeTab === "users" ? "#eff6ff" : "transparent",
-                      color: activeTab === "users" ? "#1d4ed8" : "#334155",
+
+                      background:
+                        activeTab === "users"
+                          ? "#eff6ff"
+                          : "transparent",
+
+                      color:
+                        activeTab === "users"
+                          ? "#1d4ed8"
+                          : "#334155",
+
                       borderRadius: 8,
-                      padding: "9px 10px",
+
+                      padding: "10px 12px",
+
                       fontSize: 14,
                       fontWeight: 700,
+
                       cursor: "pointer",
                     }}
                   >
-                    👤 User Management
+                    <span style={{ width: 18, textAlign: "center" }}>
+                      👤
+                    </span>
+
+                    <span>User Management</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCategorySettings(true);
+                      setShowSettingsMenu(false);
+                    }}
+                    style={{
+                      width: "100%",
+
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+
+                      textAlign: "left",
+
+                      border: "none",
+
+                      background: "transparent",
+
+                      color: "#334155",
+
+                      borderRadius: 8,
+
+                      padding: "10px 12px",
+
+                      fontSize: 14,
+                      fontWeight: 700,
+
+                      cursor: "pointer",
+
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span style={{ width: 18, textAlign: "center" }}>
+                      🏷
+                    </span>
+
+                    <span>Configure Categories</span>
                   </button>
                 </div>
               )}
@@ -2840,7 +2928,7 @@ export default function App() {
             </div>
             <select value={tcCatFilter} onChange={e => setTcCatFilter(e.target.value)} style={{ ...inp, width: 220 }}>
               <option value="All">All Categories</option>
-              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              {categories.map(c => <option key={c}>{c}</option>)}
             </select>
             <select value={tcPriFilter} onChange={e => setTcPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
               <option value="All">All Priorities</option>
@@ -3491,263 +3579,263 @@ export default function App() {
             const sortedRunEntries = sortRunEntriesByTestCaseId(viewRun.entries);
             return (
               <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-            <div>
-              <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 5 }}>{viewRun.runNumber}</span>
-              <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginTop: 6 }}>{viewRun.name}</div>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>👤 {viewRun.tester} · {viewRun.createdAt?.slice(0, 10)}</div>
-            </div>
-            <button onClick={() => setViewRun(null)} style={xBtn}>✕</button>
-          </div>
-
-          {(() => {
-            const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-                <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
-                <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
-                <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
-                <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
-                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 120, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#22c55e" : "linear-gradient(90deg,#6366f1,#06b6d4)", borderRadius: 99 }} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                  <div>
+                    <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 5 }}>{viewRun.runNumber}</span>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginTop: 6 }}>{viewRun.name}</div>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>👤 {viewRun.tester} · {viewRun.createdAt?.slice(0, 10)}</div>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
+                  <button onClick={() => setViewRun(null)} style={xBtn}>✕</button>
                 </div>
-                <div style={{ flexBasis: "100%", display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {Object.keys(EXEC_STATUS).map(status => {
-                    const s = byStatusPriority[status];
-                    if (!s || s.total === 0) return null;
+
+                {(() => {
+                  const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+                      <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
+                      <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
+                      <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
+                      <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
+                      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ width: 120, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#22c55e" : "linear-gradient(90deg,#6366f1,#06b6d4)", borderRadius: 99 }} />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
+                      </div>
+                      <div style={{ flexBasis: "100%", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {Object.keys(EXEC_STATUS).map(status => {
+                          const s = byStatusPriority[status];
+                          if (!s || s.total === 0) return null;
+                          return (
+                            <span key={status} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 999, padding: "4px 10px", fontSize: 12, color: "#475569", fontWeight: 700 }}>
+                              {status}: High {s.High} | Medium {s.Medium} | Low {s.Low}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {canWrite && <AddTcToRunRow testCases={allTestCases} run={viewRun} onAdd={tcId => addTcToRun(viewRun.id, tcId)} />}
+
+                <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+                  {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases in this run yet.</div>}
+                  {sortedRunEntries.map(entry => {
+                    const tc = allTestCaseById[entry.testCaseId];
+                    const ec = EXEC_STATUS[entry.execStatus] || EXEC_STATUS["Not Run"];
+                    const entryDefects = entry.defects || [];
                     return (
-                      <span key={status} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 999, padding: "4px 10px", fontSize: 12, color: "#475569", fontWeight: 700 }}>
-                        {status}: High {s.High} | Medium {s.Medium} | Low {s.Low}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
+                      <div key={entry.id} style={{ border: `1.5px solid ${ec.border}`, borderRadius: 12, padding: "14px 16px", background: ec.bg, cursor: "pointer" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                              <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#fff", padding: "1px 7px", borderRadius: 5, border: "1px solid #c7d2fe", flexShrink: 0 }}>{tc?.tcNumber}</span>
+                              <PriBadge label={tc?.priority || "Medium"} />
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 15, lineHeight: 1.4 }}>{tc?.name || entry.testCaseId}</div>
+                              <button
+                                type="button"
+                                title={tc ? "Click to view test case details" : "Test case details unavailable"}
+                                onClick={() => {
+                                  if (!tc) return;
+                                  setViewTC(tc);
+                                }}
+                                disabled={!tc}
+                                style={{
+                                  width: 22,
+                                  height: 22,
+                                  borderRadius: "50%",
+                                  border: "1px solid #cbd5e1",
+                                  background: tc ? "#fff" : "#f1f5f9",
+                                  color: tc ? "#475569" : "#94a3b8",
+                                  fontSize: 12,
+                                  fontWeight: 800,
+                                  lineHeight: 1,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  cursor: tc ? "pointer" : "not-allowed",
+                                  padding: 0,
+                                  flexShrink: 0
+                                }}
+                              >
+                                i
+                              </button>
+                            </div>
+                            <div style={{ marginTop: 10 }}>
+                              {[...(entry.comments || [])]
+                                .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+                                .map(c => (
+                                  <div
+                                    key={c.id}
+                                    style={{
+                                      background: "#fff",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: 8,
+                                      padding: "8px 12px",
+                                      marginBottom: 8
+                                    }}
+                                  >
+                                    <div style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      marginBottom: 4
+                                    }}>
+                                      <span style={{
+                                        fontWeight: 700,
+                                        color: "#475569",
+                                        fontSize: 12
+                                      }}>
+                                        {c.tester}
+                                      </span>
 
-          {canWrite && <AddTcToRunRow testCases={allTestCases} run={viewRun} onAdd={tcId => addTcToRun(viewRun.id, tcId)} />}
+                                      <div style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 8
+                                      }}>
+                                        <span style={{
+                                          fontSize: 11,
+                                          color: "#94a3b8"
+                                        }}>
+                                          {new Date(c.createdAt).toLocaleString()}
+                                        </span>
 
-          <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-            {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases in this run yet.</div>}
-            {sortedRunEntries.map(entry => {
-              const tc = allTestCaseById[entry.testCaseId];
-              const ec = EXEC_STATUS[entry.execStatus] || EXEC_STATUS["Not Run"];
-              const entryDefects = entry.defects || [];
-              return (
-                <div key={entry.id} style={{ border: `1.5px solid ${ec.border}`, borderRadius: 12, padding: "14px 16px", background: ec.bg, cursor: "pointer" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#fff", padding: "1px 7px", borderRadius: 5, border: "1px solid #c7d2fe", flexShrink: 0 }}>{tc?.tcNumber}</span>
-                        <PriBadge label={tc?.priority || "Medium"} />
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                        <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 15, lineHeight: 1.4 }}>{tc?.name || entry.testCaseId}</div>
-                        <button
-                          type="button"
-                          title={tc ? "Click to view test case details" : "Test case details unavailable"}
-                          onClick={() => {
-                            if (!tc) return;
-                            setViewTC(tc);
-                          }}
-                          disabled={!tc}
-                          style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: "50%",
-                            border: "1px solid #cbd5e1",
-                            background: tc ? "#fff" : "#f1f5f9",
-                            color: tc ? "#475569" : "#94a3b8",
-                            fontSize: 12,
-                            fontWeight: 800,
-                            lineHeight: 1,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: tc ? "pointer" : "not-allowed",
-                            padding: 0,
-                            flexShrink: 0
-                          }}
-                        >
-                          i
-                        </button>
-                      </div>
-                      <div style={{ marginTop: 10 }}>
-                        {[...(entry.comments || [])]
-                          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-                          .map(c => (
-                          <div
-                            key={c.id}
-                            style={{
-                              background: "#fff",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: 8,
-                              padding: "8px 12px",
-                              marginBottom: 8
-                            }}
-                          >
-                            <div style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              marginBottom: 4
-                            }}>
-                              <span style={{
-                                fontWeight: 700,
-                                color: "#475569",
-                                fontSize: 12
-                              }}>
-                                {c.tester}
-                              </span>
+                                        {canDelete && (
+                                          <button
+                                            onClick={() =>
+                                              deleteComment(
+                                                viewRun.id,
+                                                entry.testCaseId,
+                                                c.id
+                                              )
+                                            }
+                                            style={{
+                                              border: "none",
+                                              background: "none",
+                                              color: "#ef4444",
+                                              cursor: "pointer"
+                                            }}
+                                          >
+                                            ✕
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div style={{
+                                      fontSize: 13,
+                                      color: "#334155"
+                                    }}>
+                                      {c.message}
+                                    </div>
+                                  </div>
+                                ))}
 
                               <div style={{
                                 display: "flex",
-                                alignItems: "center",
                                 gap: 8
                               }}>
-                                <span style={{
-                                  fontSize: 11,
-                                  color: "#94a3b8"
-                                }}>
-                                  {new Date(c.createdAt).toLocaleString()}
-                                </span>
+                                <input
+                                  placeholder="Add comment... (use @Display Name to tag)"
+                                  value={commentDrafts[entry.testCaseId] || ""}
+                                  ref={node => registerMentionInputRef(`run-${entry.testCaseId}`, node)}
+                                  onChange={e => {
+                                    const value = e.target.value;
+                                    handleMentionInputChange(
+                                      "run",
+                                      `run-${entry.testCaseId}`,
+                                      value,
+                                      next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
+                                    );
+                                  }}
+                                  onKeyDown={e => handleMentionKeyDown(
+                                    e,
+                                    "run",
+                                    `run-${entry.testCaseId}`,
+                                    commentDrafts[entry.testCaseId] || "",
+                                    next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
+                                  )}
+                                  style={{
+                                    ...inp,
+                                    fontSize: 12,
+                                    flex: 1
+                                  }}
+                                />
 
-                                {canDelete && (
+                                {canComment && (
                                   <button
                                     onClick={() =>
-                                      deleteComment(
+                                      addComment(
                                         viewRun.id,
-                                        entry.testCaseId,
-                                        c.id
+                                        entry.testCaseId
                                       )
                                     }
-                                    style={{
-                                      border: "none",
-                                      background: "none",
-                                      color: "#ef4444",
-                                      cursor: "pointer"
-                                    }}
+                                    style={btnP}
                                   >
-                                    ✕
+                                    Add
                                   </button>
                                 )}
                               </div>
-                            </div>
-
-                            <div style={{
-                              fontSize: 13,
-                              color: "#334155"
-                            }}>
-                              {c.message}
+                              {mentionPicker?.type === "run" && mentionPicker?.key === `run-${entry.testCaseId}` && (
+                                <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                                  {mentionPicker.list.map((u, idx) => (
+                                    <button
+                                      key={`run-mention-${entry.testCaseId}-${u.id}`}
+                                      type="button"
+                                      onMouseDown={e => e.preventDefault()}
+                                      onClick={() => {
+                                        const current = commentDrafts[entry.testCaseId] || "";
+                                        selectMention(
+                                          "run",
+                                          `run-${entry.testCaseId}`,
+                                          current,
+                                          next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next })),
+                                          u.displayName
+                                        );
+                                      }}
+                                      style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: mentionPicker.activeIndex === idx ? "#eff6ff" : "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                    >
+                                      {u.displayName}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
-                        ))}
-
-                        <div style={{
-                          display: "flex",
-                          gap: 8
-                        }}>
-                          <input
-                            placeholder="Add comment... (use @Display Name to tag)"
-                            value={commentDrafts[entry.testCaseId] || ""}
-                            ref={node => registerMentionInputRef(`run-${entry.testCaseId}`, node)}
-                            onChange={e => {
-                              const value = e.target.value;
-                              handleMentionInputChange(
-                                "run",
-                                `run-${entry.testCaseId}`,
-                                value,
-                                next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
-                              );
-                            }}
-                            onKeyDown={e => handleMentionKeyDown(
-                              e,
-                              "run",
-                              `run-${entry.testCaseId}`,
-                              commentDrafts[entry.testCaseId] || "",
-                              next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <select value={entry.execStatus || "Not Run"} onChange={e => updateExecStatus(viewRun.id, entry.testCaseId, e.target.value)} disabled={!canWrite}
+                                style={{ background: ec.bg, color: ec.text, border: `1.5px solid ${ec.border}`, borderRadius: 20, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", outline: "none" }}>
+                                {Object.keys(EXEC_STATUS).map(s => <option key={s}>{s}</option>)}
+                              </select>
+                              {canDelete && (
+                                <button onClick={() => removeTcFromRun(viewRun.id, entry.testCaseId)} title="Remove from run"
+                                  style={{ background: "#f1f5f9", border: "none", color: "#94a3b8", width: 28, height: 28, borderRadius: 6, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                              )}
+                            </div>
+                            {entry.statusChangedAt && (
+                              <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", lineHeight: 1.3 }}>
+                                <div>Changed: {new Date(entry.statusChangedAt).toLocaleDateString()} {new Date(entry.statusChangedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                {entry.statusChangedBy && <div>by {entry.statusChangedBy}</div>}
+                              </div>
                             )}
-                            style={{
-                              ...inp,
-                              fontSize: 12,
-                              flex: 1
-                            }}
-                          />
-
-                          {canComment && (
-                            <button
-                              onClick={() =>
-                                addComment(
-                                  viewRun.id,
-                                  entry.testCaseId
-                                )
-                              }
-                              style={btnP}
-                            >
-                              Add
-                            </button>
-                          )}
-                        </div>
-                        {mentionPicker?.type === "run" && mentionPicker?.key === `run-${entry.testCaseId}` && (
-                          <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
-                            {mentionPicker.list.map((u, idx) => (
-                              <button
-                                key={`run-mention-${entry.testCaseId}-${u.id}`}
-                                type="button"
-                                onMouseDown={e => e.preventDefault()}
-                                onClick={() => {
-                                  const current = commentDrafts[entry.testCaseId] || "";
-                                  selectMention(
-                                    "run",
-                                    `run-${entry.testCaseId}`,
-                                    current,
-                                    next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next })),
-                                    u.displayName
-                                  );
-                                }}
-                                style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: mentionPicker.activeIndex === idx ? "#eff6ff" : "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
-                              >
-                                {u.displayName}
-                              </button>
+                            {canWrite && (entry.execStatus === "Fail" || entry.execStatus === "Failed") && entryDefects.length === 0 && (
+                              <button onClick={() => createDefect(viewRun.id, entry.testCaseId)} style={btnD}>🐛 Create Defect</button>
+                            )}
+                            {entryDefects.map(d => (
+                              <span key={d.id} style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", background: "#fff1f2", border: "1px solid #fecdd3", padding: "3px 10px", borderRadius: 20, cursor: "pointer" }}
+                                onClick={() => setViewDef(d)}>
+                                🔗 {d.defectNumber}
+                              </span>
                             ))}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <select value={entry.execStatus || "Not Run"} onChange={e => updateExecStatus(viewRun.id, entry.testCaseId, e.target.value)} disabled={!canWrite}
-                          style={{ background: ec.bg, color: ec.text, border: `1.5px solid ${ec.border}`, borderRadius: 20, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", outline: "none" }}>
-                          {Object.keys(EXEC_STATUS).map(s => <option key={s}>{s}</option>)}
-                        </select>
-                        {canDelete && (
-                          <button onClick={() => removeTcFromRun(viewRun.id, entry.testCaseId)} title="Remove from run"
-                            style={{ background: "#f1f5f9", border: "none", color: "#94a3b8", width: 28, height: 28, borderRadius: 6, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-                        )}
-                      </div>
-                      {entry.statusChangedAt && (
-                        <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", lineHeight: 1.3 }}>
-                          <div>Changed: {new Date(entry.statusChangedAt).toLocaleDateString()} {new Date(entry.statusChangedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                          {entry.statusChangedBy && <div>by {entry.statusChangedBy}</div>}
                         </div>
-                      )}
-                      {canWrite && (entry.execStatus === "Fail" || entry.execStatus === "Failed") && entryDefects.length === 0 && (
-                        <button onClick={() => createDefect(viewRun.id, entry.testCaseId)} style={btnD}>🐛 Create Defect</button>
-                      )}
-                      {entryDefects.map(d => (
-                        <span key={d.id} style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", background: "#fff1f2", border: "1px solid #fecdd3", padding: "3px 10px", borderRadius: 20, cursor: "pointer" }}
-                          onClick={() => setViewDef(d)}>
-                          🔗 {d.defectNumber}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
               </>
             );
           })()}
@@ -4136,7 +4224,7 @@ export default function App() {
               </div>
               <div><label style={lbl}>Category</label>
                 <select value={newTC.category} onChange={e => setNewTC(p => ({ ...p, category: e.target.value }))} style={inp}>
-                  {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                  {categories.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
             </div>
@@ -4533,7 +4621,7 @@ export default function App() {
                   }
                   style={inp}
                 >
-                  {CATEGORIES.map(c =>
+                  {categories.map(c =>
                     <option key={c}>{c}</option>
                   )}
                 </select>
@@ -5083,6 +5171,61 @@ export default function App() {
           </div>
         </Modal>
       )}
+      {showCategorySettings && isAdmin && (
+        <Modal onClose={() => { setShowCategorySettings(false); setNewCategoryName(""); }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
+            <div style={{ fontSize: 17, fontWeight: 800 }}>Configure Categories</div>
+            <button onClick={() => { setShowCategorySettings(false); setNewCategoryName(""); }} style={xBtn}>✕</button>
+          </div>
+          <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
+            {[...categories].sort((a, b) => a.localeCompare(b)).map((cat, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
+                <span style={{ flex: 1, fontSize: 14, color: "#1e293b", fontWeight: 600 }}>{cat}</span>
+                <button
+                  onClick={() => {
+                    const updated = categories.filter(c => c !== cat);
+                    setCategories(updated);
+                    localStorage.setItem("uat_categories", JSON.stringify(updated));
+                  }}
+                  style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+                  title="Remove category"
+                >✕</button>
+              </div>
+            ))}
+            {categories.length === 0 && <div style={{ color: "#94a3b8", fontSize: 13, textAlign: "center", padding: 12 }}>No categories defined.</div>}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={newCategoryName}
+              onChange={e => setNewCategoryName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && newCategoryName.trim()) {
+                  const updated = [...categories, newCategoryName.trim()].sort((a, b) => a.localeCompare(b));
+                  setCategories(updated);
+                  localStorage.setItem("uat_categories", JSON.stringify(updated));
+                  setNewCategoryName("");
+                }
+              }}
+              placeholder="New category name…"
+              style={{ ...inp, flex: 1 }}
+            />
+            <button
+              onClick={() => {
+                if (!newCategoryName.trim()) return;
+                const updated = [...categories, newCategoryName.trim()].sort((a, b) => a.localeCompare(b));
+                setCategories(updated);
+                localStorage.setItem("uat_categories", JSON.stringify(updated));
+                setNewCategoryName("");
+              }}
+              disabled={!newCategoryName.trim()}
+              style={{ ...btnP, opacity: !newCategoryName.trim() ? 0.5 : 1 }}
+            >Add</button>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+            <button onClick={() => { setShowCategorySettings(false); setNewCategoryName(""); }} style={btnS}>Close</button>
+          </div>
+        </Modal>
+      )}
       {showAddUser && (
         <Modal onClose={() => setShowAddUser(false)}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -5295,9 +5438,9 @@ function AddTcToRunRow({ testCases, run, onAdd }) {
   const available = testCases.filter(tc => !existing.includes(tc.id));
   const filtered = searchTerm.trim()
     ? available.filter(tc =>
-        tc.tcNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tc.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      tc.tcNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tc.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     : available;
 
   useEffect(() => {
