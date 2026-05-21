@@ -250,6 +250,10 @@ export const api = {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   }).then(r => r.json()),
+  updateTestRun: (runId, data) => fetch(`${BASE}/testruns/${runId}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  }).then(r => r.json()),
   addEntryToRun: (runId, testCaseId) => fetch(`${BASE}/testruns/${runId}/entries`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ testCaseId })

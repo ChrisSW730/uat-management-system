@@ -197,6 +197,18 @@ public class TestRunsController : ControllerBase
         return NoContent();
     }
 
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
+    public async Task<IActionResult> UpdateRun(int id, UpdateRunDto dto)
+    {
+        var run = await _db.TestRuns.FindAsync(id);
+        if (run == null) return NotFound();
+        run.Name = dto.Name;
+        run.Tester = dto.Tester;
+        await _db.SaveChangesAsync();
+        return Ok(run);
+    }
+
     [HttpPatch("{id}/entries/{testCaseId}")]
     [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> UpdateEntry(int id, int testCaseId, UpdateEntryDto dto)
@@ -204,6 +216,14 @@ public class TestRunsController : ControllerBase
         var entry = await _db.TestRunEntries
             .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
         if (entry == null) return NotFound();
+        
+        // Record timestamp and user if status is changing
+        if (entry.ExecStatus != dto.ExecStatus)
+        {
+            entry.StatusChangedAt = DateTime.UtcNow;
+            entry.StatusChangedBy = await GetCommentTesterAsync();
+        }
+        
         entry.ExecStatus = dto.ExecStatus;
         entry.Comment = dto.Comment;
         await _db.SaveChangesAsync();
@@ -225,5 +245,6 @@ public class TestRunsController : ControllerBase
 
 public record CreateRunDto(string Name, string Tester, List<int> TestCaseIds);
 public record AddEntryDto(int TestCaseId);
+public record UpdateRunDto(string Name, string Tester);
 public record UpdateEntryDto(string ExecStatus, string Comment);
 public record AddEntryCommentDto(string Message);

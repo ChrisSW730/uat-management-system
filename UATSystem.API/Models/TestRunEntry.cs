@@ -7,6 +7,8 @@ public class TestRunEntry
     public int TestCaseId { get; set; }
     public string ExecStatus { get; set; } = "Not Run";
     public string Comment { get; set; } = string.Empty;
+    public DateTime? StatusChangedAt { get; set; }
+    public string StatusChangedBy { get; set; } = string.Empty;
 
     public TestRun TestRun { get; set; } = null!;
     public TestCase TestCase { get; set; } = null!;
