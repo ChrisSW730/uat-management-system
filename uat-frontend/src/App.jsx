@@ -2638,12 +2638,12 @@ export default function App() {
                     { label: "Role", col: "role" },
                     { label: "Active", col: "isActive" },
                     { label: "Created", col: "createdAt" },
-                  ].map(h => (
+                  ].map(({ label, col }) => (
                     <th
-                      key={h.label}
-                      onClick={col ? () => { if (tcSortCol === col) setTcSortDir(d => d === "asc" ? "desc" : "asc"); else { setTcSortCol(col); setTcSortDir("asc"); } } : undefined}
-                      style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && tcSortCol === col ? "#d4dff0" : undefined }}>
-                      {label}{col && tcSortCol === col ? (tcSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
+                      key={label}
+                      onClick={() => toggleUserSort(col)}
+                      style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: userSortCol === col ? "#d4dff0" : undefined }}>
+                      {label}{userSortCol === col ? (userSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
                     </th>
                   ))}
                 </tr>
@@ -4347,7 +4347,7 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
             <button onClick={() => setShowEditProject(false)} style={btnS}>Cancel</button>
-            <button onClick={updateProjectName} style={{ ...btnP, opacity: (!(editProjectName.trim() || "").trim() || !isValidEmail(editProjectName.trim() || "")) ? 0.5 : 1 }} disabled={!(editProjectName.trim() || "").trim() || !isValidEmail(editProjectName.trim() || "")}>Save Changes</button>
+            <button onClick={updateProjectName} style={{ ...btnP, opacity: (!editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate)) ? 0.5 : 1 }} disabled={!editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate)}>Save Changes</button>
           </div>
         </Modal>
       )}
