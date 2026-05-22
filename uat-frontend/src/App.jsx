@@ -209,6 +209,7 @@ const xBtn = { background: "#f1f5f9", border: "none", color: "#64748b", width: 3
 ----------------------------------------- */
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [projects, setProjects] = useState([]);
   const [testCases, setTestCases] = useState([]);
   const [allTestCases, setAllTestCases] = useState([]);
@@ -273,6 +274,7 @@ export default function App() {
   const [mentionPicker, setMentionPicker] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [defectAttachments, setDefectAttachments] = useState({});
   const [uploadingDefectId, setUploadingDefectId] = useState(null);
   const [newDefAttachments, setNewDefAttachments] = useState([]);
@@ -518,6 +520,7 @@ export default function App() {
       localStorage.setItem("uatUserName", result.user.username);
       localStorage.setItem("uatUserRole", result.user.role);
       setAuthUser(result.user);
+      setActiveTab("dashboard");
       setLoginPassword("");
 
       if (result.user.mustChangePassword) {
@@ -2534,216 +2537,160 @@ export default function App() {
 
   return (
     //<div style={{ minHeight:"100vh", background:"#fff", fontFamily:"'Inter','Segoe UI',sans-serif", color:"#0f172a" }}>
-    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter','Segoe UI',sans-serif", color: "#0f172a", width: "100%", overflowX: "hidden" }}>
+    <div onClick={() => { setShowNotifications(false); setShowUserMenu(false); }} style={{ height: "100vh", background: "#fff", fontFamily: "'Inter','Segoe UI',sans-serif", color: "#0f172a", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-      {/* ── Header ── */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "0 52px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 180, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 58, height: 58, background: "linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px #6366f155" }}><DiamondMark size={34} outer="#ffffff" inner="#4f46e5" stroke={6} /></div>
-          <div>
-            <div style={{ fontSize: 35, fontWeight: 700, color: "#0f172a" }}>Test Management System</div>
-            <div style={{ padding: "0 1px", fontSize: 18, color: "#94a3b8", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>User Acceptance Testing & Defect Tracking</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>{authUser.displayName || authUser.username}</div>
-            <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{authUser.role}</div>
-          </div>
-          <div style={{ position: "relative" }}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleNotificationsPanel();
-              }}
-              style={{ ...btnS, padding: "8px 10px", fontSize: 16, lineHeight: 1, position: "relative" }}
-              aria-label="Notifications"
-              title="Notifications"
-            >
-              🔔
-              {unreadNotificationsCount > 0 && (
-                <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 999, background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px", border: "2px solid #fff" }}>
-                  {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
-                </span>
-              )}
-            </button>
-            {showNotifications && (
-              <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "calc(100% + 8px)",
-                  width: 360,
-                  maxHeight: 360,
-                  overflowY: "auto",
-                  background: "#fff",
-                  border: "1.5px solid #e2e8f0",
-                  borderRadius: 10,
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-                  padding: 8,
-                  zIndex: 2600,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 8px", borderBottom: "1px solid #f1f5f9", marginBottom: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Notifications</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button onClick={markAllNotificationsAsRead} style={{ border: "none", background: "none", color: "#4f46e5", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Mark all read</button>
-                    <button
-                      type="button"
-                      onClick={clearAllNotifications}
-                      title="Clear all notifications"
-                      aria-label="Clear all notifications"
-                      style={{ border: "1px solid #e2e8f0", background: "#fff", color: "#475569", borderRadius: 8, height: 28, cursor: "pointer", fontSize: 12, fontWeight: 700, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "0 9px" }}
-                    >
-                      <span style={{ fontSize: 13, lineHeight: 1 }}>🗑</span>
-                      <span>Clear all</span>
-                    </button>
+      {/* ── Body (sidebar + content) ── */}
+      <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+        {/* Dark Navy Sidebar */}
+        <div style={{ width: sidebarCollapsed ? 64 : 220, background: "#1a2332", display: "flex", flexDirection: "column", transition: "width 0.22s cubic-bezier(.4,0,.2,1)", overflow: "hidden", flexShrink: 0 }}>
+          {/* Logo area */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: sidebarCollapsed ? "0" : "0 14px 0 16px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, height: 64 }}>
+            {sidebarCollapsed ? (
+              <button onClick={() => setSidebarCollapsed(false)} title="Expand sidebar"
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#8892a4", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>›</button>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <DiamondMark size={20} outer="#ffffff" inner="#4f46e5" stroke={4} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>TMS</div>
+                    <div style={{ fontSize: 10, color: "#8892a4", fontWeight: 500 }}>Test Management</div>
                   </div>
                 </div>
-                {notifications.length === 0 && (
-                  <div style={{ padding: "10px 8px", color: "#94a3b8", fontSize: 13 }}>No notifications yet.</div>
-                )}
-                {notifications.map(n => (
-                  <button
-                    key={n.id}
-                    onClick={() => markNotificationAsRead(n)}
-                    style={{ width: "100%", textAlign: "left", border: "1px solid #f1f5f9", background: n.isRead ? "#fff" : "#eef2ff", borderRadius: 8, padding: "9px 10px", marginBottom: 6, cursor: "pointer" }}
-                    title={n.link || ""}
-                  >
-                    <div style={{ color: "#0f172a", fontSize: 13, fontWeight: n.isRead ? 600 : 800, lineHeight: 1.35 }}>{n.message}</div>
-                    <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 4 }}>{formatTimeAgo(n.createdAt)}</div>
-                  </button>
-                ))}
-              </div>
+                <button onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar"
+                  style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#8892a4", fontSize: 16, flexShrink: 0 }}>‹</button>
+              </>
             )}
           </div>
-          {isAdmin && (
-            <div style={{ position: "relative" }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowSettingsMenu(v => !v);
-                }}
-                style={{ ...btnS, padding: "8px 10px", fontSize: 16, lineHeight: 1 }}
-                aria-label="Settings"
-                title="Settings"
-              >
-                ⚙
-              </button>
-              {showSettingsMenu && (
-                <div
-                  onClick={e => e.stopPropagation()}
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "calc(100% + 8px)",
-                    minWidth: 180,
-                    background: "#fff",
-                    border: "1.5px solid #e2e8f0",
-                    borderRadius: 10,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-                    padding: 6,
-                    zIndex: 2600,
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      setActiveTab("users");
-                      setShowSettingsMenu(false);
-                    }}
-                    style={{
-                      width: "100%",
-
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-
-                      textAlign: "left",
-
-                      border: "none",
-
-                      background:
-                        activeTab === "users"
-                          ? "#eff6ff"
-                          : "transparent",
-
-                      color:
-                        activeTab === "users"
-                          ? "#1d4ed8"
-                          : "#334155",
-
-                      borderRadius: 8,
-
-                      padding: "10px 12px",
-
-                      fontSize: 14,
-                      fontWeight: 700,
-
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span style={{ width: 18, textAlign: "center" }}>
-                      👤
-                    </span>
-
-                    <span>User Management</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowCategorySettings(true);
-                      setShowSettingsMenu(false);
-                    }}
-                    style={{
-                      width: "100%",
-
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-
-                      textAlign: "left",
-
-                      border: "none",
-
-                      background: "transparent",
-
-                      color: "#334155",
-
-                      borderRadius: 8,
-
-                      padding: "10px 12px",
-
-                      fontSize: 14,
-                      fontWeight: 700,
-
-                      cursor: "pointer",
-
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <span style={{ width: 18, textAlign: "center" }}>
-                      🏷
-                    </span>
-
-                    <span>Configure Categories</span>
-                  </button>
+          {/* Nav groups */}
+          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "8px 0" }}>
+            {[
+              { group: "MAIN", items: [["dashboard", "🏠", "Dashboard"], ["projects", "💼", "Projects"]] },
+              { group: "TESTING", items: [["testcases", "📋", "Test Cases"], ["runs", "▶", "Test Runs"], ["defects", "🐛", "Defect Log"]] },
+              ...(isAdmin ? [{ group: "SETTINGS", items: [["settings_cat", "⚙", "Settings"], ["users", "👤", "Users"]] }] : []),
+            ].map(({ group, items }) => (
+              <div key={group}>
+                {!sidebarCollapsed && (
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4a5568", letterSpacing: "0.1em", padding: "14px 12px 4px", textTransform: "uppercase" }}>{group}</div>
+                )}
+                {sidebarCollapsed && <div style={{ height: 10 }} />}
+                {items.map(([key, icon, label]) => {
+                  const active = activeTab === key;
+                  return (
+                    <button key={key}
+                      onClick={() => { if (key === "settings_cat") { setShowCategorySettings(true); } else { setActiveTab(key); } }}
+                      title={sidebarCollapsed ? label : ""}
+                      style={{ display: "flex", alignItems: "center", gap: 9, background: active ? "rgba(255,255,255,0.1)" : "none", border: "none", borderRadius: 8, color: active ? "#fff" : "#8892a4", padding: "10px 0", fontSize: 13, fontWeight: active ? 700 : 500, cursor: "pointer", width: sidebarCollapsed ? "100%" : "calc(100% - 24px)", margin: sidebarCollapsed ? "2px 0" : "2px 12px", whiteSpace: "nowrap", justifyContent: sidebarCollapsed ? "center" : "flex-start", transition: "all 0.13s" }}>
+                      <span style={{ fontSize: 16, flexShrink: 0, opacity: active ? 1 : 0.8, width: 32, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
+                      {!sidebarCollapsed && <span>{label}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          {/* Bottom user / logout */}
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: sidebarCollapsed ? "12px 0" : "12px 12px", flexShrink: 0, display: "flex", alignItems: "center", gap: 10, justifyContent: sidebarCollapsed ? "center" : "space-between" }}>
+            {!sidebarCollapsed ? (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
+                    {(authUser.displayName || authUser.username || "?")[0].toUpperCase()}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 110 }}>{authUser.displayName || authUser.username}</div>
+                    <div style={{ fontSize: 10, color: "#8892a4" }}>{authUser.role}</div>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
-          <button onClick={handleLogout} style={btnS}>Logout</button>
+                <button onClick={handleLogout} title="Logout" style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 6, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#8892a4", fontSize: 13, flexShrink: 0 }}>⏻</button>
+              </>
+            ) : (
+              <button onClick={handleLogout} title="Logout" style={{ background: "none", border: "none", cursor: "pointer", color: "#8892a4", fontSize: 16 }}>⏻</button>
+            )}
+          </div>
         </div>
-      </div>
+        {/* Main content */}
+        <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
 
-      {/* ── Tabs ── */}
-      <div style={{ padding: "0 52px", background: "#fff", display: "flex", gap: 0, borderBottom: "2px solid #f1f5f9" }}>
-        {visibleTabs.map(([key, label]) => (
-          <button key={key} onClick={() => setActiveTab(key)}
-            style={{ background: "none", border: "none", borderBottom: activeTab === key ? "2px solid #6366f1" : "2px solid transparent", color: activeTab === key ? "#6366f1" : "#94a3b8", padding: "14px 20px", fontSize: 20, fontWeight: 700, cursor: "pointer", marginBottom: -2, transition: "all 0.15s" }}>
-            {label}
-          </button>
-        ))}
-      </div>
+          {/* ── Page Header ── */}
+          <div style={{ position: "sticky", top: 0, zIndex: 200, background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>
+                {({ dashboard: "UAT Dashboard", testcases: "Test Cases", runs: "Test Runs", defects: "Defect Log", projects: "Projects", users: "Users", settings_cat: "Settings" })[activeTab] || ""}
+              </div>
+              <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
+                {({ dashboard: "Overview of test execution and defects", testcases: "Manage and track all test cases", runs: "Execute and monitor test runs", defects: "Track and manage defects", projects: "Manage your test projects", users: "Manage user accounts and permissions", settings_cat: "Configure categories and options" })[activeTab] || ""}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              {/* Notification bell */}
+              <div style={{ position: "relative" }}>
+                <button onClick={(e) => { e.stopPropagation(); toggleNotificationsPanel(); }} style={{ ...btnS, padding: "8px 10px", fontSize: 18, lineHeight: 1, position: "relative", border: "none", background: "transparent", boxShadow: "none" }} aria-label="Notifications" title="Notifications">
+                  🔔
+                  {unreadNotificationsCount > 0 && (
+                    <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 999, background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px", border: "2px solid #fff" }}>
+                      {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+                    </span>
+                  )}
+                </button>
+                {showNotifications && (
+                  <div onClick={e => e.stopPropagation()} style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 360, maxHeight: 360, overflowY: "auto", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.12)", padding: 8, zIndex: 2600 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 8px", borderBottom: "1px solid #f1f5f9", marginBottom: 6 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Notifications</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <button onClick={markAllNotificationsAsRead} style={{ border: "none", background: "none", color: "#4f46e5", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Mark all read</button>
+                        <button type="button" onClick={clearAllNotifications} title="Clear all notifications" aria-label="Clear all notifications" style={{ border: "1px solid #e2e8f0", background: "#fff", color: "#475569", borderRadius: 8, height: 28, cursor: "pointer", fontSize: 12, fontWeight: 700, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "0 9px" }}>
+                          <span style={{ fontSize: 13, lineHeight: 1 }}>🗑</span>
+                          <span>Clear all</span>
+                        </button>
+                      </div>
+                    </div>
+                    {notifications.length === 0 && (
+                      <div style={{ padding: "10px 8px", color: "#94a3b8", fontSize: 13 }}>No notifications yet.</div>
+                    )}
+                    {notifications.map(n => (
+                      <button key={n.id} onClick={() => markNotificationAsRead(n)} style={{ width: "100%", textAlign: "left", border: "1px solid #f1f5f9", background: n.isRead ? "#fff" : "#eef2ff", borderRadius: 8, padding: "9px 10px", marginBottom: 6, cursor: "pointer" }} title={n.link || ""}>
+                        <div style={{ color: "#0f172a", fontSize: 13, fontWeight: n.isRead ? 600 : 800, lineHeight: 1.35 }}>{n.message}</div>
+                        <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 4 }}>{formatTimeAgo(n.createdAt)}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* User pill */}
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowUserMenu(v => !v); }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 4px 6px 0", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
+                    {(authUser.displayName || authUser.username || "?")[0].toUpperCase()}
+                  </div>
+                  <div style={{ textAlign: "left" }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{authUser.displayName || authUser.username}</div>
+                    <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{authUser.role}</div>
+                  </div>
+                  <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: 2 }}>▼</span>
+                </button>
+                {showUserMenu && (
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", minWidth: 160, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.12)", padding: 6, zIndex: 2600 }}
+                  >
+                    <button
+                      onClick={() => { setShowUserMenu(false); handleLogout(); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, textAlign: "left", border: "none", background: "transparent", color: "#dc2626", borderRadius: 8, padding: "10px 12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      <span>⏻</span>
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
       {/* ══════════════════════════════════
           TAB: USERS
@@ -3688,13 +3635,9 @@ export default function App() {
           { value: Math.max(0, entryCount - passedTotal - failedTotal - blockedTotal), color: "#e2e8f0" },
         ];
         return (
-        <div ref={dashboardRef} style={{ background: "#f0f4f8", minHeight: "calc(100vh - 60px)", padding: "24px 28px 40px" }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a" }}>UAT Dashboard</div>
-              <div style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Overview of test execution and defects</div>
-            </div>
+        <div ref={dashboardRef} style={{ background: "#fff", minHeight: "calc(100vh - 60px)", padding: "24px 28px 40px" }}>
+          {/* Filters row */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 10, alignItems: "center" }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <select value={dashProjectId} onChange={e => { setDashProjectId(e.target.value); setDashPlanId(""); setDashRunId(""); }}
                 style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
@@ -3715,7 +3658,7 @@ export default function App() {
                   <option key={r.id} value={String(r.id)}>{r.name}</option>
                 ))}
               </select>
-              <button onClick={() => { if (!dashboardRef.current) return; html2canvas(dashboardRef.current, { scale: 2, useCORS: true, backgroundColor: "#f0f4f8" }).then(canvas => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "uat-dashboard.png"; a.click(); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>📥 Export Report</button>
+              <button onClick={() => { if (!dashboardRef.current) return; html2canvas(dashboardRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "uat-dashboard.png"; a.click(); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>📥 Export Report</button>
             </div>
           </div>
           {/* Top 5 summary cards */}
@@ -5788,6 +5731,8 @@ export default function App() {
           </div>
         </div>
       )}
+        </div>{/* end content */}
+      </div>{/* end body flex */}
       {contextMenu && (
         <div onClick={e => e.stopPropagation()}
           style={{
