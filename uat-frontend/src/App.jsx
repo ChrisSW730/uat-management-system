@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { api } from "./api";
 import loginBg from "../public/login.png";
+import html2canvas from "html2canvas";
 
 /* -----------------------------------------
    CONSTANTS
@@ -207,7 +208,7 @@ const xBtn = { background: "#f1f5f9", border: "none", color: "#64748b", width: 3
    MAIN APP
 ----------------------------------------- */
 export default function App() {
-  const [activeTab, setActiveTab] = useState("testcases");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [projects, setProjects] = useState([]);
   const [testCases, setTestCases] = useState([]);
   const [allTestCases, setAllTestCases] = useState([]);
@@ -432,6 +433,7 @@ export default function App() {
   }
 
   const mentionInputRefs = useRef({});
+  const dashboardRef = useRef(null);
 
   function registerMentionInputRef(key, node) {
     if (!key) return;
@@ -3686,7 +3688,7 @@ export default function App() {
           { value: Math.max(0, entryCount - passedTotal - failedTotal - blockedTotal), color: "#e2e8f0" },
         ];
         return (
-        <div style={{ background: "#f0f4f8", minHeight: "calc(100vh - 60px)", padding: "24px 28px 40px" }}>
+        <div ref={dashboardRef} style={{ background: "#f0f4f8", minHeight: "calc(100vh - 60px)", padding: "24px 28px 40px" }}>
           {/* Header */}
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
             <div>
@@ -3713,7 +3715,7 @@ export default function App() {
                   <option key={r.id} value={String(r.id)}>{r.name}</option>
                 ))}
               </select>
-              <button style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>📥 Export Report</button>
+              <button onClick={() => { if (!dashboardRef.current) return; html2canvas(dashboardRef.current, { scale: 2, useCORS: true, backgroundColor: "#f0f4f8" }).then(canvas => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "uat-dashboard.png"; a.click(); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>📥 Export Report</button>
             </div>
           </div>
           {/* Top 5 summary cards */}
@@ -3734,15 +3736,15 @@ export default function App() {
               </div>
             ))}
             <div style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 14, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>📈</div>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 12 }}>
+                <div style={{ width: 56, height: 56, borderRadius: 14, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0, marginTop: 18 }}>📈</div>
                 <div>
                   <div style={{ fontSize: 12, color: "#6366f1", fontWeight: 700, marginBottom: 4 }}>Execution Progress</div>
                   <div style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{passRate}%</div>
                   <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{passedTotal.toLocaleString()} passed / {tcCount.toLocaleString()} total</div>
                 </div>
               </div>
-              <div style={{ height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+              <div style={{ marginLeft: 72, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
                 <div style={{ width: `${passRate}%`, height: "100%", background: "linear-gradient(90deg,#6366f1,#818cf8)", borderRadius: 99 }} />
               </div>
             </div>
@@ -3769,7 +3771,7 @@ export default function App() {
                 );
               })}
               <div style={{ marginTop: 28, paddingTop: 16, borderTop: "1.5px solid #f1f5f9", display: "flex", alignItems: "center", gap: 16 }}>
-                <DonutChart size={100} strokeWidth={14} label={`${passRate}%`} segments={execSegs} />
+                <DonutChart size={100} strokeWidth={16} label={`${passRate}%`} segments={execSegs} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13, color: "#334155" }}>Overall Execution Progress</div>
                   <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{passedTotal.toLocaleString()} / {tcCount.toLocaleString()} Test Cases Executed</div>
@@ -3780,7 +3782,7 @@ export default function App() {
               <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 34 }}>Defect Status Breakdown</div>
               <div style={{ display: "flex", gap: 26, alignItems: "flex-start", marginBottom: 18 }}>
                 <div style={{ flexShrink: 0 }}>
-                  <DonutChart size={185} strokeWidth={22} label={defTotal} subLabel="Total"
+                  <DonutChart size={165} strokeWidth={35} label={defTotal} subLabel="Total"
                     segments={Object.entries(defByStatus).map(([s, c]) => ({ value: c, color: DEFECT_STATUS[s]?.dot || "#94a3b8" }))}
                   />
                 </div>
