@@ -205,6 +205,18 @@ public class DefectsController : ControllerBase
         };
         _db.Defects.Add(defect);
         await _db.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(defect.AssignedTo))
+        {
+            var actorDisplayName = await GetCurrentUserDisplayNameAsync();
+            await NotifyUserByDisplayNameAsync(
+                defect.AssignedTo,
+                $"{actorDisplayName} assigned {defect.DefectNumber} to you.",
+                $"/defects/{defect.Id}"
+            );
+            await _db.SaveChangesAsync();
+        }
+
         return Ok(defect);
     }
 
