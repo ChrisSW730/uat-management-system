@@ -2663,10 +2663,10 @@ boxShadow:
         <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
 
           {/* ── Page Header ── */}
-          <div style={{ position: "sticky", top: 20, zIndex: 200, background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+          <div style={{ background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "45px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
             <div>
               <div style={{ fontSize: 30, fontWeight: 750, color: "#0f172a" }}>
-                {({ dashboard: "UAT Dashboard", testcases: "Test Cases", runs: "Test Runs", defects: "Defect Log", projects: "Projects", users: "Users", settings_cat: "Settings" })[activeTab] || ""}
+                {({ dashboard: "Dashboard", testcases: "Test Cases", runs: "Test Runs", defects: "Defect Log", projects: "Projects", users: "Users", settings_cat: "Settings" })[activeTab] || ""}
               </div>
               <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
                 {({ dashboard: "Overview of test execution and defects", testcases: "Manage and track all test cases", runs: "Execute and monitor test runs", defects: "Track and manage defects", projects: "Manage your test projects", users: "Manage user accounts and permissions", settings_cat: "Configure categories and options" })[activeTab] || ""}
