@@ -3853,120 +3853,100 @@ export default function App() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={lbl}>Market</label>
-                <select
-                  value={viewDef.market || "SG"}
-                  onChange={e => setViewDef(p => ({ ...p, market: e.target.value }))}
-                  style={inp}
-                >
-                  {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
-                </select>
+                <input
+                  value={viewDef.market || ""}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
               </div>
               <div>
                 <label style={lbl}>Run</label>
-                <select
-                  value={showAddDef.runId || ""}
-                  onChange={e => setShowAddDef(p => ({ ...p, runId: e.target.value || null }))}
-                  style={inp}
-                >
-                  <option value="">Standalone (No linked run/test case)</option>
-                  {sortedRuns.map(r => <option key={r.id} value={r.id}>{r.runNumber} - {r.name}</option>)}
-                </select>
+                <input
+                  value={viewDef.runNumber || "Standalone"}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
               </div>
-              {showAddDef.runId && (
+              {viewDef.tcNumber && (
                 <div>
                   <label style={lbl}>Test Case</label>
-                  <select
-                    value={showAddDef.tcId || ""}
-                    onChange={e => setShowAddDef(p => ({ ...p, tcId: e.target.value || null }))}
-                    style={inp}
-                  >
-                    <option value="">No specific test case (run-level defect)</option>
-                    {(() => {
-                      const run = runs.find(r => String(r.id) === String(showAddDef.runId));
-                      const options = (run?.entries || [])
-                        .map(en => allTestCaseById[en.testCaseId])
-                        .filter(Boolean);
-                      return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
-                    })()}
-                  </select>
+                  <input
+                    value={viewDef.tcNumber}
+                    style={{ ...inp, background: "#f8fafc" }}
+                    readOnly
+                  />
                 </div>
               )}
             </div>
 
             <div>
               <label style={lbl}>Issue Type</label>
-              <select
-                value={viewDef.issueType || "Functional Issue"}
-                onChange={e => setViewDef(p => ({ ...p, issueType: e.target.value }))}
-                style={inp}
-              >
-                {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
-              </select>
+              <input
+                value={viewDef.issueType || ""}
+                style={{ ...inp, background: "#f8fafc" }}
+                readOnly
+              />
             </div>
 
             <div>
               <label style={lbl}>Description</label>
               <textarea
                 value={viewDef.description || ""}
-                onChange={e => setViewDef(p => ({ ...p, description: e.target.value }))}
-                style={{ ...inp, minHeight: 80, resize: "vertical" }}
+                readOnly
+                style={{ ...inp, minHeight: 80, resize: "vertical", background: "#f8fafc" }}
               />
             </div>
 
             <div>
               <label style={lbl}>Expected Result</label>
               <textarea
-                value={viewDef.expected || ""}
-                onChange={e => setViewDef(p => ({ ...p, expected: e.target.value }))}
-                style={{ ...inp, minHeight: 70, resize: "vertical" }}
+                value={viewDef.expectedResult || ""}
+                readOnly
+                style={{ ...inp, minHeight: 70, resize: "vertical", background: "#f8fafc" }}
               />
             </div>
 
             <div>
               <label style={lbl}>Actual Result</label>
               <textarea
-                value={viewDef.actual || ""}
-                onChange={e => setViewDef(p => ({ ...p, actual: e.target.value }))}
-                style={{ ...inp, minHeight: 70, resize: "vertical" }}
+                value={viewDef.actualResult || ""}
+                readOnly
+                style={{ ...inp, minHeight: 70, resize: "vertical", background: "#f8fafc" }}
               />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={lbl}>Priority</label>
-                <select
-                  value={viewDef.priority} onChange={e => setViewDef(p => ({ ...p, priority: e.target.value }))}
-                  style={inp}
-                >
-                  {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-                </select>
+                <input
+                  value={viewDef.priority || ""}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
               </div>
               <div>
                 <label style={lbl}>Raised By</label>
                 <input
-                  value={getCurrentUserDisplayName()}
+                  value={viewDef.raisedBy || ""}
                   style={{ ...inp, background: "#f8fafc" }}
                   readOnly
                 />
               </div>
               <div>
                 <label style={lbl}>Assigned To</label>
-                <select
-                  value={viewDef.assignedTo || ""}
-                  onChange={e => setViewDef(p => ({ ...p, assignedTo: e.target.value }))}
-                  style={inp}
-                >
-                  <option value="">Unassigned</option>
-                  {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
-                </select>
+                <input
+                  value={viewDef.assignedTo || "Unassigned"}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
               </div>
               <div>
                 <label style={lbl}>Target Fix Date</label>
                 <input
                   type="date"
-                  value={viewDef.targetFix || ""}
-                  onChange={e => setViewDef(p => ({ ...p, targetFix: e.target.value }))}
-                  style={inp}
+                  value={viewDef.targetFixDate ? String(viewDef.targetFixDate).slice(0, 10) : ""}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
                 />
               </div>
             </div>
@@ -3975,50 +3955,36 @@ export default function App() {
               <label style={lbl}>Remarks</label>
               <textarea
                 value={viewDef.remarks || ""}
-                onChange={e => setViewDef(p => ({ ...p, remarks: e.target.value }))}
-                style={{ ...inp, minHeight: 60, resize: "vertical" }}
+                readOnly
+                style={{ ...inp, minHeight: 60, resize: "vertical", background: "#f8fafc" }}
               />
             </div>
 
             <div>
               <label style={lbl}>Attachments</label>
-              <div
-                onPaste={onDefectPasteUpload}
-                style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-              >
-                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                  Paste screenshot with Ctrl+V or attach file(s)
-                </div>
-                <input
-                  type="file"
-                  multiple
-                  onChange={e => {
-                    queueDefectFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                  style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                {newDefAttachments.length === 0 && (
-                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
+              <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+                {(defectAttachments[viewDef.id] || []).length === 0 && (
+                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments.</div>
                 )}
-
-                {newDefAttachments.map((f, i) => (
-                  <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                    <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                    <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
-                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is saved</span>
-                    <button onClick={() => removeQueuedDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                {(defectAttachments[viewDef.id] || []).map(a => (
+                  <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                    <button
+                      type="button"
+                      onClick={() => openAttachment(a.url, a.fileName)}
+                      style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                      title="Open attachment"
+                    >
+                      {a.fileName}
+                    </button>
+                    <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
+                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
-            <button onClick={submitDefect} style={{ ...btnP, opacity: !newDef.description ? 0.5 : 1 }} disabled={!newDef.description}>Log Defect</button>
+            <button onClick={() => setViewDef(null)} style={btnS}>Close</button>
           </div>
         </Modal>
       )}
@@ -4045,25 +4011,25 @@ export default function App() {
               <div>
                 <label style={lbl}>Run</label>
                 <select
-                  value={showAddDef.runId || ""}
-                  onChange={e => setShowAddDef(p => ({ ...p, runId: e.target.value || null }))}
+                  value={editDef.linkedRunId || ""}
+                  onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value || "" }))}
                   style={inp}
                 >
                   <option value="">Standalone defect</option>
                   {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
                 </select>
               </div>
-              {showAddDef.runId && (
+              {editDef.linkedRunId && (
                 <div>
                   <label style={lbl}>Test Case</label>
                   <select
-                    value={showAddDef.tcId || ""}
-                    onChange={e => setShowAddDef(p => ({ ...p, tcId: e.target.value || null }))}
+                    value={editDef.linkedTestCaseId || ""}
+                    onChange={e => setEditDef(p => ({ ...p, linkedTestCaseId: e.target.value || "" }))}
                     style={inp}
                   >
                     <option value="">No specific test case (run-level defect)</option>
                     {(() => {
-                      const run = runs.find(r => String(r.id) === String(showAddDef.runId));
+                      const run = runs.find(r => String(r.id) === String(editDef.linkedRunId));
                       const options = (run?.entries || [])
                         .map(en => allTestCaseById[en.testCaseId])
                         .filter(Boolean);
@@ -4097,8 +4063,8 @@ export default function App() {
             <div>
               <label style={lbl}>Expected Result</label>
               <textarea
-                value={editDef.expected || ""}
-                onChange={e => setEditDef(p => ({ ...p, expected: e.target.value }))}
+                value={editDef.expectedResult || ""}
+                onChange={e => setEditDef(p => ({ ...p, expectedResult: e.target.value }))}
                 style={{ ...inp, minHeight: 70, resize: "vertical" }}
               />
             </div>
@@ -4106,8 +4072,8 @@ export default function App() {
             <div>
               <label style={lbl}>Actual Result</label>
               <textarea
-                value={editDef.actual || ""}
-                onChange={e => setEditDef(p => ({ ...p, actual: e.target.value }))}
+                value={editDef.actualResult || ""}
+                onChange={e => setEditDef(p => ({ ...p, actualResult: e.target.value }))}
                 style={{ ...inp, minHeight: 70, resize: "vertical" }}
               />
             </div>
@@ -4125,7 +4091,7 @@ export default function App() {
               <div>
                 <label style={lbl}>Raised By</label>
                 <input
-                  value={getCurrentUserDisplayName()}
+                  value={editDef.raisedBy || ""}
                   style={{ ...inp, background: "#f8fafc" }}
                   readOnly
                 />
@@ -4145,8 +4111,8 @@ export default function App() {
                 <label style={lbl}>Target Fix Date</label>
                 <input
                   type="date"
-                  value={editDef.targetFix || ""}
-                  onChange={e => setEditDef(p => ({ ...p, targetFix: e.target.value }))}
+                  value={editDef.targetFixDate ? String(editDef.targetFixDate).slice(0, 10) : ""}
+                  onChange={e => setEditDef(p => ({ ...p, targetFixDate: e.target.value }))}
                   style={inp}
                 />
               </div>
@@ -4198,8 +4164,8 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
-            <button onClick={submitDefect} style={{ ...btnP, opacity: !newDef.description ? 0.5 : 1 }} disabled={!newDef.description}>Log Defect</button>
+            <button onClick={() => { setEditDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
+            <button onClick={saveDefectEdits} style={{ ...btnP, opacity: !editDef?.description ? 0.5 : 1 }} disabled={!editDef?.description}>Save Changes</button>
           </div>
         </Modal>
       )}
