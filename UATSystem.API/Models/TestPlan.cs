@@ -12,4 +12,5 @@ public class TestPlan
     public Project Project { get; set; } = null!;
     public ICollection<TestCase> TestCases { get; set; } = new List<TestCase>();
     public ICollection<TestScope> TestScopes { get; set; } = new List<TestScope>();
+    public ICollection<Defect> Defects { get; set; } = new List<Defect>();
 }

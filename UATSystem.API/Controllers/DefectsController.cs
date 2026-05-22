@@ -184,6 +184,7 @@ public class DefectsController : ControllerBase
         {
             DefectNumber = $"DEF-{(count + 1):D3}",
             TestRunEntryId = entry?.Id,
+            TestPlanId = dto.TestPlanId,
             RunNumber = entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-",
             TcNumber = entry?.TestCase.TcNumber ?? "-",
             Market = dto.Market,
@@ -287,6 +288,7 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(newClose), changedBy);
 
         defect.TestRunEntryId = entry?.Id;
+        defect.TestPlanId = dto.TestPlanId;
         defect.RunNumber = entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-";
         defect.TcNumber = entry?.TestCase.TcNumber ?? "-";
         defect.Market = dto.Market;
@@ -515,7 +517,7 @@ public class DefectsController : ControllerBase
 }
 
 public record CreateDefectDto(
-    int? TestRunId, int? TestCaseId,
+    int? TestRunId, int? TestCaseId, int? TestPlanId,
     string Market, string Description, string IssueType,
     string ExpectedResult, string ActualResult,
     string Priority, string RaisedBy, string AssignedTo,
@@ -526,6 +528,7 @@ public record UpdateStatusDto(string Status);
 public record UpdateDefectDto(
     int? TestRunId,
     int? TestCaseId,
+    int? TestPlanId,
     string Market,
     string Description,
     string ExpectedResult,

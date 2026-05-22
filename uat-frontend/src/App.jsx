@@ -237,6 +237,7 @@ export default function App() {
   const [defStatusFilter, setDefStatusFilter] = useState("All");
   const [defPriFilter, setDefPriFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState("All");
+  const [defPlanFilter, setDefPlanFilter] = useState("All");
   const [defOpenRule, setDefOpenRule] = useState("Any");
   const [defOpenDate, setDefOpenDate] = useState("");
   const [defCloseRule, setDefCloseRule] = useState("Any");
@@ -819,9 +820,10 @@ export default function App() {
       && (defStatusFilter === "All" || def.status === defStatusFilter)
       && (defPriFilter === "All" || def.priority === defPriFilter)
       && (defMarketFilter === "All" || def.market === defMarketFilter)
+      && (defPlanFilter === "All" || String(def.testPlanId) === defPlanFilter)
       && matchesOpenRule
       && matchesCloseRule;
-  }), [defects, defSearch, defStatusFilter, defPriFilter, defMarketFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate]);
+  }), [defects, defSearch, defStatusFilter, defPriFilter, defMarketFilter, defPlanFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate]);
 
   const sortedRuns = useMemo(() => {
     return [...runs].sort((a, b) => {
@@ -1563,6 +1565,7 @@ export default function App() {
       const duped = await api.createDefect({
         testRunId: run.id,
         testCaseId: tc.id,
+        testPlanId: def.testPlanId ?? null,
         market: def.market,
         description: def.description + " (Copy)",
         issueType: def.issueType,
@@ -1777,6 +1780,7 @@ export default function App() {
       const defect = await api.createDefect({
         testRunId: runId,
         testCaseId: tcId,
+        testPlanId: selectedTestPlanId ? Number(selectedTestPlanId) : null,
         market: newDef.market,
         description: newDef.description,
         issueType: newDef.issueType,
@@ -1878,6 +1882,7 @@ export default function App() {
       const updated = await api.updateDefect(editDef.id, {
         testRunId: runId,
         testCaseId: tcId,
+        testPlanId: editDef.testPlanId ?? null,
         market: editDef.market,
         description: editDef.description,
         issueType: editDef.issueType,
@@ -2844,7 +2849,17 @@ export default function App() {
                 <div key={tp.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f8fafc", padding: "8px 10px", background: String(selectedTestPlanId) === String(tp.id) ? "#eff6ff" : "#fff" }}>
                   <button onClick={() => { setSelectedTestPlanId(String(tp.id)); setNewTC(p => ({ ...p, testScopeId: "" })); setActiveTab("testcases"); }}
                     style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", padding: "6px 4px", cursor: "pointer", fontWeight: 700, fontSize: 16, color: String(selectedTestPlanId) === String(tp.id) ? "#1d4ed8" : "#334155" }}>
-                    <div>{tp.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>{tp.name}</span>
+                      {(() => {
+                        const count = defects.filter(d => d.testPlanId === tp.id).length;
+                        return count > 0 ? (
+                          <span style={{ background: "#fee2e2", color: "#b91c1c", borderRadius: 999, fontSize: 12, fontWeight: 800, padding: "2px 8px", minWidth: 24, textAlign: "center" }}>
+                            🐛 {count}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
                     {(() => {
                       const tm = getTimelineMeta(tp.startDate, tp.endDate);
                       const badge = timelineBadgeStyle(tm.status);
@@ -3296,12 +3311,19 @@ export default function App() {
               <option>All</option>
               {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m => <option key={m}>{m}</option>)}
             </select>
+            <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 200 }}>
+              <option value="All">All Test Plans</option>
+              {projects.flatMap(p => (p.testPlans || []).map(tp => (
+                <option key={tp.id} value={String(tp.id)}>{p.name} — {tp.name}</option>
+              )))}
+            </select>
             <button
               onClick={() => {
                 setDefSearch("");
                 setDefStatusFilter("All");
                 setDefPriFilter("All");
                 setDefMarketFilter("All");
+                setDefPlanFilter("All");
                 setDefOpenRule("Any");
                 setDefOpenDate("");
                 setDefCloseRule("Any");
@@ -3877,6 +3899,18 @@ export default function App() {
                   />
                 </div>
               )}
+              {viewDef.testPlanId && (
+                <div>
+                  <label style={lbl}>Test Plan</label>
+                  <input
+                    value={testPlanMetaById[viewDef.testPlanId]
+                      ? `${testPlanMetaById[viewDef.testPlanId].projectName} — ${testPlanMetaById[viewDef.testPlanId].testPlanName}`
+                      : `Plan #${viewDef.testPlanId}`}
+                    style={{ ...inp, background: "#f8fafc" }}
+                    readOnly
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -3980,6 +4014,48 @@ export default function App() {
                     <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div>
+              <label style={lbl}>Comments</label>
+              <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+                {(viewDef.comments || []).length === 0 && (
+                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No comments yet.</div>
+                )}
+                {(viewDef.comments || []).map(c => (
+                  <div key={c.id} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, color: "#475569", fontSize: 12 }}>{c.tester}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(c.createdAt).toLocaleString()}</span>
+                        {canDelete && (
+                          <button
+                            onClick={() => deleteDefectComment(viewDef.id, c.id)}
+                            style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
+                          >✕</button>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#334155" }}>{c.message}</div>
+                  </div>
+                ))}
+                {canComment && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                    <input
+                      placeholder="Add a comment..."
+                      value={defectCommentDrafts[viewDef.id] || ""}
+                      onChange={e => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addDefectComment(viewDef.id); } }}
+                      style={{ ...inp, fontSize: 13, flex: 1 }}
+                    />
+                    <button
+                      onClick={() => addDefectComment(viewDef.id)}
+                      disabled={!defectCommentDrafts[viewDef.id]?.trim()}
+                      style={{ ...btnP, opacity: defectCommentDrafts[viewDef.id]?.trim() ? 1 : 0.5 }}
+                    >Add</button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
