@@ -2542,7 +2542,55 @@ export default function App() {
       {/* ── Body (sidebar + content) ── */}
       <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
         {/* Dark Navy Sidebar */}
-        <div style={{ width: sidebarCollapsed ? 64 : 280, background: "#1a2332", display: "flex", flexDirection: "column", transition: "width 0.22s cubic-bezier(.4,0,.2,1)", overflow: "hidden", flexShrink: 0 }}>
+        <div
+          style={{
+            width: sidebarCollapsed ? 78 : 280,
+            height: "100vh",
+
+            // Modern dark gradient
+            background: `
+linear-gradient(
+  180deg,
+  #0b1020 0%,
+  #111827 45%,
+  #312e81 100%
+)
+`,
+boxShadow:
+"0 0 40px rgba(99,102,241,.18)",
+
+            // Layout
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+
+            // Modern animation
+            transition:
+              "width 0.22s cubic-bezier(.4,0,.2,1), all 0.25s ease",
+
+            overflow: "hidden",
+            flexShrink: 0,
+
+            // Floating sidebar feel
+            margin: 12,
+            borderRadius: 24,
+
+            // Depth
+            boxShadow: `
+      0 10px 30px rgba(0,0,0,0.28),
+      inset 0 1px 0 rgba(255,255,255,0.04)
+    `,
+
+            // Glass border
+            border: "1px solid rgba(255,255,255,0.06)",
+
+            // Glass effect
+            backdropFilter: "blur(18px)",
+
+            // Better spacing
+            padding: "14px 12px",
+          }}
+        >>
           {/* Logo area */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: sidebarCollapsed ? "0" : "0 14px 0 16px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, height: 100 }}>
             {sidebarCollapsed ? (
@@ -2692,1158 +2740,82 @@ export default function App() {
             </div>
           </div>
 
-      {/* ══════════════════════════════════
+          {/* ══════════════════════════════════
           TAB: USERS
       ══════════════════════════════════ */}
-      {activeTab === "users" && isAdmin && (
-        <div style={{ padding: "20px 2.5%" }}>
-          <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <button onClick={openAddUser} style={btnP}>+ Add User</button>
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14 }}>🔍</span>
-              <input
-                placeholder="Search username, display name, role..."
-                value={userSearch}
-                onChange={e => setUserSearch(e.target.value)}
-                style={{ ...inp, paddingLeft: 32, width: 300 }}
-              />
-            </div>
-            <select value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)} style={{ ...inp, width: 170 }}>
-              <option value="All">All Roles</option>
-              {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
-            </select>
-            <select value={userActiveFilter} onChange={e => setUserActiveFilter(e.target.value)} style={{ ...inp, width: 140 }}>
-              <option value="All">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-            <button
-              onClick={() => {
-                setUserSearch("");
-                setUserRoleFilter("All");
-                setUserActiveFilter("All");
-                setUserSortCol("username");
-                setUserSortDir("asc");
-              }}
-              style={btnS}
-            >
-              Clear
-            </button>
-          </div>
-          <div style={{ marginBottom: 12, color: "#64748b", fontSize: 13, fontWeight: 700 }}>Showing {filteredSortedUsers.length} of {users.length} users</div>
-          <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
-                  <th style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Actions</th>
-                  {[
-                    { label: "Username", col: "username" },
-                    { label: "Display Name", col: "displayName" },
-                    { label: "Role", col: "role" },
-                    { label: "Active", col: "isActive" },
-                    { label: "Created", col: "createdAt" },
-                  ].map(({ label, col }) => (
-                    <th
-                      key={label}
-                      onClick={() => toggleUserSort(col)}
-                      style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: userSortCol === col ? "#d4dff0" : undefined }}>
-                      {label}{userSortCol === col ? (userSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSortedUsers.length === 0 && <tr><td colSpan={6} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No users found</td></tr>}
-                {filteredSortedUsers.map((user, i) => (
-                  <tr key={user.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                    <td style={{ padding: "13px 16px", width: 170, minWidth: 170 }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                        <button onClick={() => openEditUser({ ...user, password: "" })} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>Edit</button>
-                        <button onClick={() => resetUserPassword(user)} style={{ ...btnS, padding: "5px 10px", fontSize: 12, borderColor: "#c7d2fe", color: "#4338ca" }}>Reset Password</button>
-                        <button onClick={() => { if (window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }} style={xBtn}>✕</button>
-                      </div>
-                    </td>
-                    <td style={{ padding: "13px 16px", fontWeight: 800, color: "#6366f1" }}>{user.username}</td>
-                    <td style={{ padding: "13px 16px", color: "#1e293b", fontWeight: 600 }}>{user.displayName}</td>
-                    <td style={{ padding: "13px 16px" }}><span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "3px 8px", borderRadius: 6, fontWeight: 800, fontSize: 12 }}>{user.role}</span></td>
-                    <td style={{ padding: "13px 16px" }}>{user.isActive ? "Yes" : "No"}</td>
-                    <td style={{ padding: "13px 16px", color: "#64748b" }}>{toInputDate(user.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════
-          TAB: PROJECTS
-      ══════════════════════════════════ */}
-      {activeTab === "projects" && (
-        <div style={{ padding: "20px 2.5%" }}>
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            {canManageProjects && <button onClick={() => setShowAddProject(true)} style={btnP}>+ Add Project</button>}
-            {canManageProjects && <button onClick={() => setShowAddPlan(true)} style={{ ...btnS, opacity: !selectedProjectId ? 0.5 : 1 }} disabled={!selectedProjectId}>+ Add Test Plan</button>}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 16 }}>
-            <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", overflow: "hidden" }}>
-              <div style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontWeight: 800, fontSize: 17, color: "#334155" }}>Projects</div>
-              {(projects || []).length === 0 && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>No projects yet.</div>}
-              {(projects || []).map(p => (
-                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f8fafc", padding: "8px 10px", background: String(selectedProjectId) === String(p.id) ? "#eff6ff" : "#fff" }}>
-                  <button onClick={() => { setSelectedProjectId(String(p.id)); setSelectedTestPlanId(""); }}
-                    style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", padding: "6px 4px", cursor: "pointer", fontWeight: 700, fontSize: 16, color: String(selectedProjectId) === String(p.id) ? "#1d4ed8" : "#334155" }}>
-                    <div>{p.name}</div>
-                    {(() => {
-                      const tm = getTimelineMeta(p.startDate, p.endDate);
-                      const badge = timelineBadgeStyle(tm.status);
-                      return (
-                        <div style={{ marginTop: 4 }}>
-                          <div>
-                            <span style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 5,
-                              padding: "3px 10px",
-                              borderRadius: 999,
-                              fontSize: 13,
-                              fontWeight: 800,
-                              letterSpacing: "0.01em",
-                              whiteSpace: "nowrap",
-                              background: badge.bg,
-                              color: badge.text,
-                              border: `1px solid ${badge.border}`
-                            }}>
-                              📅 {formatTimeline(p.startDate, p.endDate)}
-                            </span>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                            <div style={{ flex: 1, height: 8, borderRadius: 99, background: "#e2e8f0", overflow: "hidden" }}>
-                              <div style={{ width: `${tm.progress}%`, height: "100%", background: tm.color, borderRadius: 99, transition: "width 0.25s ease" }} />
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: tm.color, minWidth: 76, textAlign: "right" }}>{tm.status} {tm.progress}%</span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </button>
-                  {canManageProjects && <button
-                    onClick={() => {
-                      setEditingProjectId(p.id);
-                      setEditProjectName(p.name || "");
-                      setEditProjectStartDate(toInputDate(p.startDate));
-                      setEditProjectEndDate(toInputDate(p.endDate));
-                      setShowEditProject(true);
-                    }}
-                    style={{ ...btnS, padding: "5px 11px", fontSize: 13 }}
-                  >
-                    Edit
-                  </button>}
-                  {canDelete && <button
-                    onClick={() => {
-                      if (window.confirm(`Delete project "${p.name}" and all its test plans?`)) {
-                        deleteProject(p.id);
-                      }
-                    }}
-                    style={{ ...btnD, padding: "5px 11px", fontSize: 13 }}
-                  >
-                    Delete
-                  </button>}
-                </div>
-              ))}
-            </div>
-            <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", overflow: "hidden" }}>
-              <div style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontWeight: 800, fontSize: 17, color: "#334155" }}>Test Plans {selectedProject ? `- ${selectedProject.name}` : ""}</div>
-              {!selectedProject && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>Select a project to view plans.</div>}
-              {selectedProject && selectedProjectPlans.length === 0 && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>No test plans yet.</div>}
-              {selectedProjectPlans.map(tp => (
-                <div key={tp.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f8fafc", padding: "8px 10px", background: String(selectedTestPlanId) === String(tp.id) ? "#eff6ff" : "#fff" }}>
-                  <button onClick={() => { setSelectedTestPlanId(String(tp.id)); setNewTC(p => ({ ...p, testScopeId: "" })); setActiveTab("testcases"); }}
-                    style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", padding: "6px 4px", cursor: "pointer", fontWeight: 700, fontSize: 16, color: String(selectedTestPlanId) === String(tp.id) ? "#1d4ed8" : "#334155" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>{tp.name}</span>
-                      {(() => {
-                        const count = defects.filter(d => d.testPlanId === tp.id).length;
-                        return count > 0 ? (
-                          <span style={{ background: "#fee2e2", color: "#b91c1c", borderRadius: 999, fontSize: 12, fontWeight: 800, padding: "2px 8px", minWidth: 24, textAlign: "center" }}>
-                            🐛 {count}
-                          </span>
-                        ) : null;
-                      })()}
-                    </div>
-                    {(() => {
-                      const tm = getTimelineMeta(tp.startDate, tp.endDate);
-                      const badge = timelineBadgeStyle(tm.status);
-                      return (
-                        <div style={{ marginTop: 4 }}>
-                          <div>
-                            <span style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 5,
-                              padding: "3px 10px",
-                              borderRadius: 999,
-                              fontSize: 13,
-                              fontWeight: 800,
-                              letterSpacing: "0.01em",
-                              whiteSpace: "nowrap",
-                              background: badge.bg,
-                              color: badge.text,
-                              border: `1px solid ${badge.border}`
-                            }}>
-                              📅 {formatTimeline(tp.startDate, tp.endDate)}
-                            </span>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                            <div style={{ flex: 1, height: 8, borderRadius: 99, background: "#e2e8f0", overflow: "hidden" }}>
-                              <div style={{ width: `${tm.progress}%`, height: "100%", background: tm.color, borderRadius: 99, transition: "width 0.25s ease" }} />
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: tm.color, minWidth: 76, textAlign: "right" }}>{tm.status} {tm.progress}%</span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </button>
-                  {canManageProjects && <button
-                    onClick={() => openManageScopes(tp)}
-                    style={{ ...btnS, padding: "5px 10px", fontSize: 13 }}
-                    title="Manage testing scopes"
-                  >
-                    🎯
-                  </button>}
-                  {canManageProjects && <button
-                    onClick={() => {
-                      setEditingPlanId(tp.id);
-                      setEditPlanName(tp.name || "");
-                      setEditPlanStartDate(toInputDate(tp.startDate));
-                      setEditPlanEndDate(toInputDate(tp.endDate));
-                      setShowEditPlan(true);
-                    }}
-                    style={{ ...btnS, padding: "5px 11px", fontSize: 13 }}
-                  >
-                    Edit
-                  </button>}
-                  {canDelete && <button
-                    onClick={() => {
-                      if (window.confirm(`Delete test plan "${tp.name}"?`)) {
-                        deleteTestPlan(tp.id);
-                      }
-                    }}
-                    style={{ ...btnD, padding: "5px 11px", fontSize: 13 }}
-                  >
-                    Delete
-                  </button>}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════
-          TAB: TEST CASES
-      ══════════════════════════════════ */}
-
-      {activeTab === "testcases" && (
-        <div style={{ padding: "20px 2.5%" }}>
-          {/* toolbar */}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14 }}>🔍</span>
-              <input placeholder="Search ID or name…" value={tcSearch} onChange={e => setTcSearch(e.target.value)} style={{ ...inp, paddingLeft: 32, width: 230 }} />
-            </div>
-            <select value={tcCatFilter} onChange={e => setTcCatFilter(e.target.value)} style={{ ...inp, width: 220 }}>
-              <option value="All">All Categories</option>
-              {categories.map(c => <option key={c}>{c}</option>)}
-            </select>
-            <select value={tcPriFilter} onChange={e => setTcPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
-              <option value="All">All Priorities</option>
-              {TEST_CASE_PRIORITIES.map(p => <option key={p}>{p}</option>)}
-            </select>
-            <select
-              value={selectedProjectId}
-              onChange={e => {
-                const pid = e.target.value;
-                setSelectedProjectId(pid);
-                const p = projects.find(x => String(x.id) === String(pid));
-                const fp = (p?.testPlans || [])[0];
-                setSelectedTestPlanId(fp ? String(fp.id) : "");
-                setNewTC(prev => ({ ...prev, testScopeId: "" }));
-              }}
-              style={{ ...inp, width: 190 }}
-            >
-              <option value="">Select Project</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <select
-              value={selectedTestPlanId}
-              onChange={e => {
-                setSelectedTestPlanId(e.target.value);
-                setNewTC(prev => ({ ...prev, testScopeId: "" }));
-              }}
-              style={{ ...inp, width: 210 }}
-            >
-              <option value="">Select Test Plan</option>
-              {selectedProjectPlans.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
-            </select>
-            <button
-              onClick={() => {
-                setTcSearch("");
-                setTcCatFilter("All");
-                setTcPriFilter("All");
-                setSelectedProjectId("");
-                setSelectedTestPlanId("");
-              }}
-              style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
-            >
-              Reset
-            </button>
-            {filteredTC.length > 0 && (
-              <button
-                onClick={() => {
-                  if (selectedTcIds.length === filteredTC.length) {
-                    setSelectedTcIds([]);
-                  } else {
-                    setSelectedTcIds(filteredTC.map(tc => tc.id));
-                  }
-                }}
-                style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
-              >
-                {selectedTcIds.length === filteredTC.length ? "Clear Selection" : "Select All"}
-              </button>
-            )}
-            <div style={{ flex: 1 }} />
-            {selectedTcIds.length > 0 && canDelete && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedTcIds.length} selected</span>
-                <button onClick={() => { if (window.confirm(`Delete ${selectedTcIds.length} test case(s)?`)) deleteTestCases(selectedTcIds); }}
-                  style={{ background: "#fff1f2", color: "#be123c", border: "1.5px solid #fecdd3", borderRadius: 8, padding: "8px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                  🗑 Delete Selected
-                </button>
-              </div>
-            )}
-            <button onClick={exportTestCases} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredTC.length === 0}>Export Excel</button>
-            {canWrite && <button onClick={() => setShowAddTC(true)} style={btnP}>+ Add Test Case</button>}
-          </div>
-
-          <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
-                  <th style={{ padding: "12px 16px", width: 40 }}>
-                    <input type="checkbox"
-                      checked={selectedTcIds.length === filteredTC.length && filteredTC.length > 0}
-                      onChange={e => setSelectedTcIds(e.target.checked ? filteredTC.map(tc => tc.id) : [])}
-                      style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                    />
-                  </th>
-                  {[{ label: "Actions", col: "" }, { label: "ID", col: "tcNumber" }, { label: "Project", col: "" }, { label: "Test Plan", col: "" }, { label: "Test Name", col: "name" }, { label: "Category", col: "category" }, { label: "Coverage", col: "" }, { label: "Priority", col: "priority" }].map(({ label, col }) => (
-                    <th key={label} onClick={col ? () => { if (tcSortCol === col) setTcSortDir(d => d === "asc" ? "desc" : "asc"); else { setTcSortCol(col); setTcSortDir("asc"); } } : undefined}
-                      style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && tcSortCol === col ? "#d4dff0" : undefined }}>
-                      {label}{col && tcSortCol === col ? (tcSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedFilteredTC.length === 0 && <tr><td colSpan={9} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No test cases found</td></tr>}
-                {sortedFilteredTC.map((tc, i) => {
-                  const isSelected = selectedTcIds.includes(tc.id);
-                  const planMeta = tc.testPlanId ? testPlanMetaById[tc.testPlanId] : null;
-                  const coveredRuns = runs.filter(run =>
-                    (run.entries || []).some(
-                      e => e.testCaseId === tc.id
-                    )
-                  );
-                  return (
-                    <tr key={tc.id}
-                      onContextMenu={e => { if (canWrite) { e.preventDefault(); setContextMenu({ type: "tc", item: tc, x: e.clientX, y: e.clientY }); } }}
-                      style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
-                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f0f4ff"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa"; }}>
-                      <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={e => setSelectedTcIds(p => e.target.checked ? [...p, tc.id] : p.filter(x => x !== tc.id))}
-                          style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                        />
-                      </td>
-                      <td style={{ padding: "13px 16px", width: 180, minWidth: 180 }}>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                          <button onClick={() => setViewTC(tc)} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>View</button>
-                          {canWrite && <button
-                            onClick={() => setEditTC({
-                              ...tc,
-                              expected: tc.expectedResult,
-                              testScopeId: tc.testScopeId ? String(tc.testScopeId) : ""
-                            })}
-                            style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
-                          >
-                            Edit
-                          </button>}
-                          {canDelete && <button
-                            onClick={() => {
-                              if (window.confirm(`Delete ${tc.tcNumber}?`)) deleteTestCases([tc.id]);
-                            }}
-                            style={xBtn}
-                            title="Delete"
-                          >
-                            ✕
-                          </button>}
-                        </div>
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
-                        <span style={{ fontWeight: 800, color: "#6366f1", fontSize: 14, fontFamily: "monospace", background: "#eff6ff", padding: "2px 7px", borderRadius: 5 }}>{tc.tcNumber}</span>
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
-                        <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{planMeta?.projectName || "-"}</span>
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
-                        <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{planMeta?.testPlanName || "-"}</span>
-                      </td>
-                      <td style={{ padding: "13px 16px", maxWidth: 340 }} onClick={() => setViewTC(tc)}>
-                        <div style={{ fontWeight: 700, color: "#1e293b", lineHeight: 1.4 }}>{tc.name}</div>
-                        {tc.testScopeId && testScopeNameById[tc.testScopeId] && (
-                          <div style={{ marginTop: 5 }}>
-                            <span style={{ fontSize: 12, color: "#4338ca", background: "#eef2ff", border: "1px solid #c7d2fe", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>
-                              Scope: {testScopeNameById[tc.testScopeId]}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
-                        <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{tc.category || "-"}</span>
-                      </td>
-                      <td
-                        style={{ padding: "13px 16px", whiteSpace: "nowrap" }}
-                        onClick={() => setViewTC(tc)}
-                      >
-                        {coveredRuns.length > 0 ? (
-                          <span
-                            style={{
-                              background: "#f0fdf4",
-                              color: "#15803d",
-                              padding: "4px 10px",
-                              borderRadius: 20,
-                              fontSize: 12,
-                              fontWeight: 700
-                            }}
-                          >
-                            {coveredRuns.length} Run{coveredRuns.length > 1 ? "s" : ""}
-                          </span>
-                        ) : (
-                          <span
-                            style={{
-                              background: "#fff1f2",
-                              color: "#be123c",
-                              padding: "4px 10px",
-                              borderRadius: 20,
-                              fontSize: 12,
-                              fontWeight: 700
-                            }}
-                          >
-                            Not Covered
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}><PriBadge label={tc.priority} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════
-          TAB: TEST RUNS
-      ══════════════════════════════════ */}
-      {activeTab === "runs" && (
-        <div style={{ padding: "20px 2.5%" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-            <input
-              value={runSearch}
-              onChange={e => setRunSearch(e.target.value)}
-              placeholder="Search runs…"
-              style={{ flex: 1, minWidth: 180, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 14, color: "#0f172a", outline: "none" }}
-            />
-            <div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", position: "relative" }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>Date</span>
-              <button
-                onClick={toggleRunDateFilterPanel}
-                title="Filter by date"
-                style={{ border: "1px solid #cbd5e1", background: runDateFilterPanel || runDateRule !== "Any" ? "#eff6ff" : "#fff", color: runDateFilterPanel || runDateRule !== "Any" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-              >
-                ⏷
-              </button>
-              {runDateRule !== "Any" && runDateValue && (
-                <button onClick={() => { setRunDateRule("Any"); setRunDateValue(""); }}
-                  style={{ border: "1px solid #fca5a5", background: "#fff1f2", color: "#dc2626", borderRadius: 6, width: 22, height: 22, fontSize: 11, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0, fontWeight: 700 }}>✕</button>
-              )}
-            </div>
-            <div style={{ flex: "0 0 auto", display: "flex", gap: 10, alignItems: "center" }}>
-              {sortedRuns.length > 0 && (
-                <button
-                  onClick={() => {
-                    if (selectedRunIds.length === filteredRuns.length) {
-                      setSelectedRunIds([]);
-                    } else {
-                      setSelectedRunIds(filteredRuns.map(r => r.id));
-                    }
-                  }}
-                  style={{ ...btnS, padding: "8px 14px", fontSize: 14 }}
-                >
-                  {selectedRunIds.length === filteredRuns.length ? "Clear Selection" : "Select All"}
-                </button>
-              )}
-              {selectedRunIds.length > 0 && canDelete && (
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Delete ${selectedRunIds.length} test run(s)?`)) {
-                      deleteRuns(selectedRunIds);
-                    }
-                  }}
-                  style={{ ...btnD, padding: "8px 14px", fontSize: 14 }}
-                >
-                  🗑 Delete Selected
-                </button>
-              )}
-              <button onClick={exportRuns} style={{ ...btnS, padding: "8px 14px", fontSize: 14 }} disabled={filteredRuns.length === 0}>Export Excel</button>
-              {canWrite && <button onClick={() => setShowAddRun(true)} style={btnP}>+ New Test Run</button>}
-            </div>
-          </div>
-          {sortedRuns.length === 0 && <div style={{ textAlign: "center", padding: 60, color: "#cbd5e1" }}>No test runs yet. Create your first one!</div>}
-          {sortedRuns.length > 0 && filteredRuns.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#cbd5e1" }}>No runs match current filters.</div>}
-          <div style={{ display: "grid", gap: 14 }}>
-            {filteredRuns.map(run => {
-              const st = runStats(run);
-              const byStatusPriority = runStatusPriorityStats(run);
-              const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0;
-              const isRunSelected = selectedRunIds.includes(run.id);
-              const showRunCheckbox = hoveredRunId === run.id || isRunSelected;
-              return (
-                <div key={run.id} style={{ background: "#f0f4f9", border: "1.5px solid #f1f5f9", borderRadius: 14, padding: "20px 24px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", cursor: "pointer", transition: "box-shadow 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 24px rgba(99,102,241,0.1)"; setHoveredRunId(run.id); }}
-                  onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.05)"; setHoveredRunId(null); }}
-                  onClick={() => setViewRun(run)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <span
-                          onClick={e => e.stopPropagation()}
-                          style={{ width: 18, display: "inline-flex", justifyContent: "center", opacity: showRunCheckbox ? 1 : 0, transition: "opacity 0.15s" }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isRunSelected}
-                            onChange={e => setSelectedRunIds(p => e.target.checked ? [...p, run.id] : p.filter(x => x !== run.id))}
-                            style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                          />
-                        </span>
-                        <span style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 5 }}>{run.runNumber}</span>
-                        <span style={{ fontSize: 14, color: "#94a3b8" }}>{run.createdAt?.slice(0, 10)}</span>
-                      </div>
-                      <div style={{ fontSize: 20, fontWeight: 700, color: "#0f172a" }}>{run.name}</div>
-                      <div style={{ fontSize: 14, color: "#64748b", marginTop: 3 }}>👤 {run.tester}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      {canWrite && (
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setEditRun({
-                              id: run.id,
-                              name: run.name,
-                              tester: run.tester,
-                              selectedTesters: (run.tester || "").split(",").map(t => t.trim()).filter(Boolean),
-                            });
-                            setEditRunTesterSearch("");
-                          }}
-                          style={{ ...btnS, padding: "5px 12px", fontSize: 13 }}
-                        >
-                          Edit
-                        </button>
-                      )}
-                      <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
-                      <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
-                      <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
-                      <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                      {Object.keys(EXEC_STATUS).map(status => {
-                        const s = byStatusPriority[status];
-                        if (!s || s.total === 0) return null;
-                        return (
-                          <span key={status} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 999, padding: "3px 9px", fontSize: 11, color: "#475569", fontWeight: 700 }}>
-                            {status}: H{s.High} M{s.Medium} L{s.Low}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#94a3b8", marginBottom: 5 }}>
-                      <span>Progress</span><span style={{ fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
-                    </div>
-                    <div style={{ height: 6, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#22c55e" : "linear-gradient(90deg,#6366f1,#06b6d4)", borderRadius: 99, transition: "width 0.4s" }} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════
-          TAB: DEFECT LOG
-      ══════════════════════════════════ */}
-      {activeTab === "defects" && (
-        <div style={{ padding: "20px 2.5%" }}>
-          <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-            <input
-              placeholder="Search defect / run / TC / assignee..."
-              value={defSearch}
-              onChange={e => setDefSearch(e.target.value)}
-              style={{ ...inp, width: 320 }}
-            />
-            <select value={defStatusFilter} onChange={e => setDefStatusFilter(e.target.value)} style={{ ...inp, width: 180 }}>
-              <option>All</option>
-              {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
-            </select>
-            <select value={defPriFilter} onChange={e => setDefPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
-              <option>All</option>
-              {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-            </select>
-            <select value={defMarketFilter} onChange={e => setDefMarketFilter(e.target.value)} style={{ ...inp, width: 120 }}>
-              <option>All</option>
-              {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m => <option key={m}>{m}</option>)}
-            </select>
-            <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 200 }}>
-              <option value="All">All Test Plans</option>
-              {projects.flatMap(p => (p.testPlans || []).map(tp => (
-                <option key={tp.id} value={String(tp.id)}>{p.name} — {tp.name}</option>
-              )))}
-            </select>
-            <button
-              onClick={() => {
-                setDefSearch("");
-                setDefStatusFilter("All");
-                setDefPriFilter("All");
-                setDefMarketFilter("All");
-                setDefPlanFilter("All");
-                setDefOpenRule("Any");
-                setDefOpenDate("");
-                setDefCloseRule("Any");
-                setDefCloseDate("");
-              }}
-              style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
-            >
-              Reset
-            </button>
-            {filteredDefects.length > 0 && (
-              <button
-                onClick={() => {
-                  if (selectedDefectIds.length === filteredDefects.length) {
-                    setSelectedDefectIds([]);
-                  } else {
-                    setSelectedDefectIds(filteredDefects.map(def => def.id));
-                  }
-                }}
-                style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
-              >
-                {selectedDefectIds.length === filteredDefects.length ? "Clear Selection" : "Select All"}
-              </button>
-            )}
-            <div style={{ flex: 1 }} />
-            {selectedDefectIds.length > 0 && canDelete && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedDefectIds.length} selected</span>
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
-                      deleteDefects(selectedDefectIds);
-                    }
-                  }}
-                  style={{ ...btnD, padding: "9px 14px", fontSize: 14 }}
-                >
-                  🗑 Delete Selected
-                </button>
-              </div>
-            )}
-            <button onClick={exportDefects} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredDefects.length === 0}>Export Excel</button>
-            {canWrite && <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>}
-          </div>
-          <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflowX: "auto", overflowY: "visible" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
-                  <th style={{ padding: "12px 16px", width: 40 }}>
-                    <input
-                      type="checkbox"
-                      checked={filteredDefects.length > 0 && selectedDefectIds.length === filteredDefects.length}
-                      onChange={e => setSelectedDefectIds(e.target.checked ? filteredDefects.map(def => def.id) : [])}
-                      style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                    />
-                  </th>
-                  {[{ label: "Actions", col: "" }, { label: "ID", col: "defectNumber" }, { label: "Market", col: "market" }, { label: "Actual Result", col: "actualResult" }, { label: "Priority", col: "priority" }, { label: "Raised By", col: "raisedBy" }, { label: "Assigned To", col: "assignedTo" }, { label: "Status", col: "status" }].map(({ label, col }) => (
-                    <th key={label} onClick={col ? () => { if (defSortCol === col) setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol(col); setDefSortDir("asc"); } } : undefined}
-                      style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && defSortCol === col ? "#d4dff0" : undefined }}>
-                      {label}{col && defSortCol === col ? (defSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
-                    </th>
-                  ))}
-                  <th
-                    onClick={() => { if (defSortCol === "openDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("openDateTime"); setDefSortDir("asc"); } }}
-                    style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "openDateTime" ? "#d4dff0" : undefined }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Open Datetime{defSortCol === "openDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
-                      <button
-                        onClick={e => toggleDefDateFilterPanel(e, "open")}
-                        title="Filter open datetime"
-                        style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "open" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "open" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                      >
-                        ⌕
-                      </button>
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => { if (defSortCol === "closeDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("closeDateTime"); setDefSortDir("asc"); } }}
-                    style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "closeDateTime" ? "#d4dff0" : undefined }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Close Datetime{defSortCol === "closeDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
-                      <button
-                        onClick={e => toggleDefDateFilterPanel(e, "close")}
-                        title="Filter close datetime"
-                        style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "close" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "close" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                      >
-                        ⌕
-                      </button>
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => { if (defSortCol === "aged") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("aged"); setDefSortDir("asc"); } }}
-                    style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: defSortCol === "aged" ? "#d4dff0" : undefined }}
-                  >
-                    Aged{defSortCol === "aged" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {defects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects logged</td></tr>}
-                {defects.length > 0 && filteredDefects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects match current filters</td></tr>}
-                {sortedFilteredDefects.map((def, i) => {
-                  const aged = agedDays(def.dateRaised);
-                  const isSelected = selectedDefectIds.includes(def.id);
-                  return (
-                    <tr key={def.id}
-                      onContextMenu={e => { if (canWrite) { e.preventDefault(); setContextMenu({ type: "defect", item: def, x: e.clientX, y: e.clientY }); } }}
-                      style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
-                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f0f4ff"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa"; }}>
-                      <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={e => setSelectedDefectIds(p => e.target.checked ? [...p, def.id] : p.filter(x => x !== def.id))}
-                          style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                        />
-                      </td>
-                      <td style={{ padding: "13px 16px", width: 220, minWidth: 220 }}>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                          <button onClick={() => setViewDef(def)} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>View</button>
-                          {canWrite && <button
-                            onClick={() => setEditDef({
-                              ...def,
-                              dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
-                              targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
-                              linkedRunId: runs.find(r => r.runNumber === def.runNumber)?.id || "",
-                              linkedTestCaseId: allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || "",
-                            })}
-                            style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
-                          >
-                            Edit
-                          </button>}
-                          {canDelete && <button
-                            onClick={() => {
-                              if (window.confirm(`Delete ${def.defectNumber}?`)) {
-                                deleteDefects([def.id]);
-                              }
-                            }}
-                            style={xBtn}
-                            title="Delete"
-                          >
-                            ✕
-                          </button>}
-                        </div>
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                        <span style={{ fontWeight: 800, color: "#ef4444", fontSize: 14, fontFamily: "monospace", background: "#fff1f2", padding: "2px 7px", borderRadius: 5, display: "inline-block", whiteSpace: "nowrap" }}>{def.defectNumber}</span>
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                        <span style={{ fontSize: 14, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{def.market}</span>
-                      </td>
-                      <td style={{ padding: "13px 16px", maxWidth: 240 }} onClick={() => setViewDef(def)}>
-                        <div style={{ color: "#1e293b", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                          {def.actualResult}
-                        </div>
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                        <PriBadge label={def.priority} /></td>
-                      <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>
-                        {def.raisedBy || "—"}</td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
-                        <select
-                          value={def.assignedTo || ""}
-                          onChange={e => updateDefAssignedTo(def, e.target.value)}
-                          disabled={!canAssignDefect}
-                          style={{ ...inp, minWidth: 170, fontSize: 13, padding: "6px 8px", color: "#334155" }}
-                        >
-                          <option value="">Unassigned</option>
-                          {def.assignedTo && !assignableUserDisplayNames.includes(def.assignedTo) && (
-                            <option value={def.assignedTo}>{def.assignedTo} (current)</option>
-                          )}
-                          {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
-                        </select>
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
-                        <select value={def.status} onChange={e => updateDefStatus(def.id, e.target.value)} onClick={e => e.stopPropagation()} disabled={!canUpdateDefectStatus}
-                          style={{ background: DEFECT_STATUS[def.status]?.bg, color: DEFECT_STATUS[def.status]?.text, border: `1.5px solid ${DEFECT_STATUS[def.status]?.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 14, fontWeight: 700, cursor: "pointer", outline: "none" }}>
-                          {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
-                        </select>
-                      </td>
-                      <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
-                        {def.openDateTime ? new Date(def.openDateTime).toLocaleString() : "-"}
-                      </td>
-                      <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
-                        {def.closeDateTime ? new Date(def.closeDateTime).toLocaleString() : "-"}
-                      </td>
-                      <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                        <span style={{ fontWeight: 700, fontSize: 14, color: aged > 7 ? "#ef4444" : aged > 3 ? "#f97316" : "#22c55e" }}>{aged}d</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════
-          TAB: DASHBOARD
-      ══════════════════════════════════ */}
-      {activeTab === "dashboard" && (() => {
-        const DonutChart = ({ segments, size = 130, strokeWidth = 18, label, subLabel }) => {
-          const r = (size - strokeWidth) / 2;
-          const C = 2 * Math.PI * r;
-          const cx = size / 2, cy = size / 2;
-          const total = segments.reduce((s, g) => s + g.value, 0);
-          let acc = 0;
-          return (
-            <svg width={size} height={size} style={{ display: "block" }}>
-              <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} />
-              {total === 0
-                ? <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth={strokeWidth} />
-                : segments.filter(s => s.value > 0).map((seg, i) => {
-                    const dash = (seg.value / total) * C;
-                    const rot = -90 + (acc / total) * 360;
-                    acc += seg.value;
-                    return <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={seg.color} strokeWidth={strokeWidth} strokeDasharray={`${dash} ${C - dash}`} transform={`rotate(${rot} ${cx} ${cy})`} />;
-                  })}
-              {label != null && (
-                <text x={cx} y={subLabel ? cy + 1 : cy + 8} textAnchor="middle" style={{ fontSize: size < 100 ? 14 : 20, fontWeight: 800, fill: "#0f172a" }}>{label}</text>
-              )}
-              {subLabel && <text x={cx} y={cy + (size < 100 ? 14 : 20)} textAnchor="middle" style={{ fontSize: 10, fill: "#94a3b8" }}>{subLabel}</text>}
-            </svg>
-          );
-        };
-        const BarChart = ({ data, height = 170 }) => {
-          if (!data || data.length === 0) return null;
-          const barW = 22, gapW = 10;
-          const totalW = data.length * (barW + gapW) - gapW;
-          const chartH = height;
-          const maxVal = Math.max(...data.map(d => d.passed + d.failed + d.blocked), 1);
-          return (
-            <div>
-              <svg width="100%" height={chartH} viewBox={`0 0 ${totalW} ${chartH}`} preserveAspectRatio="none">
-                {data.map((d, i) => {
-                  const x = i * (barW + gapW);
-                  const pH = (d.passed / maxVal) * chartH;
-                  const fH = (d.failed / maxVal) * chartH;
-                  const bH = (d.blocked / maxVal) * chartH;
-                  return (
-                    <g key={i}>
-                      {pH > 0 && <rect x={x} y={chartH - pH - fH - bH} width={barW} height={pH} fill="#22c55e" rx={2} />}
-                      {fH > 0 && <rect x={x} y={chartH - fH - bH} width={barW} height={fH} fill="#f43f5e" />}
-                      {bH > 0 && <rect x={x} y={chartH - bH} width={barW} height={bH} fill="#f97316" />}
-                      {pH === 0 && fH === 0 && bH === 0 && <rect x={x} y={chartH - 2} width={barW} height={2} fill="#e2e8f0" rx={2} />}
-                    </g>
-                  );
-                })}
-              </svg>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-                {data.map((d, i) => (
-                  <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
-                ))}
-              </div>
-            </div>
-          );
-        };
-        const LineChart = ({ data, height = 170 }) => {
-          if (!data || data.length < 2) return null;
-          const chartW = 600, chartH = height;
-          const maxVal = Math.max(...data.flatMap(d => [d.newCount, d.closedCount]), 1);
-          const px = i => (i / (data.length - 1)) * chartW;
-          const py = v => chartH - (v / maxVal) * (chartH - 6);
-          const newPts = data.map((d, i) => `${px(i)},${py(d.newCount)}`).join(" ");
-          const clPts = data.map((d, i) => `${px(i)},${py(d.closedCount)}`).join(" ");
-          return (
-            <div>
-              <svg width="100%" height={chartH} viewBox={`0 0 ${chartW} ${chartH}`} preserveAspectRatio="xMidYMid meet">
-                {[0.25, 0.5, 0.75, 1].map(f => (
-                  <line key={f} x1={0} y1={chartH * (1 - f)} x2={chartW} y2={chartH * (1 - f)} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-                ))}
-                <polyline points={newPts} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                <polyline points={clPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-                {data.map((d, i) => (
-                  <g key={i}>
-                    <circle cx={px(i)} cy={py(d.newCount)} r={4} fill="#3b82f6" vectorEffect="non-scaling-stroke" />
-                    <circle cx={px(i)} cy={py(d.closedCount)} r={3.5} fill="#94a3b8" vectorEffect="non-scaling-stroke" />
-                  </g>
-                ))}
-              </svg>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-                {data.map((d, i) => (
-                  <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
-                ))}
-              </div>
-            </div>
-          );
-        };
-        const { tcCount, entryCount, passedTotal, failedTotal, defTotal, openDefs, passRate, availableRuns,
-                execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays } = dashboardStats;
-        const blockedTotal = execByStatus["Blocked"] || 0;
-        const execSegs = [
-          { value: passedTotal, color: "#22c55e" },
-          { value: failedTotal, color: "#f43f5e" },
-          { value: blockedTotal, color: "#f97316" },
-          { value: Math.max(0, entryCount - passedTotal - failedTotal - blockedTotal), color: "#e2e8f0" },
-        ];
-        return (
-        <div ref={dashboardRef} style={{ background: "#fff", minHeight: "calc(100vh - 60px)", padding: "24px 28px 40px" }}>
-          {/* Filters row */}
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <select value={dashProjectId} onChange={e => { setDashProjectId(e.target.value); setDashPlanId(""); setDashRunId(""); }}
-                style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
-                <option value="">🏢 All Projects</option>
-                {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-              </select>
-              <select value={dashPlanId} onChange={e => { setDashPlanId(e.target.value); setDashRunId(""); }}
-                style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
-                <option value="">All Test Plans</option>
-                {(projects.find(p => String(p.id) === dashProjectId)?.testPlans || []).map(tp => (
-                  <option key={tp.id} value={String(tp.id)}>{tp.name}</option>
-                ))}
-              </select>
-              <select value={dashRunId} onChange={e => setDashRunId(e.target.value)}
-                style={{ ...inp, width: "auto", minWidth: 180, fontSize: 13 }}>
-                <option value="">All Test Runs</option>
-                {availableRuns.map(r => (
-                  <option key={r.id} value={String(r.id)}>{r.name}</option>
-                ))}
-              </select>
-              <button onClick={() => { if (!dashboardRef.current) return; html2canvas(dashboardRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "uat-dashboard.png"; a.click(); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>📥 Export Report</button>
-            </div>
-          </div>
-          {/* Top 5 summary cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, marginBottom: 18 }}>
-            {[
-              { icon: "📋", iconBg: "#eff6ff", label: "Total Test Cases", value: tcCount, sub: "Linked to active plans", color: "#6366f1" },
-              { icon: "✅", iconBg: "#f0fdf4", label: "Passed", value: passedTotal, sub: `of ${entryCount.toLocaleString()} executed`, color: "#15803d" },
-              { icon: "❌", iconBg: "#fff1f2", label: "Failed", value: failedTotal, sub: `of ${entryCount.toLocaleString()} executed`, color: "#be123c" },
-              { icon: "🚫", iconBg: "#fff7ed", label: "Blocked", value: blockedTotal, sub: `of ${entryCount.toLocaleString()} executed`, color: "#c2410c" },
-            ].map(({ icon, iconBg, label, value, sub, color }) => (
-              <div key={label} style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 14, background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>{icon}</div>
-                <div>
-                  <div style={{ fontSize: 12, color, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{value.toLocaleString()}</div>
-                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{sub}</div>
-                </div>
-              </div>
-            ))}
-            <div style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 12 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 14, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0, marginTop: 18 }}>📈</div>
-                <div>
-                  <div style={{ fontSize: 12, color: "#6366f1", fontWeight: 700, marginBottom: 4 }}>Execution Progress</div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{passRate}%</div>
-                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{passedTotal.toLocaleString()} passed / {tcCount.toLocaleString()} total</div>
-                </div>
-              </div>
-              <div style={{ marginLeft: 72, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                <div style={{ width: `${passRate}%`, height: "100%", background: "linear-gradient(90deg,#6366f1,#818cf8)", borderRadius: 99 }} />
-              </div>
-            </div>
-          </div>
-          {/* Middle two columns */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
-            <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-              <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 30 }}>Test Execution Breakdown</div>
-              {Object.entries(execByStatus).map(([status, count]) => {
-                const meta = EXEC_STATUS[status];
-                const pct = entryCount > 0 ? Math.round((count / entryCount) * 100) : 0;
-                return (
-                  <div key={status} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, width: 88, flexShrink: 0 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: meta?.dot || "#94a3b8", display: "inline-block", flexShrink: 0 }} />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{status}</span>
-                    </div>
-                    <div style={{ flex: 1, height: 7, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                      <div style={{ width: `${pct}%`, height: "100%", background: meta?.dot || "#94a3b8", borderRadius: 99 }} />
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#334155", width: 28, textAlign: "right", flexShrink: 0 }}>{count}</span>
-                    <span style={{ fontSize: 12, color: "#94a3b8", width: 32, textAlign: "right", flexShrink: 0 }}>{pct}%</span>
-                  </div>
-                );
-              })}
-              <div style={{ marginTop: 28, paddingTop: 16, borderTop: "1.5px solid #f1f5f9", display: "flex", alignItems: "center", gap: 16 }}>
-                <DonutChart size={100} strokeWidth={16} label={`${passRate}%`} segments={execSegs} />
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "#334155" }}>Overall Execution Progress</div>
-                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{passedTotal.toLocaleString()} / {tcCount.toLocaleString()} Test Cases Executed</div>
-                </div>
-              </div>
-            </div>
-            <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-              <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 34 }}>Defect Status Breakdown</div>
-              <div style={{ display: "flex", gap: 36, alignItems: "flex-start", marginBottom: 18 }}>
-                <div style={{ flexShrink: 0 }}>
-                  <DonutChart size={165} strokeWidth={35} label={defTotal} subLabel="Total"
-                    segments={Object.entries(defByStatus).map(([s, c]) => ({ value: c, color: DEFECT_STATUS[s]?.dot || "#94a3b8" }))}
+          {activeTab === "users" && isAdmin && (
+            <div style={{ padding: "20px 2.5%" }}>
+              <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <button onClick={openAddUser} style={btnP}>+ Add User</button>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14 }}>🔍</span>
+                  <input
+                    placeholder="Search username, display name, role..."
+                    value={userSearch}
+                    onChange={e => setUserSearch(e.target.value)}
+                    style={{ ...inp, paddingLeft: 32, width: 300 }}
                   />
                 </div>
-                <div style={{ flex: 1, paddingLeft: 8 }}>
-                  {Object.entries(defByStatus).map(([status, count]) => {
-                    const meta = DEFECT_STATUS[status];
-                    const pct = defTotal > 0 ? Math.round((count / defTotal) * 100) : 0;
-                    return (
-                      <div key={status} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 9 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: meta?.dot || "#94a3b8", flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, color: "#64748b", width: 92, flexShrink: 0 }}>{status}</span>
-                        <div style={{ flex: 1, minWidth: 0, height: 5, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                          <div style={{ width: `${pct}%`, height: "100%", background: meta?.dot || "#94a3b8", borderRadius: 99 }} />
-                        </div>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "#334155", width: 18, textAlign: "right", flexShrink: 0 }}>{count}</span>
-                        <span style={{ fontSize: 12, color: "#94a3b8", width: 30, textAlign: "right", flexShrink: 0 }}>{pct}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <select value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)} style={{ ...inp, width: 170 }}>
+                  <option value="All">All Roles</option>
+                  {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
+                </select>
+                <select value={userActiveFilter} onChange={e => setUserActiveFilter(e.target.value)} style={{ ...inp, width: 140 }}>
+                  <option value="All">All Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+                <button
+                  onClick={() => {
+                    setUserSearch("");
+                    setUserRoleFilter("All");
+                    setUserActiveFilter("All");
+                    setUserSortCol("username");
+                    setUserSortDir("asc");
+                  }}
+                  style={btnS}
+                >
+                  Clear
+                </button>
               </div>
-              <div style={{ borderTop: "1.5px solid #f1f5f9", paddingTop: 14 }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: "#0f172a", marginBottom: 12 }}>⚠ Defect Priority</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
-                  {Object.entries(PRIORITY_META).map(([pri, meta]) => {
-                    const count = defByPriority[pri] || 0;
-                    return (
-                      <div key={pri} style={{ background: meta.bg + "18", border: `1.5px solid ${meta.bg}44`, borderRadius: 12, padding: "10px 6px", textAlign: "center" }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: meta.bg, marginBottom: 4, textTransform: "uppercase" }}>{pri}</div>
-                        <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{count}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* Trends */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 18 }}>
-            <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 20 }}>📈 Trends (Last 7 Days)</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 28 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Daily Test Execution Trend</div>
-                <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
-                  {[["Passed", "#22c55e"], ["Failed", "#f43f5e"], ["Blocked", "#f97316"]].map(([l, c]) => (
-                    <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
-                    </span>
-                  ))}
-                </div>
-                <BarChart data={trendDays} height={170} />
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Defect Trend</div>
-                <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
-                  {[["New", "#3b82f6"], ["Closed", "#94a3b8"]].map(([l, c]) => (
-                    <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
-                    </span>
-                  ))}
-                </div>
-                <LineChart data={defectTrendDays} height={170} />
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 14 }}>Defects by Priority</div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, paddingTop: 50 }}>
-                  <div style={{ flexShrink: 0 }}>
-                    <DonutChart size={130} strokeWidth={20} label={defTotal} subLabel="Total"
-                      segments={Object.entries(PRIORITY_META).map(([pri, meta]) => ({ value: defByPriority[pri] || 0, color: meta.bg }))}
-                    />
-                  </div>
-                  <div>
-                    {Object.entries(PRIORITY_META).map(([pri, meta]) => {
-                      const count = defByPriority[pri] || 0;
-                      const pct = defTotal > 0 ? Math.round((count / defTotal) * 100) : 0;
-                      return (
-                        <div key={pri} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13 }}>
-                          <span style={{ width: 9, height: 9, borderRadius: "50%", background: meta.bg, flexShrink: 0 }} />
-                          <span style={{ color: "#64748b", width: 90 }}>{pri}</span>
-                          <span style={{ fontWeight: 700, color: "#334155", minWidth: 20, textAlign: "right" }}>{count}</span>
-                          <span style={{ color: "#94a3b8", minWidth: 38, textAlign: "right" }}>{pct}%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Per-plan summary table */}
-          {!dashPlanId && perPlanStats.length > 0 && (
-            <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-              <div style={{ padding: "16px 24px", borderBottom: "1.5px solid #f1f5f9", fontWeight: 800, fontSize: 15, color: "#0f172a" }}>Test Plan Summary</div>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <div style={{ marginBottom: 12, color: "#64748b", fontSize: 13, fontWeight: 700 }}>Showing {filteredSortedUsers.length} of {users.length} users</div>
+              <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                   <thead>
-                    <tr style={{ background: "#f8fafc" }}>
-                      {["Project", "Test Plan", "Test Cases", "Executions", "Passed", "Failed", "Total Defects", "Open Defects"].map(h => (
-                        <th key={h} style={{ padding: "10px 16px", textAlign: h === "Project" || h === "Test Plan" ? "left" : "center", fontWeight: 700, color: "#64748b", textTransform: "uppercase", fontSize: 11, whiteSpace: "nowrap" }}>{h}</th>
+                    <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
+                      <th style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Actions</th>
+                      {[
+                        { label: "Username", col: "username" },
+                        { label: "Display Name", col: "displayName" },
+                        { label: "Role", col: "role" },
+                        { label: "Active", col: "isActive" },
+                        { label: "Created", col: "createdAt" },
+                      ].map(({ label, col }) => (
+                        <th
+                          key={label}
+                          onClick={() => toggleUserSort(col)}
+                          style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: userSortCol === col ? "#d4dff0" : undefined }}>
+                          {label}{userSortCol === col ? (userSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {perPlanStats.map(({ tp, projectName, tcCount: ptc, defCount, openDefs: pOpen, passed, failed, totalEntries }) => (
-                      <tr key={tp.id} style={{ borderTop: "1px solid #f8fafc" }}>
-                        <td style={{ padding: "11px 16px", color: "#64748b" }}>{projectName}</td>
-                        <td style={{ padding: "11px 16px", fontWeight: 700, color: "#334155" }}>{tp.name}</td>
-                        <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: "#6366f1" }}>{ptc}</td>
-                        <td style={{ padding: "11px 16px", textAlign: "center", color: "#64748b" }}>{totalEntries}</td>
-                        <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: "#22c55e" }}>{passed}</td>
-                        <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: failed > 0 ? "#ef4444" : "#94a3b8" }}>{failed}</td>
-                        <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: defCount > 0 ? "#f97316" : "#94a3b8" }}>{defCount}</td>
-                        <td style={{ padding: "11px 16px", textAlign: "center" }}>
-                          {pOpen > 0
-                            ? <span style={{ background: "#fee2e2", color: "#b91c1c", borderRadius: 999, padding: "3px 12px", fontWeight: 700, fontSize: 12 }}>{pOpen}</span>
-                            : <span style={{ color: "#22c55e", fontWeight: 700 }}>0</span>}
+                    {filteredSortedUsers.length === 0 && <tr><td colSpan={6} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No users found</td></tr>}
+                    {filteredSortedUsers.map((user, i) => (
+                      <tr key={user.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                        <td style={{ padding: "13px 16px", width: 170, minWidth: 170 }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
+                            <button onClick={() => openEditUser({ ...user, password: "" })} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>Edit</button>
+                            <button onClick={() => resetUserPassword(user)} style={{ ...btnS, padding: "5px 10px", fontSize: 12, borderColor: "#c7d2fe", color: "#4338ca" }}>Reset Password</button>
+                            <button onClick={() => { if (window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }} style={xBtn}>✕</button>
+                          </div>
                         </td>
+                        <td style={{ padding: "13px 16px", fontWeight: 800, color: "#6366f1" }}>{user.username}</td>
+                        <td style={{ padding: "13px 16px", color: "#1e293b", fontWeight: 600 }}>{user.displayName}</td>
+                        <td style={{ padding: "13px 16px" }}><span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "3px 8px", borderRadius: 6, fontWeight: 800, fontSize: 12 }}>{user.role}</span></td>
+                        <td style={{ padding: "13px 16px" }}>{user.isActive ? "Yes" : "No"}</td>
+                        <td style={{ padding: "13px 16px", color: "#64748b" }}>{toInputDate(user.createdAt)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3852,1885 +2824,2961 @@ export default function App() {
             </div>
           )}
 
-        </div>
-        );
-      })()}
-
-      {/* ── MODAL: VIEW TC ── */}
-      {viewTC && (
-        <Modal onClose={() => setViewTC(null)} zIndex={1300}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-            <div>
-              <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 10px", borderRadius: 6, border: "1px solid #c7d2fe" }}>{viewTC.tcNumber}</span>
-              <div style={{ color: "#0f172a", fontSize: 16, fontWeight: 700, marginTop: 8, lineHeight: 1.4 }}>{viewTC.name}</div>
-            </div>
-            <button onClick={() => setViewTC(null)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
-            <PriBadge label={viewTC.priority} />
-            <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{viewTC.category.split("(")[0].trim()}</span>
-          </div>
-          <div style={{ display: "grid", gap: 14 }}>
-            {viewTC.description && <DetailBlock label="Description" value={viewTC.description} />}
-            <DetailBlock label="Test Steps" value={viewTC.steps} pre />
-            <DetailBlock label="Expected Result" value={viewTC.expectedResult} accent />
-            {viewTC.testScopeId && testScopeNameById[viewTC.testScopeId] && (
-              <DetailBlock label="Testing Scope" value={testScopeNameById[viewTC.testScopeId]} />
-            )}
-            {viewTC.remarks && <DetailBlock label="Remarks" value={viewTC.remarks} />}
-          </div>
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1.5px solid #f1f5f9" }}>
-            <div style={{ ...lbl, marginBottom: 10 }}>Attachments</div>
-            {canWrite && <div
-              onPaste={e => onTestCasePasteUpload(e, viewTC.id)}
-              style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-            >
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                Paste screenshot with Ctrl+V or attach file(s)
+          {/* ══════════════════════════════════
+          TAB: PROJECTS
+      ══════════════════════════════════ */}
+          {activeTab === "projects" && (
+            <div style={{ padding: "20px 2.5%" }}>
+              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                {canManageProjects && <button onClick={() => setShowAddProject(true)} style={btnP}>+ Add Project</button>}
+                {canManageProjects && <button onClick={() => setShowAddPlan(true)} style={{ ...btnS, opacity: !selectedProjectId ? 0.5 : 1 }} disabled={!selectedProjectId}>+ Add Test Plan</button>}
               </div>
-              <input
-                type="file"
-                multiple
-                onChange={e => {
-                  uploadTestCaseFiles(viewTC.id, e.target.files);
-                  e.target.value = "";
-                }}
-                style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-              />
-            </div>}
-            <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-              {(testCaseAttachments[viewTC.id] || []).length === 0 && (
-                <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments yet.</div>
-              )}
-
-              {(testCaseAttachments[viewTC.id] || []).map(a => (
-                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                  <button
-                    type="button"
-                    onClick={() => openAttachment(a.url, a.fileName)}
-                    style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                    title="Open attachment"
-                  >
-                    {a.fileName}
-                  </button>
-                  <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
-                  <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
-                  <button onClick={() => deleteTestCaseAttachment(viewTC.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                </div>
-              ))}
-
-              {uploadingTestCaseId === viewTC.id && (
-                <div style={{ color: "#64748b", fontSize: 12 }}>Uploading...</div>
-              )}
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── MODAL: RUN DETAIL ── */}
-      {viewRun && (
-        <Modal onClose={() => setViewRun(null)} wide>
-          {(() => {
-            const sortedRunEntries = sortRunEntriesByTestCaseId(viewRun.entries);
-            return (
-              <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                  <div>
-                    <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 5 }}>{viewRun.runNumber}</span>
-                    <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginTop: 6 }}>{viewRun.name}</div>
-                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>👤 {viewRun.tester} · {viewRun.createdAt?.slice(0, 10)}</div>
-                  </div>
-                  <button onClick={() => setViewRun(null)} style={xBtn}>✕</button>
-                </div>
-
-                {(() => {
-                  const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-                      <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
-                      <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
-                      <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
-                      <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
-                      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 120, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#22c55e" : "linear-gradient(90deg,#6366f1,#06b6d4)", borderRadius: 99 }} />
-                        </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
-                      </div>
-                      <div style={{ flexBasis: "100%", display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {Object.keys(EXEC_STATUS).map(status => {
-                          const s = byStatusPriority[status];
-                          if (!s || s.total === 0) return null;
+              <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 16 }}>
+                <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", overflow: "hidden" }}>
+                  <div style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontWeight: 800, fontSize: 17, color: "#334155" }}>Projects</div>
+                  {(projects || []).length === 0 && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>No projects yet.</div>}
+                  {(projects || []).map(p => (
+                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f8fafc", padding: "8px 10px", background: String(selectedProjectId) === String(p.id) ? "#eff6ff" : "#fff" }}>
+                      <button onClick={() => { setSelectedProjectId(String(p.id)); setSelectedTestPlanId(""); }}
+                        style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", padding: "6px 4px", cursor: "pointer", fontWeight: 700, fontSize: 16, color: String(selectedProjectId) === String(p.id) ? "#1d4ed8" : "#334155" }}>
+                        <div>{p.name}</div>
+                        {(() => {
+                          const tm = getTimelineMeta(p.startDate, p.endDate);
+                          const badge = timelineBadgeStyle(tm.status);
                           return (
-                            <span key={status} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 999, padding: "4px 10px", fontSize: 12, color: "#475569", fontWeight: 700 }}>
-                              {status}: High {s.High} | Medium {s.Medium} | Low {s.Low}
+                            <div style={{ marginTop: 4 }}>
+                              <div>
+                                <span style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  padding: "3px 10px",
+                                  borderRadius: 999,
+                                  fontSize: 13,
+                                  fontWeight: 800,
+                                  letterSpacing: "0.01em",
+                                  whiteSpace: "nowrap",
+                                  background: badge.bg,
+                                  color: badge.text,
+                                  border: `1px solid ${badge.border}`
+                                }}>
+                                  📅 {formatTimeline(p.startDate, p.endDate)}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                                <div style={{ flex: 1, height: 8, borderRadius: 99, background: "#e2e8f0", overflow: "hidden" }}>
+                                  <div style={{ width: `${tm.progress}%`, height: "100%", background: tm.color, borderRadius: 99, transition: "width 0.25s ease" }} />
+                                </div>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: tm.color, minWidth: 76, textAlign: "right" }}>{tm.status} {tm.progress}%</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </button>
+                      {canManageProjects && <button
+                        onClick={() => {
+                          setEditingProjectId(p.id);
+                          setEditProjectName(p.name || "");
+                          setEditProjectStartDate(toInputDate(p.startDate));
+                          setEditProjectEndDate(toInputDate(p.endDate));
+                          setShowEditProject(true);
+                        }}
+                        style={{ ...btnS, padding: "5px 11px", fontSize: 13 }}
+                      >
+                        Edit
+                      </button>}
+                      {canDelete && <button
+                        onClick={() => {
+                          if (window.confirm(`Delete project "${p.name}" and all its test plans?`)) {
+                            deleteProject(p.id);
+                          }
+                        }}
+                        style={{ ...btnD, padding: "5px 11px", fontSize: 13 }}
+                      >
+                        Delete
+                      </button>}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", overflow: "hidden" }}>
+                  <div style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontWeight: 800, fontSize: 17, color: "#334155" }}>Test Plans {selectedProject ? `- ${selectedProject.name}` : ""}</div>
+                  {!selectedProject && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>Select a project to view plans.</div>}
+                  {selectedProject && selectedProjectPlans.length === 0 && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>No test plans yet.</div>}
+                  {selectedProjectPlans.map(tp => (
+                    <div key={tp.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f8fafc", padding: "8px 10px", background: String(selectedTestPlanId) === String(tp.id) ? "#eff6ff" : "#fff" }}>
+                      <button onClick={() => { setSelectedTestPlanId(String(tp.id)); setNewTC(p => ({ ...p, testScopeId: "" })); setActiveTab("testcases"); }}
+                        style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", padding: "6px 4px", cursor: "pointer", fontWeight: 700, fontSize: 16, color: String(selectedTestPlanId) === String(tp.id) ? "#1d4ed8" : "#334155" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span>{tp.name}</span>
+                          {(() => {
+                            const count = defects.filter(d => d.testPlanId === tp.id).length;
+                            return count > 0 ? (
+                              <span style={{ background: "#fee2e2", color: "#b91c1c", borderRadius: 999, fontSize: 12, fontWeight: 800, padding: "2px 8px", minWidth: 24, textAlign: "center" }}>
+                                🐛 {count}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
+                        {(() => {
+                          const tm = getTimelineMeta(tp.startDate, tp.endDate);
+                          const badge = timelineBadgeStyle(tm.status);
+                          return (
+                            <div style={{ marginTop: 4 }}>
+                              <div>
+                                <span style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  padding: "3px 10px",
+                                  borderRadius: 999,
+                                  fontSize: 13,
+                                  fontWeight: 800,
+                                  letterSpacing: "0.01em",
+                                  whiteSpace: "nowrap",
+                                  background: badge.bg,
+                                  color: badge.text,
+                                  border: `1px solid ${badge.border}`
+                                }}>
+                                  📅 {formatTimeline(tp.startDate, tp.endDate)}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                                <div style={{ flex: 1, height: 8, borderRadius: 99, background: "#e2e8f0", overflow: "hidden" }}>
+                                  <div style={{ width: `${tm.progress}%`, height: "100%", background: tm.color, borderRadius: 99, transition: "width 0.25s ease" }} />
+                                </div>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: tm.color, minWidth: 76, textAlign: "right" }}>{tm.status} {tm.progress}%</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </button>
+                      {canManageProjects && <button
+                        onClick={() => openManageScopes(tp)}
+                        style={{ ...btnS, padding: "5px 10px", fontSize: 13 }}
+                        title="Manage testing scopes"
+                      >
+                        🎯
+                      </button>}
+                      {canManageProjects && <button
+                        onClick={() => {
+                          setEditingPlanId(tp.id);
+                          setEditPlanName(tp.name || "");
+                          setEditPlanStartDate(toInputDate(tp.startDate));
+                          setEditPlanEndDate(toInputDate(tp.endDate));
+                          setShowEditPlan(true);
+                        }}
+                        style={{ ...btnS, padding: "5px 11px", fontSize: 13 }}
+                      >
+                        Edit
+                      </button>}
+                      {canDelete && <button
+                        onClick={() => {
+                          if (window.confirm(`Delete test plan "${tp.name}"?`)) {
+                            deleteTestPlan(tp.id);
+                          }
+                        }}
+                        style={{ ...btnD, padding: "5px 11px", fontSize: 13 }}
+                      >
+                        Delete
+                      </button>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════
+          TAB: TEST CASES
+      ══════════════════════════════════ */}
+
+          {activeTab === "testcases" && (
+            <div style={{ padding: "20px 2.5%" }}>
+              {/* toolbar */}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14 }}>🔍</span>
+                  <input placeholder="Search ID or name…" value={tcSearch} onChange={e => setTcSearch(e.target.value)} style={{ ...inp, paddingLeft: 32, width: 230 }} />
+                </div>
+                <select value={tcCatFilter} onChange={e => setTcCatFilter(e.target.value)} style={{ ...inp, width: 220 }}>
+                  <option value="All">All Categories</option>
+                  {categories.map(c => <option key={c}>{c}</option>)}
+                </select>
+                <select value={tcPriFilter} onChange={e => setTcPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
+                  <option value="All">All Priorities</option>
+                  {TEST_CASE_PRIORITIES.map(p => <option key={p}>{p}</option>)}
+                </select>
+                <select
+                  value={selectedProjectId}
+                  onChange={e => {
+                    const pid = e.target.value;
+                    setSelectedProjectId(pid);
+                    const p = projects.find(x => String(x.id) === String(pid));
+                    const fp = (p?.testPlans || [])[0];
+                    setSelectedTestPlanId(fp ? String(fp.id) : "");
+                    setNewTC(prev => ({ ...prev, testScopeId: "" }));
+                  }}
+                  style={{ ...inp, width: 190 }}
+                >
+                  <option value="">Select Project</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <select
+                  value={selectedTestPlanId}
+                  onChange={e => {
+                    setSelectedTestPlanId(e.target.value);
+                    setNewTC(prev => ({ ...prev, testScopeId: "" }));
+                  }}
+                  style={{ ...inp, width: 210 }}
+                >
+                  <option value="">Select Test Plan</option>
+                  {selectedProjectPlans.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
+                </select>
+                <button
+                  onClick={() => {
+                    setTcSearch("");
+                    setTcCatFilter("All");
+                    setTcPriFilter("All");
+                    setSelectedProjectId("");
+                    setSelectedTestPlanId("");
+                  }}
+                  style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
+                >
+                  Reset
+                </button>
+                {filteredTC.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (selectedTcIds.length === filteredTC.length) {
+                        setSelectedTcIds([]);
+                      } else {
+                        setSelectedTcIds(filteredTC.map(tc => tc.id));
+                      }
+                    }}
+                    style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
+                  >
+                    {selectedTcIds.length === filteredTC.length ? "Clear Selection" : "Select All"}
+                  </button>
+                )}
+                <div style={{ flex: 1 }} />
+                {selectedTcIds.length > 0 && canDelete && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedTcIds.length} selected</span>
+                    <button onClick={() => { if (window.confirm(`Delete ${selectedTcIds.length} test case(s)?`)) deleteTestCases(selectedTcIds); }}
+                      style={{ background: "#fff1f2", color: "#be123c", border: "1.5px solid #fecdd3", borderRadius: 8, padding: "8px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                      🗑 Delete Selected
+                    </button>
+                  </div>
+                )}
+                <button onClick={exportTestCases} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredTC.length === 0}>Export Excel</button>
+                {canWrite && <button onClick={() => setShowAddTC(true)} style={btnP}>+ Add Test Case</button>}
+              </div>
+
+              <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
+                      <th style={{ padding: "12px 16px", width: 40 }}>
+                        <input type="checkbox"
+                          checked={selectedTcIds.length === filteredTC.length && filteredTC.length > 0}
+                          onChange={e => setSelectedTcIds(e.target.checked ? filteredTC.map(tc => tc.id) : [])}
+                          style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
+                        />
+                      </th>
+                      {[{ label: "Actions", col: "" }, { label: "ID", col: "tcNumber" }, { label: "Project", col: "" }, { label: "Test Plan", col: "" }, { label: "Test Name", col: "name" }, { label: "Category", col: "category" }, { label: "Coverage", col: "" }, { label: "Priority", col: "priority" }].map(({ label, col }) => (
+                        <th key={label} onClick={col ? () => { if (tcSortCol === col) setTcSortDir(d => d === "asc" ? "desc" : "asc"); else { setTcSortCol(col); setTcSortDir("asc"); } } : undefined}
+                          style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && tcSortCol === col ? "#d4dff0" : undefined }}>
+                          {label}{col && tcSortCol === col ? (tcSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedFilteredTC.length === 0 && <tr><td colSpan={9} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No test cases found</td></tr>}
+                    {sortedFilteredTC.map((tc, i) => {
+                      const isSelected = selectedTcIds.includes(tc.id);
+                      const planMeta = tc.testPlanId ? testPlanMetaById[tc.testPlanId] : null;
+                      const coveredRuns = runs.filter(run =>
+                        (run.entries || []).some(
+                          e => e.testCaseId === tc.id
+                        )
+                      );
+                      return (
+                        <tr key={tc.id}
+                          onContextMenu={e => { if (canWrite) { e.preventDefault(); setContextMenu({ type: "tc", item: tc, x: e.clientX, y: e.clientY }); } }}
+                          style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f0f4ff"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa"; }}>
+                          <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={e => setSelectedTcIds(p => e.target.checked ? [...p, tc.id] : p.filter(x => x !== tc.id))}
+                              style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
+                            />
+                          </td>
+                          <td style={{ padding: "13px 16px", width: 180, minWidth: 180 }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
+                              <button onClick={() => setViewTC(tc)} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>View</button>
+                              {canWrite && <button
+                                onClick={() => setEditTC({
+                                  ...tc,
+                                  expected: tc.expectedResult,
+                                  testScopeId: tc.testScopeId ? String(tc.testScopeId) : ""
+                                })}
+                                style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
+                              >
+                                Edit
+                              </button>}
+                              {canDelete && <button
+                                onClick={() => {
+                                  if (window.confirm(`Delete ${tc.tcNumber}?`)) deleteTestCases([tc.id]);
+                                }}
+                                style={xBtn}
+                                title="Delete"
+                              >
+                                ✕
+                              </button>}
+                            </div>
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
+                            <span style={{ fontWeight: 800, color: "#6366f1", fontSize: 14, fontFamily: "monospace", background: "#eff6ff", padding: "2px 7px", borderRadius: 5 }}>{tc.tcNumber}</span>
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
+                            <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{planMeta?.projectName || "-"}</span>
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
+                            <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{planMeta?.testPlanName || "-"}</span>
+                          </td>
+                          <td style={{ padding: "13px 16px", maxWidth: 340 }} onClick={() => setViewTC(tc)}>
+                            <div style={{ fontWeight: 700, color: "#1e293b", lineHeight: 1.4 }}>{tc.name}</div>
+                            {tc.testScopeId && testScopeNameById[tc.testScopeId] && (
+                              <div style={{ marginTop: 5 }}>
+                                <span style={{ fontSize: 12, color: "#4338ca", background: "#eef2ff", border: "1px solid #c7d2fe", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>
+                                  Scope: {testScopeNameById[tc.testScopeId]}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
+                            <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{tc.category || "-"}</span>
+                          </td>
+                          <td
+                            style={{ padding: "13px 16px", whiteSpace: "nowrap" }}
+                            onClick={() => setViewTC(tc)}
+                          >
+                            {coveredRuns.length > 0 ? (
+                              <span
+                                style={{
+                                  background: "#f0fdf4",
+                                  color: "#15803d",
+                                  padding: "4px 10px",
+                                  borderRadius: 20,
+                                  fontSize: 12,
+                                  fontWeight: 700
+                                }}
+                              >
+                                {coveredRuns.length} Run{coveredRuns.length > 1 ? "s" : ""}
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  background: "#fff1f2",
+                                  color: "#be123c",
+                                  padding: "4px 10px",
+                                  borderRadius: 20,
+                                  fontSize: 12,
+                                  fontWeight: 700
+                                }}
+                              >
+                                Not Covered
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}><PriBadge label={tc.priority} /></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════
+          TAB: TEST RUNS
+      ══════════════════════════════════ */}
+          {activeTab === "runs" && (
+            <div style={{ padding: "20px 2.5%" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+                <input
+                  value={runSearch}
+                  onChange={e => setRunSearch(e.target.value)}
+                  placeholder="Search runs…"
+                  style={{ flex: 1, minWidth: 180, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 14, color: "#0f172a", outline: "none" }}
+                />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", position: "relative" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>Date</span>
+                  <button
+                    onClick={toggleRunDateFilterPanel}
+                    title="Filter by date"
+                    style={{ border: "1px solid #cbd5e1", background: runDateFilterPanel || runDateRule !== "Any" ? "#eff6ff" : "#fff", color: runDateFilterPanel || runDateRule !== "Any" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                  >
+                    ⏷
+                  </button>
+                  {runDateRule !== "Any" && runDateValue && (
+                    <button onClick={() => { setRunDateRule("Any"); setRunDateValue(""); }}
+                      style={{ border: "1px solid #fca5a5", background: "#fff1f2", color: "#dc2626", borderRadius: 6, width: 22, height: 22, fontSize: 11, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0, fontWeight: 700 }}>✕</button>
+                  )}
+                </div>
+                <div style={{ flex: "0 0 auto", display: "flex", gap: 10, alignItems: "center" }}>
+                  {sortedRuns.length > 0 && (
+                    <button
+                      onClick={() => {
+                        if (selectedRunIds.length === filteredRuns.length) {
+                          setSelectedRunIds([]);
+                        } else {
+                          setSelectedRunIds(filteredRuns.map(r => r.id));
+                        }
+                      }}
+                      style={{ ...btnS, padding: "8px 14px", fontSize: 14 }}
+                    >
+                      {selectedRunIds.length === filteredRuns.length ? "Clear Selection" : "Select All"}
+                    </button>
+                  )}
+                  {selectedRunIds.length > 0 && canDelete && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete ${selectedRunIds.length} test run(s)?`)) {
+                          deleteRuns(selectedRunIds);
+                        }
+                      }}
+                      style={{ ...btnD, padding: "8px 14px", fontSize: 14 }}
+                    >
+                      🗑 Delete Selected
+                    </button>
+                  )}
+                  <button onClick={exportRuns} style={{ ...btnS, padding: "8px 14px", fontSize: 14 }} disabled={filteredRuns.length === 0}>Export Excel</button>
+                  {canWrite && <button onClick={() => setShowAddRun(true)} style={btnP}>+ New Test Run</button>}
+                </div>
+              </div>
+              {sortedRuns.length === 0 && <div style={{ textAlign: "center", padding: 60, color: "#cbd5e1" }}>No test runs yet. Create your first one!</div>}
+              {sortedRuns.length > 0 && filteredRuns.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#cbd5e1" }}>No runs match current filters.</div>}
+              <div style={{ display: "grid", gap: 14 }}>
+                {filteredRuns.map(run => {
+                  const st = runStats(run);
+                  const byStatusPriority = runStatusPriorityStats(run);
+                  const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0;
+                  const isRunSelected = selectedRunIds.includes(run.id);
+                  const showRunCheckbox = hoveredRunId === run.id || isRunSelected;
+                  return (
+                    <div key={run.id} style={{ background: "#f0f4f9", border: "1.5px solid #f1f5f9", borderRadius: 14, padding: "20px 24px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", cursor: "pointer", transition: "box-shadow 0.15s" }}
+                      onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 24px rgba(99,102,241,0.1)"; setHoveredRunId(run.id); }}
+                      onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.05)"; setHoveredRunId(null); }}
+                      onClick={() => setViewRun(run)}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                            <span
+                              onClick={e => e.stopPropagation()}
+                              style={{ width: 18, display: "inline-flex", justifyContent: "center", opacity: showRunCheckbox ? 1 : 0, transition: "opacity 0.15s" }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isRunSelected}
+                                onChange={e => setSelectedRunIds(p => e.target.checked ? [...p, run.id] : p.filter(x => x !== run.id))}
+                                style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
+                              />
                             </span>
+                            <span style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 5 }}>{run.runNumber}</span>
+                            <span style={{ fontSize: 14, color: "#94a3b8" }}>{run.createdAt?.slice(0, 10)}</span>
+                          </div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: "#0f172a" }}>{run.name}</div>
+                          <div style={{ fontSize: 14, color: "#64748b", marginTop: 3 }}>👤 {run.tester}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          {canWrite && (
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                setEditRun({
+                                  id: run.id,
+                                  name: run.name,
+                                  tester: run.tester,
+                                  selectedTesters: (run.tester || "").split(",").map(t => t.trim()).filter(Boolean),
+                                });
+                                setEditRunTesterSearch("");
+                              }}
+                              style={{ ...btnS, padding: "5px 12px", fontSize: 13 }}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
+                          <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
+                          <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
+                          <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                          {Object.keys(EXEC_STATUS).map(status => {
+                            const s = byStatusPriority[status];
+                            if (!s || s.total === 0) return null;
+                            return (
+                              <span key={status} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 999, padding: "3px 9px", fontSize: 11, color: "#475569", fontWeight: 700 }}>
+                                {status}: H{s.High} M{s.Medium} L{s.Low}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#94a3b8", marginBottom: 5 }}>
+                          <span>Progress</span><span style={{ fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
+                        </div>
+                        <div style={{ height: 6, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#22c55e" : "linear-gradient(90deg,#6366f1,#06b6d4)", borderRadius: 99, transition: "width 0.4s" }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════
+          TAB: DEFECT LOG
+      ══════════════════════════════════ */}
+          {activeTab === "defects" && (
+            <div style={{ padding: "20px 2.5%" }}>
+              <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+                <input
+                  placeholder="Search defect / run / TC / assignee..."
+                  value={defSearch}
+                  onChange={e => setDefSearch(e.target.value)}
+                  style={{ ...inp, width: 320 }}
+                />
+                <select value={defStatusFilter} onChange={e => setDefStatusFilter(e.target.value)} style={{ ...inp, width: 180 }}>
+                  <option>All</option>
+                  {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
+                </select>
+                <select value={defPriFilter} onChange={e => setDefPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
+                  <option>All</option>
+                  {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
+                </select>
+                <select value={defMarketFilter} onChange={e => setDefMarketFilter(e.target.value)} style={{ ...inp, width: 120 }}>
+                  <option>All</option>
+                  {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m => <option key={m}>{m}</option>)}
+                </select>
+                <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 200 }}>
+                  <option value="All">All Test Plans</option>
+                  {projects.flatMap(p => (p.testPlans || []).map(tp => (
+                    <option key={tp.id} value={String(tp.id)}>{p.name} — {tp.name}</option>
+                  )))}
+                </select>
+                <button
+                  onClick={() => {
+                    setDefSearch("");
+                    setDefStatusFilter("All");
+                    setDefPriFilter("All");
+                    setDefMarketFilter("All");
+                    setDefPlanFilter("All");
+                    setDefOpenRule("Any");
+                    setDefOpenDate("");
+                    setDefCloseRule("Any");
+                    setDefCloseDate("");
+                  }}
+                  style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
+                >
+                  Reset
+                </button>
+                {filteredDefects.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (selectedDefectIds.length === filteredDefects.length) {
+                        setSelectedDefectIds([]);
+                      } else {
+                        setSelectedDefectIds(filteredDefects.map(def => def.id));
+                      }
+                    }}
+                    style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
+                  >
+                    {selectedDefectIds.length === filteredDefects.length ? "Clear Selection" : "Select All"}
+                  </button>
+                )}
+                <div style={{ flex: 1 }} />
+                {selectedDefectIds.length > 0 && canDelete && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedDefectIds.length} selected</span>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
+                          deleteDefects(selectedDefectIds);
+                        }
+                      }}
+                      style={{ ...btnD, padding: "9px 14px", fontSize: 14 }}
+                    >
+                      🗑 Delete Selected
+                    </button>
+                  </div>
+                )}
+                <button onClick={exportDefects} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredDefects.length === 0}>Export Excel</button>
+                {canWrite && <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>}
+              </div>
+              <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflowX: "auto", overflowY: "visible" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
+                      <th style={{ padding: "12px 16px", width: 40 }}>
+                        <input
+                          type="checkbox"
+                          checked={filteredDefects.length > 0 && selectedDefectIds.length === filteredDefects.length}
+                          onChange={e => setSelectedDefectIds(e.target.checked ? filteredDefects.map(def => def.id) : [])}
+                          style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
+                        />
+                      </th>
+                      {[{ label: "Actions", col: "" }, { label: "ID", col: "defectNumber" }, { label: "Market", col: "market" }, { label: "Actual Result", col: "actualResult" }, { label: "Priority", col: "priority" }, { label: "Raised By", col: "raisedBy" }, { label: "Assigned To", col: "assignedTo" }, { label: "Status", col: "status" }].map(({ label, col }) => (
+                        <th key={label} onClick={col ? () => { if (defSortCol === col) setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol(col); setDefSortDir("asc"); } } : undefined}
+                          style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && defSortCol === col ? "#d4dff0" : undefined }}>
+                          {label}{col && defSortCol === col ? (defSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
+                        </th>
+                      ))}
+                      <th
+                        onClick={() => { if (defSortCol === "openDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("openDateTime"); setDefSortDir("asc"); } }}
+                        style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "openDateTime" ? "#d4dff0" : undefined }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Open Datetime{defSortCol === "openDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
+                          <button
+                            onClick={e => toggleDefDateFilterPanel(e, "open")}
+                            title="Filter open datetime"
+                            style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "open" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "open" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                          >
+                            ⌕
+                          </button>
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => { if (defSortCol === "closeDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("closeDateTime"); setDefSortDir("asc"); } }}
+                        style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "closeDateTime" ? "#d4dff0" : undefined }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Close Datetime{defSortCol === "closeDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
+                          <button
+                            onClick={e => toggleDefDateFilterPanel(e, "close")}
+                            title="Filter close datetime"
+                            style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "close" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "close" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                          >
+                            ⌕
+                          </button>
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => { if (defSortCol === "aged") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("aged"); setDefSortDir("asc"); } }}
+                        style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: defSortCol === "aged" ? "#d4dff0" : undefined }}
+                      >
+                        Aged{defSortCol === "aged" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {defects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects logged</td></tr>}
+                    {defects.length > 0 && filteredDefects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects match current filters</td></tr>}
+                    {sortedFilteredDefects.map((def, i) => {
+                      const aged = agedDays(def.dateRaised);
+                      const isSelected = selectedDefectIds.includes(def.id);
+                      return (
+                        <tr key={def.id}
+                          onContextMenu={e => { if (canWrite) { e.preventDefault(); setContextMenu({ type: "defect", item: def, x: e.clientX, y: e.clientY }); } }}
+                          style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f0f4ff"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa"; }}>
+                          <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={e => setSelectedDefectIds(p => e.target.checked ? [...p, def.id] : p.filter(x => x !== def.id))}
+                              style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
+                            />
+                          </td>
+                          <td style={{ padding: "13px 16px", width: 220, minWidth: 220 }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
+                              <button onClick={() => setViewDef(def)} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>View</button>
+                              {canWrite && <button
+                                onClick={() => setEditDef({
+                                  ...def,
+                                  dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
+                                  targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
+                                  linkedRunId: runs.find(r => r.runNumber === def.runNumber)?.id || "",
+                                  linkedTestCaseId: allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || "",
+                                })}
+                                style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
+                              >
+                                Edit
+                              </button>}
+                              {canDelete && <button
+                                onClick={() => {
+                                  if (window.confirm(`Delete ${def.defectNumber}?`)) {
+                                    deleteDefects([def.id]);
+                                  }
+                                }}
+                                style={xBtn}
+                                title="Delete"
+                              >
+                                ✕
+                              </button>}
+                            </div>
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                            <span style={{ fontWeight: 800, color: "#ef4444", fontSize: 14, fontFamily: "monospace", background: "#fff1f2", padding: "2px 7px", borderRadius: 5, display: "inline-block", whiteSpace: "nowrap" }}>{def.defectNumber}</span>
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                            <span style={{ fontSize: 14, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{def.market}</span>
+                          </td>
+                          <td style={{ padding: "13px 16px", maxWidth: 240 }} onClick={() => setViewDef(def)}>
+                            <div style={{ color: "#1e293b", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                              {def.actualResult}
+                            </div>
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                            <PriBadge label={def.priority} /></td>
+                          <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>
+                            {def.raisedBy || "—"}</td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
+                            <select
+                              value={def.assignedTo || ""}
+                              onChange={e => updateDefAssignedTo(def, e.target.value)}
+                              disabled={!canAssignDefect}
+                              style={{ ...inp, minWidth: 170, fontSize: 13, padding: "6px 8px", color: "#334155" }}
+                            >
+                              <option value="">Unassigned</option>
+                              {def.assignedTo && !assignableUserDisplayNames.includes(def.assignedTo) && (
+                                <option value={def.assignedTo}>{def.assignedTo} (current)</option>
+                              )}
+                              {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                            </select>
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
+                            <select value={def.status} onChange={e => updateDefStatus(def.id, e.target.value)} onClick={e => e.stopPropagation()} disabled={!canUpdateDefectStatus}
+                              style={{ background: DEFECT_STATUS[def.status]?.bg, color: DEFECT_STATUS[def.status]?.text, border: `1.5px solid ${DEFECT_STATUS[def.status]?.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 14, fontWeight: 700, cursor: "pointer", outline: "none" }}>
+                              {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
+                            </select>
+                          </td>
+                          <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
+                            {def.openDateTime ? new Date(def.openDateTime).toLocaleString() : "-"}
+                          </td>
+                          <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
+                            {def.closeDateTime ? new Date(def.closeDateTime).toLocaleString() : "-"}
+                          </td>
+                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                            <span style={{ fontWeight: 700, fontSize: 14, color: aged > 7 ? "#ef4444" : aged > 3 ? "#f97316" : "#22c55e" }}>{aged}d</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════
+          TAB: DASHBOARD
+      ══════════════════════════════════ */}
+          {activeTab === "dashboard" && (() => {
+            const DonutChart = ({ segments, size = 130, strokeWidth = 18, label, subLabel }) => {
+              const r = (size - strokeWidth) / 2;
+              const C = 2 * Math.PI * r;
+              const cx = size / 2, cy = size / 2;
+              const total = segments.reduce((s, g) => s + g.value, 0);
+              let acc = 0;
+              return (
+                <svg width={size} height={size} style={{ display: "block" }}>
+                  <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} />
+                  {total === 0
+                    ? <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth={strokeWidth} />
+                    : segments.filter(s => s.value > 0).map((seg, i) => {
+                      const dash = (seg.value / total) * C;
+                      const rot = -90 + (acc / total) * 360;
+                      acc += seg.value;
+                      return <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={seg.color} strokeWidth={strokeWidth} strokeDasharray={`${dash} ${C - dash}`} transform={`rotate(${rot} ${cx} ${cy})`} />;
+                    })}
+                  {label != null && (
+                    <text x={cx} y={subLabel ? cy + 1 : cy + 8} textAnchor="middle" style={{ fontSize: size < 100 ? 14 : 20, fontWeight: 800, fill: "#0f172a" }}>{label}</text>
+                  )}
+                  {subLabel && <text x={cx} y={cy + (size < 100 ? 14 : 20)} textAnchor="middle" style={{ fontSize: 10, fill: "#94a3b8" }}>{subLabel}</text>}
+                </svg>
+              );
+            };
+            const BarChart = ({ data, height = 170 }) => {
+              if (!data || data.length === 0) return null;
+              const barW = 22, gapW = 10;
+              const totalW = data.length * (barW + gapW) - gapW;
+              const chartH = height;
+              const maxVal = Math.max(...data.map(d => d.passed + d.failed + d.blocked), 1);
+              return (
+                <div>
+                  <svg width="100%" height={chartH} viewBox={`0 0 ${totalW} ${chartH}`} preserveAspectRatio="none">
+                    {data.map((d, i) => {
+                      const x = i * (barW + gapW);
+                      const pH = (d.passed / maxVal) * chartH;
+                      const fH = (d.failed / maxVal) * chartH;
+                      const bH = (d.blocked / maxVal) * chartH;
+                      return (
+                        <g key={i}>
+                          {pH > 0 && <rect x={x} y={chartH - pH - fH - bH} width={barW} height={pH} fill="#22c55e" rx={2} />}
+                          {fH > 0 && <rect x={x} y={chartH - fH - bH} width={barW} height={fH} fill="#f43f5e" />}
+                          {bH > 0 && <rect x={x} y={chartH - bH} width={barW} height={bH} fill="#f97316" />}
+                          {pH === 0 && fH === 0 && bH === 0 && <rect x={x} y={chartH - 2} width={barW} height={2} fill="#e2e8f0" rx={2} />}
+                        </g>
+                      );
+                    })}
+                  </svg>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                    {data.map((d, i) => (
+                      <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            };
+            const LineChart = ({ data, height = 170 }) => {
+              if (!data || data.length < 2) return null;
+              const chartW = 600, chartH = height;
+              const maxVal = Math.max(...data.flatMap(d => [d.newCount, d.closedCount]), 1);
+              const px = i => (i / (data.length - 1)) * chartW;
+              const py = v => chartH - (v / maxVal) * (chartH - 6);
+              const newPts = data.map((d, i) => `${px(i)},${py(d.newCount)}`).join(" ");
+              const clPts = data.map((d, i) => `${px(i)},${py(d.closedCount)}`).join(" ");
+              return (
+                <div>
+                  <svg width="100%" height={chartH} viewBox={`0 0 ${chartW} ${chartH}`} preserveAspectRatio="xMidYMid meet">
+                    {[0.25, 0.5, 0.75, 1].map(f => (
+                      <line key={f} x1={0} y1={chartH * (1 - f)} x2={chartW} y2={chartH * (1 - f)} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                    ))}
+                    <polyline points={newPts} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                    <polyline points={clPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                    {data.map((d, i) => (
+                      <g key={i}>
+                        <circle cx={px(i)} cy={py(d.newCount)} r={4} fill="#3b82f6" vectorEffect="non-scaling-stroke" />
+                        <circle cx={px(i)} cy={py(d.closedCount)} r={3.5} fill="#94a3b8" vectorEffect="non-scaling-stroke" />
+                      </g>
+                    ))}
+                  </svg>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                    {data.map((d, i) => (
+                      <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            };
+            const { tcCount, entryCount, passedTotal, failedTotal, defTotal, openDefs, passRate, availableRuns,
+              execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays } = dashboardStats;
+            const blockedTotal = execByStatus["Blocked"] || 0;
+            const execSegs = [
+              { value: passedTotal, color: "#22c55e" },
+              { value: failedTotal, color: "#f43f5e" },
+              { value: blockedTotal, color: "#f97316" },
+              { value: Math.max(0, entryCount - passedTotal - failedTotal - blockedTotal), color: "#e2e8f0" },
+            ];
+            return (
+              <div ref={dashboardRef} style={{ background: "#fff", minHeight: "calc(100vh - 60px)", padding: "24px 28px 40px" }}>
+                {/* Filters row */}
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <select value={dashProjectId} onChange={e => { setDashProjectId(e.target.value); setDashPlanId(""); setDashRunId(""); }}
+                      style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
+                      <option value="">🏢 All Projects</option>
+                      {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                    </select>
+                    <select value={dashPlanId} onChange={e => { setDashPlanId(e.target.value); setDashRunId(""); }}
+                      style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
+                      <option value="">All Test Plans</option>
+                      {(projects.find(p => String(p.id) === dashProjectId)?.testPlans || []).map(tp => (
+                        <option key={tp.id} value={String(tp.id)}>{tp.name}</option>
+                      ))}
+                    </select>
+                    <select value={dashRunId} onChange={e => setDashRunId(e.target.value)}
+                      style={{ ...inp, width: "auto", minWidth: 180, fontSize: 13 }}>
+                      <option value="">All Test Runs</option>
+                      {availableRuns.map(r => (
+                        <option key={r.id} value={String(r.id)}>{r.name}</option>
+                      ))}
+                    </select>
+                    <button onClick={() => { if (!dashboardRef.current) return; html2canvas(dashboardRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "uat-dashboard.png"; a.click(); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>📥 Export Report</button>
+                  </div>
+                </div>
+                {/* Top 5 summary cards */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, marginBottom: 18 }}>
+                  {[
+                    { icon: "📋", iconBg: "#eff6ff", label: "Total Test Cases", value: tcCount, sub: "Linked to active plans", color: "#6366f1" },
+                    { icon: "✅", iconBg: "#f0fdf4", label: "Passed", value: passedTotal, sub: `of ${entryCount.toLocaleString()} executed`, color: "#15803d" },
+                    { icon: "❌", iconBg: "#fff1f2", label: "Failed", value: failedTotal, sub: `of ${entryCount.toLocaleString()} executed`, color: "#be123c" },
+                    { icon: "🚫", iconBg: "#fff7ed", label: "Blocked", value: blockedTotal, sub: `of ${entryCount.toLocaleString()} executed`, color: "#c2410c" },
+                  ].map(({ icon, iconBg, label, value, sub, color }) => (
+                    <div key={label} style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 16 }}>
+                      <div style={{ width: 56, height: 56, borderRadius: 14, background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>{icon}</div>
+                      <div>
+                        <div style={{ fontSize: 12, color, fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{value.toLocaleString()}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{sub}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 12 }}>
+                      <div style={{ width: 56, height: 56, borderRadius: 14, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0, marginTop: 18 }}>📈</div>
+                      <div>
+                        <div style={{ fontSize: 12, color: "#6366f1", fontWeight: 700, marginBottom: 4 }}>Execution Progress</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{passRate}%</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{passedTotal.toLocaleString()} passed / {tcCount.toLocaleString()} total</div>
+                      </div>
+                    </div>
+                    <div style={{ marginLeft: 72, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+                      <div style={{ width: `${passRate}%`, height: "100%", background: "linear-gradient(90deg,#6366f1,#818cf8)", borderRadius: 99 }} />
+                    </div>
+                  </div>
+                </div>
+                {/* Middle two columns */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
+                  <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 30 }}>Test Execution Breakdown</div>
+                    {Object.entries(execByStatus).map(([status, count]) => {
+                      const meta = EXEC_STATUS[status];
+                      const pct = entryCount > 0 ? Math.round((count / entryCount) * 100) : 0;
+                      return (
+                        <div key={status} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, width: 88, flexShrink: 0 }}>
+                            <span style={{ width: 10, height: 10, borderRadius: "50%", background: meta?.dot || "#94a3b8", display: "inline-block", flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{status}</span>
+                          </div>
+                          <div style={{ flex: 1, height: 7, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+                            <div style={{ width: `${pct}%`, height: "100%", background: meta?.dot || "#94a3b8", borderRadius: 99 }} />
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "#334155", width: 28, textAlign: "right", flexShrink: 0 }}>{count}</span>
+                          <span style={{ fontSize: 12, color: "#94a3b8", width: 32, textAlign: "right", flexShrink: 0 }}>{pct}%</span>
+                        </div>
+                      );
+                    })}
+                    <div style={{ marginTop: 28, paddingTop: 16, borderTop: "1.5px solid #f1f5f9", display: "flex", alignItems: "center", gap: 16 }}>
+                      <DonutChart size={100} strokeWidth={16} label={`${passRate}%`} segments={execSegs} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: "#334155" }}>Overall Execution Progress</div>
+                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{passedTotal.toLocaleString()} / {tcCount.toLocaleString()} Test Cases Executed</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 34 }}>Defect Status Breakdown</div>
+                    <div style={{ display: "flex", gap: 36, alignItems: "flex-start", marginBottom: 18 }}>
+                      <div style={{ flexShrink: 0 }}>
+                        <DonutChart size={165} strokeWidth={35} label={defTotal} subLabel="Total"
+                          segments={Object.entries(defByStatus).map(([s, c]) => ({ value: c, color: DEFECT_STATUS[s]?.dot || "#94a3b8" }))}
+                        />
+                      </div>
+                      <div style={{ flex: 1, paddingLeft: 8 }}>
+                        {Object.entries(defByStatus).map(([status, count]) => {
+                          const meta = DEFECT_STATUS[status];
+                          const pct = defTotal > 0 ? Math.round((count / defTotal) * 100) : 0;
+                          return (
+                            <div key={status} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 9 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: "50%", background: meta?.dot || "#94a3b8", flexShrink: 0 }} />
+                              <span style={{ fontSize: 13, color: "#64748b", width: 92, flexShrink: 0 }}>{status}</span>
+                              <div style={{ flex: 1, minWidth: 0, height: 5, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+                                <div style={{ width: `${pct}%`, height: "100%", background: meta?.dot || "#94a3b8", borderRadius: 99 }} />
+                              </div>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: "#334155", width: 18, textAlign: "right", flexShrink: 0 }}>{count}</span>
+                              <span style={{ fontSize: 12, color: "#94a3b8", width: 30, textAlign: "right", flexShrink: 0 }}>{pct}%</span>
+                            </div>
                           );
                         })}
                       </div>
                     </div>
-                  );
-                })()}
-
-                {canWrite && <AddTcToRunRow testCases={allTestCases} run={viewRun} onAdd={tcId => addTcToRun(viewRun.id, tcId)} />}
-
-                <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-                  {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases in this run yet.</div>}
-                  {sortedRunEntries.map(entry => {
-                    const tc = allTestCaseById[entry.testCaseId];
-                    const ec = EXEC_STATUS[entry.execStatus] || EXEC_STATUS["Not Run"];
-                    const entryDefects = entry.defects || [];
-                    return (
-                      <div key={entry.id} style={{ border: `1.5px solid ${ec.border}`, borderRadius: 12, padding: "14px 16px", background: ec.bg, cursor: "pointer" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                              <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#fff", padding: "1px 7px", borderRadius: 5, border: "1px solid #c7d2fe", flexShrink: 0 }}>{tc?.tcNumber}</span>
-                              <PriBadge label={tc?.priority || "Medium"} />
+                    <div style={{ borderTop: "1.5px solid #f1f5f9", paddingTop: 14 }}>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: "#0f172a", marginBottom: 12 }}>⚠ Defect Priority</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+                        {Object.entries(PRIORITY_META).map(([pri, meta]) => {
+                          const count = defByPriority[pri] || 0;
+                          return (
+                            <div key={pri} style={{ background: meta.bg + "18", border: `1.5px solid ${meta.bg}44`, borderRadius: 12, padding: "10px 6px", textAlign: "center" }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: meta.bg, marginBottom: 4, textTransform: "uppercase" }}>{pri}</div>
+                              <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{count}</div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                              <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 15, lineHeight: 1.4 }}>{tc?.name || entry.testCaseId}</div>
-                              <button
-                                type="button"
-                                title={tc ? "Click to view test case details" : "Test case details unavailable"}
-                                onClick={() => {
-                                  if (!tc) return;
-                                  setViewTC(tc);
-                                }}
-                                disabled={!tc}
-                                style={{
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: "50%",
-                                  border: "1px solid #cbd5e1",
-                                  background: tc ? "#fff" : "#f1f5f9",
-                                  color: tc ? "#475569" : "#94a3b8",
-                                  fontSize: 12,
-                                  fontWeight: 800,
-                                  lineHeight: 1,
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  cursor: tc ? "pointer" : "not-allowed",
-                                  padding: 0,
-                                  flexShrink: 0
-                                }}
-                              >
-                                i
-                              </button>
-                            </div>
-                            <div style={{ marginTop: 10 }}>
-                              {[...(entry.comments || [])]
-                                .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-                                .map(c => (
-                                  <div
-                                    key={c.id}
-                                    style={{
-                                      background: "#fff",
-                                      border: "1px solid #e2e8f0",
-                                      borderRadius: 8,
-                                      padding: "8px 12px",
-                                      marginBottom: 8
-                                    }}
-                                  >
-                                    <div style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      marginBottom: 4
-                                    }}>
-                                      <span style={{
-                                        fontWeight: 700,
-                                        color: "#475569",
-                                        fontSize: 12
-                                      }}>
-                                        {c.tester}
-                                      </span>
-
-                                      <div style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 8
-                                      }}>
-                                        <span style={{
-                                          fontSize: 11,
-                                          color: "#94a3b8"
-                                        }}>
-                                          {new Date(c.createdAt).toLocaleString()}
-                                        </span>
-
-                                        {canDelete && (
-                                          <button
-                                            onClick={() =>
-                                              deleteComment(
-                                                viewRun.id,
-                                                entry.testCaseId,
-                                                c.id
-                                              )
-                                            }
-                                            style={{
-                                              border: "none",
-                                              background: "none",
-                                              color: "#ef4444",
-                                              cursor: "pointer"
-                                            }}
-                                          >
-                                            ✕
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    <div style={{
-                                      fontSize: 13,
-                                      color: "#334155"
-                                    }}>
-                                      {c.message}
-                                    </div>
-                                  </div>
-                                ))}
-
-                              <div style={{
-                                display: "flex",
-                                gap: 8
-                              }}>
-                                <input
-                                  placeholder="Add comment... (use @Display Name to tag)"
-                                  value={commentDrafts[entry.testCaseId] || ""}
-                                  ref={node => registerMentionInputRef(`run-${entry.testCaseId}`, node)}
-                                  onChange={e => {
-                                    const value = e.target.value;
-                                    handleMentionInputChange(
-                                      "run",
-                                      `run-${entry.testCaseId}`,
-                                      value,
-                                      next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
-                                    );
-                                  }}
-                                  onKeyDown={e => handleMentionKeyDown(
-                                    e,
-                                    "run",
-                                    `run-${entry.testCaseId}`,
-                                    commentDrafts[entry.testCaseId] || "",
-                                    next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
-                                  )}
-                                  style={{
-                                    ...inp,
-                                    fontSize: 12,
-                                    flex: 1
-                                  }}
-                                />
-
-                                {canComment && (
-                                  <button
-                                    onClick={() =>
-                                      addComment(
-                                        viewRun.id,
-                                        entry.testCaseId
-                                      )
-                                    }
-                                    style={btnP}
-                                  >
-                                    Add
-                                  </button>
-                                )}
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Trends */}
+                <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 18 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 20 }}>📈 Trends (Last 7 Days)</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 28 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Daily Test Execution Trend</div>
+                      <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
+                        {[["Passed", "#22c55e"], ["Failed", "#f43f5e"], ["Blocked", "#f97316"]].map(([l, c]) => (
+                          <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
+                          </span>
+                        ))}
+                      </div>
+                      <BarChart data={trendDays} height={170} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Defect Trend</div>
+                      <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
+                        {[["New", "#3b82f6"], ["Closed", "#94a3b8"]].map(([l, c]) => (
+                          <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
+                          </span>
+                        ))}
+                      </div>
+                      <LineChart data={defectTrendDays} height={170} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 14 }}>Defects by Priority</div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, paddingTop: 50 }}>
+                        <div style={{ flexShrink: 0 }}>
+                          <DonutChart size={130} strokeWidth={20} label={defTotal} subLabel="Total"
+                            segments={Object.entries(PRIORITY_META).map(([pri, meta]) => ({ value: defByPriority[pri] || 0, color: meta.bg }))}
+                          />
+                        </div>
+                        <div>
+                          {Object.entries(PRIORITY_META).map(([pri, meta]) => {
+                            const count = defByPriority[pri] || 0;
+                            const pct = defTotal > 0 ? Math.round((count / defTotal) * 100) : 0;
+                            return (
+                              <div key={pri} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13 }}>
+                                <span style={{ width: 9, height: 9, borderRadius: "50%", background: meta.bg, flexShrink: 0 }} />
+                                <span style={{ color: "#64748b", width: 90 }}>{pri}</span>
+                                <span style={{ fontWeight: 700, color: "#334155", minWidth: 20, textAlign: "right" }}>{count}</span>
+                                <span style={{ color: "#94a3b8", minWidth: 38, textAlign: "right" }}>{pct}%</span>
                               </div>
-                              {mentionPicker?.type === "run" && mentionPicker?.key === `run-${entry.testCaseId}` && (
-                                <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
-                                  {mentionPicker.list.map((u, idx) => (
-                                    <button
-                                      key={`run-mention-${entry.testCaseId}-${u.id}`}
-                                      type="button"
-                                      onMouseDown={e => e.preventDefault()}
-                                      onClick={() => {
-                                        const current = commentDrafts[entry.testCaseId] || "";
-                                        selectMention(
-                                          "run",
-                                          `run-${entry.testCaseId}`,
-                                          current,
-                                          next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next })),
-                                          u.displayName
-                                        );
-                                      }}
-                                      style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: mentionPicker.activeIndex === idx ? "#eff6ff" : "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
-                                    >
-                                      {u.displayName}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <select value={entry.execStatus || "Not Run"} onChange={e => updateExecStatus(viewRun.id, entry.testCaseId, e.target.value)} disabled={!canWrite}
-                                style={{ background: ec.bg, color: ec.text, border: `1.5px solid ${ec.border}`, borderRadius: 20, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", outline: "none" }}>
-                                {Object.keys(EXEC_STATUS).map(s => <option key={s}>{s}</option>)}
-                              </select>
-                              {canDelete && (
-                                <button onClick={() => removeTcFromRun(viewRun.id, entry.testCaseId)} title="Remove from run"
-                                  style={{ background: "#f1f5f9", border: "none", color: "#94a3b8", width: 28, height: 28, borderRadius: 6, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-                              )}
-                            </div>
-                            {entry.statusChangedAt && (
-                              <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", lineHeight: 1.3 }}>
-                                <div>Changed: {new Date(entry.statusChangedAt).toLocaleDateString()} {new Date(entry.statusChangedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                {entry.statusChangedBy && <div>by {entry.statusChangedBy}</div>}
-                              </div>
-                            )}
-                            {canWrite && (entry.execStatus === "Fail" || entry.execStatus === "Failed") && entryDefects.length === 0 && (
-                              <button onClick={() => createDefect(viewRun.id, entry.testCaseId)} style={btnD}>🐛 Create Defect</button>
-                            )}
-                            {entryDefects.map(d => (
-                              <span key={d.id} style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", background: "#fff1f2", border: "1px solid #fecdd3", padding: "3px 10px", borderRadius: 20, cursor: "pointer" }}
-                                onClick={() => setViewDef(d)}>
-                                🔗 {d.defectNumber}
-                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Per-plan summary table */}
+                {!dashPlanId && perPlanStats.length > 0 && (
+                  <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ padding: "16px 24px", borderBottom: "1.5px solid #f1f5f9", fontWeight: 800, fontSize: 15, color: "#0f172a" }}>Test Plan Summary</div>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ background: "#f8fafc" }}>
+                            {["Project", "Test Plan", "Test Cases", "Executions", "Passed", "Failed", "Total Defects", "Open Defects"].map(h => (
+                              <th key={h} style={{ padding: "10px 16px", textAlign: h === "Project" || h === "Test Plan" ? "left" : "center", fontWeight: 700, color: "#64748b", textTransform: "uppercase", fontSize: 11, whiteSpace: "nowrap" }}>{h}</th>
                             ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {perPlanStats.map(({ tp, projectName, tcCount: ptc, defCount, openDefs: pOpen, passed, failed, totalEntries }) => (
+                            <tr key={tp.id} style={{ borderTop: "1px solid #f8fafc" }}>
+                              <td style={{ padding: "11px 16px", color: "#64748b" }}>{projectName}</td>
+                              <td style={{ padding: "11px 16px", fontWeight: 700, color: "#334155" }}>{tp.name}</td>
+                              <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: "#6366f1" }}>{ptc}</td>
+                              <td style={{ padding: "11px 16px", textAlign: "center", color: "#64748b" }}>{totalEntries}</td>
+                              <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: "#22c55e" }}>{passed}</td>
+                              <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: failed > 0 ? "#ef4444" : "#94a3b8" }}>{failed}</td>
+                              <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: defCount > 0 ? "#f97316" : "#94a3b8" }}>{defCount}</td>
+                              <td style={{ padding: "11px 16px", textAlign: "center" }}>
+                                {pOpen > 0
+                                  ? <span style={{ background: "#fee2e2", color: "#b91c1c", borderRadius: 999, padding: "3px 12px", fontWeight: 700, fontSize: 12 }}>{pOpen}</span>
+                                  : <span style={{ color: "#22c55e", fontWeight: 700 }}>0</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            );
+          })()}
+
+          {/* ── MODAL: VIEW TC ── */}
+          {viewTC && (
+            <Modal onClose={() => setViewTC(null)} zIndex={1300}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                <div>
+                  <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 10px", borderRadius: 6, border: "1px solid #c7d2fe" }}>{viewTC.tcNumber}</span>
+                  <div style={{ color: "#0f172a", fontSize: 16, fontWeight: 700, marginTop: 8, lineHeight: 1.4 }}>{viewTC.name}</div>
+                </div>
+                <button onClick={() => setViewTC(null)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
+                <PriBadge label={viewTC.priority} />
+                <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{viewTC.category.split("(")[0].trim()}</span>
+              </div>
+              <div style={{ display: "grid", gap: 14 }}>
+                {viewTC.description && <DetailBlock label="Description" value={viewTC.description} />}
+                <DetailBlock label="Test Steps" value={viewTC.steps} pre />
+                <DetailBlock label="Expected Result" value={viewTC.expectedResult} accent />
+                {viewTC.testScopeId && testScopeNameById[viewTC.testScopeId] && (
+                  <DetailBlock label="Testing Scope" value={testScopeNameById[viewTC.testScopeId]} />
+                )}
+                {viewTC.remarks && <DetailBlock label="Remarks" value={viewTC.remarks} />}
+              </div>
+              <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1.5px solid #f1f5f9" }}>
+                <div style={{ ...lbl, marginBottom: 10 }}>Attachments</div>
+                {canWrite && <div
+                  onPaste={e => onTestCasePasteUpload(e, viewTC.id)}
+                  style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
+                >
+                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+                    Paste screenshot with Ctrl+V or attach file(s)
+                  </div>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={e => {
+                      uploadTestCaseFiles(viewTC.id, e.target.files);
+                      e.target.value = "";
+                    }}
+                    style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
+                  />
+                </div>}
+                <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                  {(testCaseAttachments[viewTC.id] || []).length === 0 && (
+                    <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments yet.</div>
+                  )}
+
+                  {(testCaseAttachments[viewTC.id] || []).map(a => (
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                      <button
+                        type="button"
+                        onClick={() => openAttachment(a.url, a.fileName)}
+                        style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                        title="Open attachment"
+                      >
+                        {a.fileName}
+                      </button>
+                      <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
+                      <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
+                      <button onClick={() => deleteTestCaseAttachment(viewTC.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                    </div>
+                  ))}
+
+                  {uploadingTestCaseId === viewTC.id && (
+                    <div style={{ color: "#64748b", fontSize: 12 }}>Uploading...</div>
+                  )}
+                </div>
+              </div>
+            </Modal>
+          )}
+
+          {/* ── MODAL: RUN DETAIL ── */}
+          {viewRun && (
+            <Modal onClose={() => setViewRun(null)} wide>
+              {(() => {
+                const sortedRunEntries = sortRunEntriesByTestCaseId(viewRun.entries);
+                return (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                      <div>
+                        <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 5 }}>{viewRun.runNumber}</span>
+                        <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginTop: 6 }}>{viewRun.name}</div>
+                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>👤 {viewRun.tester} · {viewRun.createdAt?.slice(0, 10)}</div>
+                      </div>
+                      <button onClick={() => setViewRun(null)} style={xBtn}>✕</button>
+                    </div>
+
+                    {(() => {
+                      const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+                          <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
+                          <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
+                          <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
+                          <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
+                          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 120, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#22c55e" : "linear-gradient(90deg,#6366f1,#06b6d4)", borderRadius: 99 }} />
+                            </div>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
+                          </div>
+                          <div style={{ flexBasis: "100%", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {Object.keys(EXEC_STATUS).map(status => {
+                              const s = byStatusPriority[status];
+                              if (!s || s.total === 0) return null;
+                              return (
+                                <span key={status} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 999, padding: "4px 10px", fontSize: 12, color: "#475569", fontWeight: 700 }}>
+                                  {status}: High {s.High} | Medium {s.Medium} | Low {s.Low}
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
+                      );
+                    })()}
+
+                    {canWrite && <AddTcToRunRow testCases={allTestCases} run={viewRun} onAdd={tcId => addTcToRun(viewRun.id, tcId)} />}
+
+                    <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+                      {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases in this run yet.</div>}
+                      {sortedRunEntries.map(entry => {
+                        const tc = allTestCaseById[entry.testCaseId];
+                        const ec = EXEC_STATUS[entry.execStatus] || EXEC_STATUS["Not Run"];
+                        const entryDefects = entry.defects || [];
+                        return (
+                          <div key={entry.id} style={{ border: `1.5px solid ${ec.border}`, borderRadius: 12, padding: "14px 16px", background: ec.bg, cursor: "pointer" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                  <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#fff", padding: "1px 7px", borderRadius: 5, border: "1px solid #c7d2fe", flexShrink: 0 }}>{tc?.tcNumber}</span>
+                                  <PriBadge label={tc?.priority || "Medium"} />
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                  <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 15, lineHeight: 1.4 }}>{tc?.name || entry.testCaseId}</div>
+                                  <button
+                                    type="button"
+                                    title={tc ? "Click to view test case details" : "Test case details unavailable"}
+                                    onClick={() => {
+                                      if (!tc) return;
+                                      setViewTC(tc);
+                                    }}
+                                    disabled={!tc}
+                                    style={{
+                                      width: 22,
+                                      height: 22,
+                                      borderRadius: "50%",
+                                      border: "1px solid #cbd5e1",
+                                      background: tc ? "#fff" : "#f1f5f9",
+                                      color: tc ? "#475569" : "#94a3b8",
+                                      fontSize: 12,
+                                      fontWeight: 800,
+                                      lineHeight: 1,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      cursor: tc ? "pointer" : "not-allowed",
+                                      padding: 0,
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    i
+                                  </button>
+                                </div>
+                                <div style={{ marginTop: 10 }}>
+                                  {[...(entry.comments || [])]
+                                    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+                                    .map(c => (
+                                      <div
+                                        key={c.id}
+                                        style={{
+                                          background: "#fff",
+                                          border: "1px solid #e2e8f0",
+                                          borderRadius: 8,
+                                          padding: "8px 12px",
+                                          marginBottom: 8
+                                        }}
+                                      >
+                                        <div style={{
+                                          display: "flex",
+                                          justifyContent: "space-between",
+                                          marginBottom: 4
+                                        }}>
+                                          <span style={{
+                                            fontWeight: 700,
+                                            color: "#475569",
+                                            fontSize: 12
+                                          }}>
+                                            {c.tester}
+                                          </span>
+
+                                          <div style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 8
+                                          }}>
+                                            <span style={{
+                                              fontSize: 11,
+                                              color: "#94a3b8"
+                                            }}>
+                                              {new Date(c.createdAt).toLocaleString()}
+                                            </span>
+
+                                            {canDelete && (
+                                              <button
+                                                onClick={() =>
+                                                  deleteComment(
+                                                    viewRun.id,
+                                                    entry.testCaseId,
+                                                    c.id
+                                                  )
+                                                }
+                                                style={{
+                                                  border: "none",
+                                                  background: "none",
+                                                  color: "#ef4444",
+                                                  cursor: "pointer"
+                                                }}
+                                              >
+                                                ✕
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div style={{
+                                          fontSize: 13,
+                                          color: "#334155"
+                                        }}>
+                                          {c.message}
+                                        </div>
+                                      </div>
+                                    ))}
+
+                                  <div style={{
+                                    display: "flex",
+                                    gap: 8
+                                  }}>
+                                    <input
+                                      placeholder="Add comment... (use @Display Name to tag)"
+                                      value={commentDrafts[entry.testCaseId] || ""}
+                                      ref={node => registerMentionInputRef(`run-${entry.testCaseId}`, node)}
+                                      onChange={e => {
+                                        const value = e.target.value;
+                                        handleMentionInputChange(
+                                          "run",
+                                          `run-${entry.testCaseId}`,
+                                          value,
+                                          next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
+                                        );
+                                      }}
+                                      onKeyDown={e => handleMentionKeyDown(
+                                        e,
+                                        "run",
+                                        `run-${entry.testCaseId}`,
+                                        commentDrafts[entry.testCaseId] || "",
+                                        next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next }))
+                                      )}
+                                      style={{
+                                        ...inp,
+                                        fontSize: 12,
+                                        flex: 1
+                                      }}
+                                    />
+
+                                    {canComment && (
+                                      <button
+                                        onClick={() =>
+                                          addComment(
+                                            viewRun.id,
+                                            entry.testCaseId
+                                          )
+                                        }
+                                        style={btnP}
+                                      >
+                                        Add
+                                      </button>
+                                    )}
+                                  </div>
+                                  {mentionPicker?.type === "run" && mentionPicker?.key === `run-${entry.testCaseId}` && (
+                                    <div style={{ marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                                      {mentionPicker.list.map((u, idx) => (
+                                        <button
+                                          key={`run-mention-${entry.testCaseId}-${u.id}`}
+                                          type="button"
+                                          onMouseDown={e => e.preventDefault()}
+                                          onClick={() => {
+                                            const current = commentDrafts[entry.testCaseId] || "";
+                                            selectMention(
+                                              "run",
+                                              `run-${entry.testCaseId}`,
+                                              current,
+                                              next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next })),
+                                              u.displayName
+                                            );
+                                          }}
+                                          style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: mentionPicker.activeIndex === idx ? "#eff6ff" : "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                        >
+                                          {u.displayName}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <select value={entry.execStatus || "Not Run"} onChange={e => updateExecStatus(viewRun.id, entry.testCaseId, e.target.value)} disabled={!canWrite}
+                                    style={{ background: ec.bg, color: ec.text, border: `1.5px solid ${ec.border}`, borderRadius: 20, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", outline: "none" }}>
+                                    {Object.keys(EXEC_STATUS).map(s => <option key={s}>{s}</option>)}
+                                  </select>
+                                  {canDelete && (
+                                    <button onClick={() => removeTcFromRun(viewRun.id, entry.testCaseId)} title="Remove from run"
+                                      style={{ background: "#f1f5f9", border: "none", color: "#94a3b8", width: 28, height: 28, borderRadius: 6, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                                  )}
+                                </div>
+                                {entry.statusChangedAt && (
+                                  <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", lineHeight: 1.3 }}>
+                                    <div>Changed: {new Date(entry.statusChangedAt).toLocaleDateString()} {new Date(entry.statusChangedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                    {entry.statusChangedBy && <div>by {entry.statusChangedBy}</div>}
+                                  </div>
+                                )}
+                                {canWrite && (entry.execStatus === "Fail" || entry.execStatus === "Failed") && entryDefects.length === 0 && (
+                                  <button onClick={() => createDefect(viewRun.id, entry.testCaseId)} style={btnD}>🐛 Create Defect</button>
+                                )}
+                                {entryDefects.map(d => (
+                                  <span key={d.id} style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", background: "#fff1f2", border: "1px solid #fecdd3", padding: "3px 10px", borderRadius: 20, cursor: "pointer" }}
+                                    onClick={() => setViewDef(d)}>
+                                    🔗 {d.defectNumber}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </Modal>
+          )}
+
+          {/* ── MODAL: DEFECT DETAIL ── */}
+          {viewDef && (
+            <Modal onClose={() => setViewDef(null)}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Defect Details</div>
+                <button onClick={() => setViewDef(null)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Market</label>
+                    <input
+                      value={viewDef.market || ""}
+                      style={{ ...inp, background: "#f8fafc" }}
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>Run</label>
+                    <input
+                      value={viewDef.runNumber || "Standalone"}
+                      style={{ ...inp, background: "#f8fafc" }}
+                      readOnly
+                    />
+                  </div>
+                  {viewDef.tcNumber && (
+                    <div>
+                      <label style={lbl}>Test Case</label>
+                      <input
+                        value={viewDef.tcNumber}
+                        style={{ ...inp, background: "#f8fafc" }}
+                        readOnly
+                      />
+                    </div>
+                  )}
+                  {viewDef.testPlanId && (
+                    <div>
+                      <label style={lbl}>Test Plan</label>
+                      <input
+                        value={testPlanMetaById[viewDef.testPlanId]
+                          ? `${testPlanMetaById[viewDef.testPlanId].projectName} — ${testPlanMetaById[viewDef.testPlanId].testPlanName}`
+                          : `Plan #${viewDef.testPlanId}`}
+                        style={{ ...inp, background: "#f8fafc" }}
+                        readOnly
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label style={lbl}>Issue Type</label>
+                  <input
+                    value={viewDef.issueType || ""}
+                    style={{ ...inp, background: "#f8fafc" }}
+                    readOnly
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Description</label>
+                  <textarea
+                    value={viewDef.description || ""}
+                    readOnly
+                    style={{ ...inp, minHeight: 80, resize: "vertical", background: "#f8fafc" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Expected Result</label>
+                  <textarea
+                    value={viewDef.expectedResult || ""}
+                    readOnly
+                    style={{ ...inp, minHeight: 70, resize: "vertical", background: "#f8fafc" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Actual Result</label>
+                  <textarea
+                    value={viewDef.actualResult || ""}
+                    readOnly
+                    style={{ ...inp, minHeight: 70, resize: "vertical", background: "#f8fafc" }}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Priority</label>
+                    <input
+                      value={viewDef.priority || ""}
+                      style={{ ...inp, background: "#f8fafc" }}
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>Raised By</label>
+                    <input
+                      value={viewDef.raisedBy || ""}
+                      style={{ ...inp, background: "#f8fafc" }}
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>Assigned To</label>
+                    <input
+                      value={viewDef.assignedTo || "Unassigned"}
+                      style={{ ...inp, background: "#f8fafc" }}
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>Target Fix Date</label>
+                    <input
+                      type="date"
+                      value={viewDef.targetFixDate ? String(viewDef.targetFixDate).slice(0, 10) : ""}
+                      style={{ ...inp, background: "#f8fafc" }}
+                      readOnly
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={lbl}>Remarks</label>
+                  <textarea
+                    value={viewDef.remarks || ""}
+                    readOnly
+                    style={{ ...inp, minHeight: 60, resize: "vertical", background: "#f8fafc" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Attachments</label>
+                  <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+                    {(defectAttachments[viewDef.id] || []).length === 0 && (
+                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments.</div>
+                    )}
+                    {(defectAttachments[viewDef.id] || []).map(a => (
+                      <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                        <button
+                          type="button"
+                          onClick={() => openAttachment(a.url, a.fileName)}
+                          style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                          title="Open attachment"
+                        >
+                          {a.fileName}
+                        </button>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
+                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={lbl}>Comments</label>
+                  <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+                    {(viewDef.comments || []).length === 0 && (
+                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No comments yet.</div>
+                    )}
+                    {(viewDef.comments || []).map(c => (
+                      <div key={c.id} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontWeight: 700, color: "#475569", fontSize: 12 }}>{c.tester}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(c.createdAt).toLocaleString()}</span>
+                            {canDelete && (
+                              <button
+                                onClick={() => deleteDefectComment(viewDef.id, c.id)}
+                                style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
+                              >✕</button>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 13, color: "#334155" }}>{c.message}</div>
+                      </div>
+                    ))}
+                    {canComment && (
+                      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                        <input
+                          placeholder="Add a comment..."
+                          value={defectCommentDrafts[viewDef.id] || ""}
+                          onChange={e => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addDefectComment(viewDef.id); } }}
+                          style={{ ...inp, fontSize: 13, flex: 1 }}
+                        />
+                        <button
+                          onClick={() => addDefectComment(viewDef.id)}
+                          disabled={!defectCommentDrafts[viewDef.id]?.trim()}
+                          style={{ ...btnP, opacity: defectCommentDrafts[viewDef.id]?.trim() ? 1 : 0.5 }}
+                        >Add</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
+                <button onClick={() => setViewDef(null)} style={btnS}>Close</button>
+              </div>
+            </Modal>
+          )}
+
+          {/* ── MODAL: EDIT DEFECT ── */}
+          {editDef && (
+            <Modal onClose={() => setEditDef(null)}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Defect</div>
+                <button onClick={() => setEditDef(null)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Market</label>
+                    <select
+                      value={editDef.market || "SG"}
+                      onChange={e => setEditDef(p => ({ ...p, market: e.target.value }))}
+                      style={inp}
+                    >
+                      {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Run</label>
+                    <select
+                      value={editDef.linkedRunId || ""}
+                      onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value || "" }))}
+                      style={inp}
+                    >
+                      <option value="">Standalone defect</option>
+                      {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
+                    </select>
+                  </div>
+                  {editDef.linkedRunId && (
+                    <div>
+                      <label style={lbl}>Test Case</label>
+                      <select
+                        value={editDef.linkedTestCaseId || ""}
+                        onChange={e => setEditDef(p => ({ ...p, linkedTestCaseId: e.target.value || "" }))}
+                        style={inp}
+                      >
+                        <option value="">No specific test case (run-level defect)</option>
+                        {(() => {
+                          const run = runs.find(r => String(r.id) === String(editDef.linkedRunId));
+                          const options = (run?.entries || [])
+                            .map(en => allTestCaseById[en.testCaseId])
+                            .filter(Boolean);
+                          return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
+                        })()}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label style={lbl}>Issue Type</label>
+                  <select
+                    value={editDef.issueType || "Functional Issue"}
+                    onChange={e => setEditDef(p => ({ ...p, issueType: e.target.value }))}
+                    style={inp}
+                  >
+                    {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={lbl}>Description</label>
+                  <textarea
+                    value={editDef.description || ""}
+                    onChange={e => setEditDef(p => ({ ...p, description: e.target.value }))}
+                    style={{ ...inp, minHeight: 80, resize: "vertical" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Expected Result</label>
+                  <textarea
+                    value={editDef.expectedResult || ""}
+                    onChange={e => setEditDef(p => ({ ...p, expectedResult: e.target.value }))}
+                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Actual Result</label>
+                  <textarea
+                    value={editDef.actualResult || ""}
+                    onChange={e => setEditDef(p => ({ ...p, actualResult: e.target.value }))}
+                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Priority</label>
+                    <select
+                      value={editDef.priority} onChange={e => setEditDef(p => ({ ...p, priority: e.target.value }))}
+                      style={inp}
+                    >
+                      {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Raised By</label>
+                    <input
+                      value={editDef.raisedBy || ""}
+                      style={{ ...inp, background: "#f8fafc" }}
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>Assigned To</label>
+                    <select
+                      value={editDef.assignedTo || ""}
+                      onChange={e => setEditDef(p => ({ ...p, assignedTo: e.target.value }))}
+                      style={inp}
+                    >
+                      <option value="">Unassigned</option>
+                      {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Target Fix Date</label>
+                    <input
+                      type="date"
+                      value={editDef.targetFixDate ? String(editDef.targetFixDate).slice(0, 10) : ""}
+                      onChange={e => setEditDef(p => ({ ...p, targetFixDate: e.target.value }))}
+                      style={inp}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={lbl}>Remarks</label>
+                  <textarea
+                    value={editDef.remarks || ""}
+                    onChange={e => setEditDef(p => ({ ...p, remarks: e.target.value }))}
+                    style={{ ...inp, minHeight: 60, resize: "vertical" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Attachments</label>
+                  <div
+                    onPaste={onDefectPasteUpload}
+                    style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
+                  >
+                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+                      Paste screenshot with Ctrl+V or attach file(s)
+                    </div>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={e => {
+                        queueDefectFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                      style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                    {newDefAttachments.length === 0 && (
+                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
+                    )}
+
+                    {newDefAttachments.map((f, i) => (
+                      <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                        <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
+                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is created</span>
+                        <button onClick={() => removeQueuedDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
+                <button onClick={() => { setEditDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
+                <button onClick={saveDefectEdits} style={{ ...btnP, opacity: !editDef?.description ? 0.5 : 1 }} disabled={!editDef?.description}>Save Changes</button>
+              </div>
+            </Modal>
+          )}
+
+          {/* ── MODAL: ADD TC ── */}
+          {showAddTC && (
+            <Modal onClose={() => setShowAddTC(false)}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Add Test Case</div>
+                <button onClick={() => setShowAddTC(false)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 14 }}>
+                <div><label style={lbl}>Test Name *</label><input value={newTC.name} onChange={e => setNewTC(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="[Market] - [Module] - [Feature] - [Expected]" /></div>
+                <div><label style={lbl}>Description</label><textarea value={newTC.description} onChange={e => setNewTC(p => ({ ...p, description: e.target.value }))} style={{ ...inp, minHeight: 70, resize: "vertical" }} /></div>
+                <div><label style={lbl}>Test Steps</label><textarea value={newTC.steps} onChange={e => setNewTC(p => ({ ...p, steps: e.target.value }))} style={{ ...inp, minHeight: 90, resize: "vertical" }} placeholder="Step 1: …&#10;Step 2: …" /></div>
+                <div><label style={lbl}>Expected Result</label><input value={newTC.expected} onChange={e => setNewTC(p => ({ ...p, expected: e.target.value }))} style={inp} /></div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div><label style={lbl}>Priority</label>
+                    <select value={newTC.priority} onChange={e => setNewTC(p => ({ ...p, priority: e.target.value }))} style={inp}>
+                      {TEST_CASE_PRIORITIES.map(p => <option key={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div><label style={lbl}>Category</label>
+                    <select value={newTC.category} onChange={e => setNewTC(p => ({ ...p, category: e.target.value }))} style={inp}>
+                      {categories.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div><label style={lbl}>Testing Scope</label>
+                  <select value={newTC.testScopeId} onChange={e => setNewTC(p => ({ ...p, testScopeId: e.target.value }))} style={inp}>
+                    <option value="">No scope</option>
+                    {(testScopesByPlanId[selectedTestPlanId] || []).map(scope => (
+                      <option key={scope.id} value={scope.id}>{scope.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div><label style={lbl}>Remarks</label><input value={newTC.remarks} onChange={e => setNewTC(p => ({ ...p, remarks: e.target.value }))} style={inp} /></div>
+                <div style={{ marginTop: 2 }}>
+                  <label style={lbl}>Attachments</label>
+                  <div
+                    onPaste={onNewTestCasePasteUpload}
+                    style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
+                  >
+                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+                      Paste screenshot with Ctrl+V or attach file(s)
+                    </div>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={e => {
+                        queueNewTestCaseFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                      style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                    {newTCAttachments.length === 0 && (
+                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
+                    )}
+
+                    {newTCAttachments.map((f, i) => (
+                      <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                        <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
+                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after test case is created</span>
+                        <button onClick={() => removeQueuedNewTestCaseFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
+                <button onClick={() => setShowAddTC(false)} style={btnS}>Cancel</button>
+                <button onClick={addTC} style={{ ...btnP, opacity: (!newTC.name || !selectedTestPlanId) ? 0.5 : 1 }} disabled={!newTC.name || !selectedTestPlanId}>Add Test Case</button>
+              </div>
+            </Modal>
+          )}
+
+          {showAddProject && canManageProjects && (
+            <Modal onClose={() => setShowAddProject(false)}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Add Project</div>
+                <button onClick={() => setShowAddProject(false)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 12 }}>
+                <div>
+                  <label style={lbl}>Project Name *</label>
+                  <input value={newProjectName} onChange={e => setNewProjectName(e.target.value)} style={inp} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Start Date *</label>
+                    <input type="date" value={newProjectStartDate} onChange={e => setNewProjectStartDate(e.target.value)} style={inp} />
+                  </div>
+                  <div>
+                    <label style={lbl}>End Date *</label>
+                    <input type="date" value={newProjectEndDate} onChange={e => setNewProjectEndDate(e.target.value)} style={inp} />
+                  </div>
+                </div>
+                {!isValidDateRange(newProjectStartDate, newProjectEndDate) && (newProjectStartDate || newProjectEndDate) && (
+                  <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Project start date must be on or before end date.</div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
+                <button onClick={() => setShowAddProject(false)} style={btnS}>Cancel</button>
+                <button onClick={addProject} style={{ ...btnP, opacity: (!newProjectName.trim() || !isValidDateRange(newProjectStartDate, newProjectEndDate)) ? 0.5 : 1 }} disabled={!newProjectName.trim() || !isValidDateRange(newProjectStartDate, newProjectEndDate)}>Create Project</button>
+              </div>
+            </Modal>
+          )}
+
+          {showAddPlan && canManageProjects && (
+            <Modal onClose={() => setShowAddPlan(false)}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Add Test Plan</div>
+                <button onClick={() => setShowAddPlan(false)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 12 }}>
+                <div>
+                  <label style={lbl}>Project</label>
+                  <input value={selectedProject?.name || "No project selected"} style={{ ...inp, background: "#f8fafc" }} readOnly />
+                </div>
+                <div>
+                  <label style={lbl}>Project Timeline</label>
+                  <input value={formatTimeline(selectedProject?.startDate, selectedProject?.endDate)} style={{ ...inp, background: "#f8fafc" }} readOnly />
+                </div>
+                <div>
+                  <label style={lbl}>Test Plan Name *</label>
+                  <input value={newPlanName} onChange={e => setNewPlanName(e.target.value)} style={inp} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Start Date *</label>
+                    <input
+                      type="date"
+                      value={newPlanStartDate}
+                      onChange={e => setNewPlanStartDate(e.target.value)}
+                      min={toInputDate(selectedProject?.startDate)}
+                      max={toInputDate(selectedProject?.endDate) || undefined}
+                      style={inp}
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>End Date *</label>
+                    <input
+                      type="date"
+                      value={newPlanEndDate}
+                      onChange={e => setNewPlanEndDate(e.target.value)}
+                      min={toInputDate(selectedProject?.startDate)}
+                      max={toInputDate(selectedProject?.endDate) || undefined}
+                      style={inp}
+                    />
+                  </div>
+                </div>
+                {!isValidDateRange(newPlanStartDate, newPlanEndDate) && (newPlanStartDate || newPlanEndDate) && (
+                  <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Test plan start date must be on or before end date.</div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
+                <button onClick={() => setShowAddPlan(false)} style={btnS}>Cancel</button>
+                <button onClick={addTestPlan} style={{ ...btnP, opacity: (!newPlanName.trim() || !selectedProjectId || !isValidDateRange(newPlanStartDate, newPlanEndDate)) ? 0.5 : 1 }} disabled={!newPlanName.trim() || !selectedProjectId || !isValidDateRange(newPlanStartDate, newPlanEndDate)}>Create Test Plan</button>
+              </div>
+            </Modal>
+          )}
+
+          {showManageScopes && managingTestPlan && canManageProjects && (
+            <Modal onClose={() => { setShowManageScopes(false); setManagingTestPlan(null); }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Testing Scopes - {managingTestPlan.name}</div>
+                <button onClick={() => { setShowManageScopes(false); setManagingTestPlan(null); }} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                <input
+                  value={newScopeName}
+                  onChange={e => setNewScopeName(e.target.value)}
+                  style={inp}
+                  placeholder="Add a scope name"
+                />
+                <button
+                  onClick={addTestingScope}
+                  style={{ ...btnP, opacity: newScopeName.trim() ? 1 : 0.5 }}
+                  disabled={!newScopeName.trim()}
+                >
+                  + Add
+                </button>
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {(testScopesByPlanId[managingTestPlan.id] || []).length === 0 && (
+                  <div style={{ color: "#94a3b8", fontSize: 14, padding: "8px 0" }}>No testing scopes yet.</div>
+                )}
+                {(testScopesByPlanId[managingTestPlan.id] || []).map(scope => (
+                  <div key={scope.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                    <span style={{ color: "#334155", fontWeight: 700 }}>{scope.name}</span>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete testing scope "${scope.name}"?`)) deleteTestingScope(scope.id);
+                      }}
+                      style={btnD}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Modal>
+          )}
+
+          {showEditProject && canManageProjects && (
+            <Modal onClose={() => setShowEditProject(false)}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Project</div>
+                <button onClick={() => setShowEditProject(false)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 12 }}>
+                <div>
+                  <label style={lbl}>Project Name *</label>
+                  <input value={editProjectName} onChange={e => setEditProjectName(e.target.value)} style={inp} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Start Date *</label>
+                    <input type="date" value={editProjectStartDate} onChange={e => setEditProjectStartDate(e.target.value)} style={inp} />
+                  </div>
+                  <div>
+                    <label style={lbl}>End Date *</label>
+                    <input type="date" value={editProjectEndDate} onChange={e => setEditProjectEndDate(e.target.value)} style={inp} />
+                  </div>
+                </div>
+                {!isValidDateRange(editProjectStartDate, editProjectEndDate) && (editProjectStartDate || editProjectEndDate) && (
+                  <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Project start date must be on or before end date.</div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
+                <button onClick={() => setShowEditProject(false)} style={btnS}>Cancel</button>
+                <button onClick={updateProjectName} style={{ ...btnP, opacity: (!editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate)) ? 0.5 : 1 }} disabled={!editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate)}>Save Changes</button>
+              </div>
+            </Modal>
+          )}
+
+          {showEditPlan && canManageProjects && (
+            <Modal onClose={() => setShowEditPlan(false)}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Test Plan</div>
+                <button onClick={() => setShowEditPlan(false)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 12 }}>
+                <div>
+                  <label style={lbl}>Test Plan Name *</label>
+                  <input value={editPlanName} onChange={e => setEditPlanName(e.target.value)} style={inp} />
+                </div>
+                <div>
+                  <label style={lbl}>Project Timeline</label>
+                  <input value={formatTimeline(selectedProject?.startDate, selectedProject?.endDate)} style={{ ...inp, background: "#f8fafc" }} readOnly />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Start Date *</label>
+                    <input
+                      type="date"
+                      value={editPlanStartDate}
+                      onChange={e => setEditPlanStartDate(e.target.value)}
+                      min={toInputDate(selectedProject?.startDate)}
+                      max={toInputDate(selectedProject?.endDate) || undefined}
+                      style={inp}
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>End Date *</label>
+                    <input
+                      type="date"
+                      value={editPlanEndDate}
+                      onChange={e => setEditPlanEndDate(e.target.value)}
+                      min={toInputDate(selectedProject?.startDate)}
+                      max={toInputDate(selectedProject?.endDate) || undefined}
+                      style={inp}
+                    />
+                  </div>
+                </div>
+                {!isValidDateRange(editPlanStartDate, editPlanEndDate) && (editPlanStartDate || editPlanEndDate) && (
+                  <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Test plan start date must be on or before end date.</div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
+                <button onClick={() => setShowEditPlan(false)} style={btnS}>Cancel</button>
+                <button onClick={updateTestPlanName} style={{ ...btnP, opacity: (!editPlanName.trim() || !isValidDateRange(editPlanStartDate, editPlanEndDate)) ? 0.5 : 1 }} disabled={!editPlanName.trim() || !isValidDateRange(editPlanStartDate, editPlanEndDate)}>Save Changes</button>
+              </div>
+            </Modal>
+          )}
+
+          {/* ── MODAL: Edit TC ── */}
+          {editTC && (
+            <Modal onClose={() => setEditTC(null)}>
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 22
+              }}>
+                <div style={{
+                  fontSize: 17,
+                  fontWeight: 800
+                }}>
+                  Edit Test Case
+                </div>
+
+                <button
+                  onClick={() => setEditTC(null)}
+                  style={xBtn}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gap: 14 }}>
+
+                <div>
+                  <label style={lbl}>Test Name *</label>
+
+                  <input
+                    value={editTC.name}
+                    onChange={e =>
+                      setEditTC(p => ({
+                        ...p,
+                        name: e.target.value
+                      }))
+                    }
+                    style={inp}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Description</label>
+
+                  <textarea
+                    value={editTC.description}
+                    onChange={e =>
+                      setEditTC(p => ({
+                        ...p,
+                        description: e.target.value
+                      }))
+                    }
+                    style={{
+                      ...inp,
+                      minHeight: 70,
+                      resize: "vertical"
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Test Steps</label>
+
+                  <textarea
+                    value={editTC.steps}
+                    onChange={e =>
+                      setEditTC(p => ({
+                        ...p,
+                        steps: e.target.value
+                      }))
+                    }
+                    style={{
+                      ...inp,
+                      minHeight: 90,
+                      resize: "vertical"
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Expected Result</label>
+
+                  <input
+                    value={editTC.expected}
+                    onChange={e =>
+                      setEditTC(p => ({
+                        ...p,
+                        expected: e.target.value
+                      }))
+                    }
+                    style={inp}
+                  />
+                </div>
+
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12
+                }}>
+
+                  <div>
+                    <label style={lbl}>Priority</label>
+
+                    <select
+                      value={editTC.priority}
+                      onChange={e =>
+                        setEditTC(p => ({
+                          ...p,
+                          priority: e.target.value
+                        }))
+                      }
+                      style={inp}
+                    >
+                      {TEST_CASE_PRIORITIES.map(p =>
+                        <option key={p}>{p}</option>
+                      )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={lbl}>Category</label>
+
+                    <select
+                      value={editTC.category}
+                      onChange={e =>
+                        setEditTC(p => ({
+                          ...p,
+                          category: e.target.value
+                        }))
+                      }
+                      style={inp}
+                    >
+                      {categories.map(c =>
+                        <option key={c}>{c}</option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={lbl}>Remarks</label>
+
+                  <input
+                    value={editTC.remarks}
+                    onChange={e =>
+                      setEditTC(p => ({
+                        ...p,
+                        remarks: e.target.value
+                      }))
+                    }
+                    style={inp}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Testing Scope</label>
+                  <select
+                    value={editTC.testScopeId || ""}
+                    onChange={e =>
+                      setEditTC(p => ({
+                        ...p,
+                        testScopeId: e.target.value
+                      }))
+                    }
+                    style={inp}
+                  >
+                    <option value="">No scope</option>
+                    {(testScopesByPlanId[editTC.testPlanId] || []).map(scope => (
+                      <option key={scope.id} value={scope.id}>{scope.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ marginTop: 2 }}>
+                  <label style={lbl}>Attachments</label>
+                  <div
+                    onPaste={e => onTestCasePasteUpload(e, editTC.id)}
+                    style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
+                  >
+                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+                      Paste screenshot with Ctrl+V or attach file(s)
+                    </div>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={e => {
+                        uploadTestCaseFiles(editTC.id, e.target.files);
+                        e.target.value = "";
+                      }}
+                      style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                    {(testCaseAttachments[editTC.id] || []).length === 0 && (
+                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments yet.</div>
+                    )}
+
+                    {(testCaseAttachments[editTC.id] || []).map(a => (
+                      <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                        <button
+                          type="button"
+                          onClick={() => openAttachment(a.url, a.fileName)}
+                          style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                          title="Open attachment"
+                        >
+                          {a.fileName}
+                        </button>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
+                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
+                        <button onClick={() => deleteTestCaseAttachment(editTC.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                      </div>
+                    ))}
+
+                    {uploadingTestCaseId === editTC.id && (
+                      <div style={{ color: "#64748b", fontSize: 12 }}>Uploading...</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                display: "flex",
+                gap: 10,
+                marginTop: 22,
+                justifyContent: "flex-end"
+              }}>
+                <button
+                  onClick={() => setEditTC(null)}
+                  style={btnS}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={updateTC}
+                  style={btnP}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </Modal>
+          )}
+
+          {/* ── MODAL: EDIT RUN ── */}
+          {editRun && (
+            <Modal onClose={() => { setEditRun(null); setEditRunTesterSearch(""); }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Test Run</div>
+                <button onClick={() => { setEditRun(null); setEditRunTesterSearch(""); }} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 14, marginBottom: 20 }}>
+                <div>
+                  <label style={lbl}>Run Name *</label>
+                  <input value={editRun.name} onChange={e => setEditRun(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="e.g. UAT 6.1 - SG Regression - Round 1" />
+                </div>
+                <div>
+                  <label style={lbl}>Testers</label>
+                  <input
+                    value={editRunTesterSearch}
+                    onChange={e => setEditRunTesterSearch(e.target.value)}
+                    style={inp}
+                    placeholder="Search testers..."
+                  />
+                  <div style={{ border: "1.5px solid #e2e8f0", borderRadius: 8, marginTop: 6, maxHeight: 180, overflowY: "auto", background: "#fff" }}>
+                    {(() => {
+                      const allTesters = Array.from(new Set([
+                        ...(mentionUsers || []).map(u => ({ id: u.id, displayName: u.displayName })),
+                        ...(users || []).map(u => ({ id: u.id, displayName: u.displayName })),
+                      ].filter(u => u.displayName).reduce((map, u) => { map.set(u.displayName, u); return map; }, new Map()).values()))
+                        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+                      const filtered = editRunTesterSearch
+                        ? allTesters.filter(u => u.displayName.toLowerCase().includes(editRunTesterSearch.toLowerCase()))
+                        : allTesters;
+                      if (filtered.length === 0) return (
+                        <div style={{ padding: "12px", color: "#94a3b8", fontSize: 13, textAlign: "center" }}>No testers found</div>
+                      );
+                      return filtered.map(u => (
+                        <button
+                          key={u.id || u.displayName}
+                          onClick={() => {
+                            const selected = editRun.selectedTesters.includes(u.displayName);
+                            setEditRun(p => ({
+                              ...p,
+                              selectedTesters: selected
+                                ? p.selectedTesters.filter(t => t !== u.displayName)
+                                : [...p.selectedTesters, u.displayName]
+                            }));
+                          }}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            border: "none",
+                            borderBottom: "1px solid #f1f5f9",
+                            background: editRun.selectedTesters.includes(u.displayName) ? "#eff6ff" : "#fff",
+                            color: "#0f172a",
+                            padding: "9px 12px",
+                            fontSize: 13,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8
+                          }}
+                        >
+                          <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${editRun.selectedTesters.includes(u.displayName) ? "#6366f1" : "#e2e8f0"}`, background: editRun.selectedTesters.includes(u.displayName) ? "#6366f1" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {editRun.selectedTesters.includes(u.displayName) && <span style={{ color: "#fff", fontSize: 10, fontWeight: 900 }}>✓</span>}
+                          </div>
+                          {u.displayName}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                  {editRun.selectedTesters.length > 0 && (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                      {editRun.selectedTesters.map(t => (
+                        <div key={t} style={{ display: "flex", alignItems: "center", gap: 6, background: "#eff6ff", border: "1px solid #c7d2fe", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "#4f46e5" }}>
+                          {t}
+                          <button onClick={() => setEditRun(p => ({ ...p, selectedTesters: p.selectedTesters.filter(x => x !== t) }))} style={{ background: "none", border: "none", color: "#4f46e5", cursor: "pointer", fontSize: 14, padding: 0 }}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button onClick={() => { setEditRun(null); setEditRunTesterSearch(""); }} style={btnS}>Cancel</button>
+                <button onClick={saveRunEdits} style={{ ...btnP, opacity: !editRun.name ? 0.5 : 1 }} disabled={!editRun.name}>
+                  Save Changes
+                </button>
+              </div>
+            </Modal>
+          )}
+
+          {/* ── MODAL: NEW RUN ── */}
+          {showAddRun && (
+            <Modal onClose={() => { setShowAddRun(false); setTesterSearch(""); }} wide>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>New Test Run</div>
+                <button onClick={() => { setShowAddRun(false); setTesterSearch(""); }} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 14, marginBottom: 20 }}>
+                <div><label style={lbl}>Run Name *</label><input value={newRun.name} onChange={e => setNewRun(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="e.g. UAT 6.1 - SG Regression - Round 1" /></div>
+                <div style={{ position: "relative" }}>
+                  <label style={lbl}>Testers (Optional)</label>
+                  <input
+                    value={testerSearch}
+                    onChange={e => setTesterSearch(e.target.value)}
+                    style={inp}
+                    placeholder="Search testers..."
+                  />
+                  <div style={{ border: "1.5px solid #e2e8f0", borderRadius: 8, marginTop: 6, maxHeight: 180, overflowY: "auto", background: "#fff" }}>
+                    {(() => {
+                      const allTesters = Array.from(new Set([
+                        ...(mentionUsers || []).map(u => ({ id: u.id, displayName: u.displayName })),
+                        ...(users || []).map(u => ({ id: u.id, displayName: u.displayName })),
+                      ].filter(u => u.displayName).reduce((map, u) => { map.set(u.displayName, u); return map; }, new Map()).values()))
+                        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+                      const filtered = testerSearch
+                        ? allTesters.filter(u => u.displayName.toLowerCase().includes(testerSearch.toLowerCase()))
+                        : allTesters;
+                      if (filtered.length === 0) return (
+                        <div style={{ padding: "12px", color: "#94a3b8", fontSize: 13, textAlign: "center" }}>No testers found</div>
+                      );
+                      return filtered.map(u => (
+                        <button
+                          key={u.id || u.displayName}
+                          onClick={() => {
+                            const selected = newRun.selectedTesters.includes(u.displayName);
+                            setNewRun(p => ({
+                              ...p,
+                              selectedTesters: selected
+                                ? p.selectedTesters.filter(t => t !== u.displayName)
+                                : [...p.selectedTesters, u.displayName]
+                            }));
+                          }}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            border: "none",
+                            borderBottom: "1px solid #f1f5f9",
+                            background: newRun.selectedTesters.includes(u.displayName) ? "#eff6ff" : "#fff",
+                            color: "#0f172a",
+                            padding: "9px 12px",
+                            fontSize: 13,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8
+                          }}
+                        >
+                          <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${newRun.selectedTesters.includes(u.displayName) ? "#6366f1" : "#e2e8f0"}`, background: newRun.selectedTesters.includes(u.displayName) ? "#6366f1" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {newRun.selectedTesters.includes(u.displayName) && <span style={{ color: "#fff", fontSize: 10, fontWeight: 900 }}>✓</span>}
+                          </div>
+                          {u.displayName}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                  {newRun.selectedTesters.length > 0 && (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                      {newRun.selectedTesters.map(t => (
+                        <div key={t} style={{ display: "flex", alignItems: "center", gap: 6, background: "#eff6ff", border: "1px solid #c7d2fe", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "#4f46e5" }}>
+                          {t}
+                          <button onClick={() => setNewRun(p => ({ ...p, selectedTesters: p.selectedTesters.filter(x => x !== t) }))} style={{ background: "none", border: "none", color: "#4f46e5", cursor: "pointer", fontSize: 14, padding: 0 }}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{ ...lbl, marginBottom: 10 }}>Select Test Cases</div>
+              <input
+                value={newRun.tcSearch || ""}
+                onChange={e => setNewRun(p => ({ ...p, tcSearch: e.target.value }))}
+                style={{ ...inp, marginBottom: 8 }}
+                placeholder="Search test cases..."
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <label style={{ fontSize: 13, color: "#334155", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={(() => {
+                      const filtered = testCases.filter(tc => {
+                        const q = (newRun.tcSearch || "").toLowerCase();
+                        return (
+                          tc.tcNumber.toLowerCase().includes(q) ||
+                          tc.name.toLowerCase().includes(q)
+                        );
+                      });
+                      return filtered.length > 0 && filtered.every(tc => newRun.selectedTcIds.includes(tc.id));
+                    })()}
+                    indeterminate={(() => {
+                      const filtered = testCases.filter(tc => {
+                        const q = (newRun.tcSearch || "").toLowerCase();
+                        return (
+                          tc.tcNumber.toLowerCase().includes(q) ||
+                          tc.name.toLowerCase().includes(q)
+                        );
+                      });
+                      const checkedCount = filtered.filter(tc => newRun.selectedTcIds.includes(tc.id)).length;
+                      return checkedCount > 0 && checkedCount < filtered.length;
+                    })()}
+                    onChange={e => {
+                      const filtered = testCases.filter(tc => {
+                        const q = (newRun.tcSearch || "").toLowerCase();
+                        return (
+                          tc.tcNumber.toLowerCase().includes(q) ||
+                          tc.name.toLowerCase().includes(q)
+                        );
+                      });
+                      if (e.target.checked) {
+                        setNewRun(p => ({
+                          ...p,
+                          selectedTcIds: Array.from(new Set([...p.selectedTcIds, ...filtered.map(tc => tc.id)])),
+                        }));
+                      } else {
+                        setNewRun(p => ({
+                          ...p,
+                          selectedTcIds: p.selectedTcIds.filter(id => !filtered.some(tc => tc.id === id)),
+                        }));
+                      }
+                    }}
+                    style={{ marginRight: 6 }}
+                  />
+                  Select All
+                </label>
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>{newRun.selectedTcIds.length} selected</span>
+              </div>
+              <div style={{ border: "1.5px solid #f1f5f9", borderRadius: 10, overflow: "hidden", maxHeight: 340, overflowY: "auto" }}>
+                {testCases
+                  .filter(tc => {
+                    const q = (newRun.tcSearch || "").toLowerCase();
+                    return (
+                      tc.tcNumber.toLowerCase().includes(q) ||
+                      tc.name.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((tc, i) => {
+                    const checked = newRun.selectedTcIds.includes(tc.id);
+                    return (
+                      <div key={tc.id} onClick={() => setNewRun(p => ({ ...p, selectedTcIds: checked ? p.selectedTcIds.filter(x => x !== tc.id) : [...p.selectedTcIds, tc.id] }))}
+                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", background: checked ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${checked ? "#6366f1" : "#e2e8f0"}`, background: checked ? "#6366f1" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {checked && <span style={{ color: "#fff", fontSize: 11, fontWeight: 900 }}>✓</span>}
+                        </div>
+                        <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#fff", padding: "1px 6px", borderRadius: 4, border: "1px solid #c7d2fe", flexShrink: 0 }}>{tc.tcNumber}</span>
+                        <span style={{ fontSize: 15, color: "#1e293b", fontWeight: 500 }}>{tc.name}</span>
+                        <span style={{ marginLeft: "auto", flexShrink: 0 }}><PriBadge label={tc.priority} /></span>
                       </div>
                     );
                   })}
-                </div>
-              </>
-            );
-          })()}
-        </Modal>
-      )}
-
-      {/* ── MODAL: DEFECT DETAIL ── */}
-      {viewDef && (
-        <Modal onClose={() => setViewDef(null)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Defect Details</div>
-            <button onClick={() => setViewDef(null)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Market</label>
-                <input
-                  value={viewDef.market || ""}
-                  style={{ ...inp, background: "#f8fafc" }}
-                  readOnly
-                />
               </div>
-              <div>
-                <label style={lbl}>Run</label>
-                <input
-                  value={viewDef.runNumber || "Standalone"}
-                  style={{ ...inp, background: "#f8fafc" }}
-                  readOnly
-                />
-              </div>
-              {viewDef.tcNumber && (
-                <div>
-                  <label style={lbl}>Test Case</label>
-                  <input
-                    value={viewDef.tcNumber}
-                    style={{ ...inp, background: "#f8fafc" }}
-                    readOnly
-                  />
-                </div>
-              )}
-              {viewDef.testPlanId && (
-                <div>
-                  <label style={lbl}>Test Plan</label>
-                  <input
-                    value={testPlanMetaById[viewDef.testPlanId]
-                      ? `${testPlanMetaById[viewDef.testPlanId].projectName} — ${testPlanMetaById[viewDef.testPlanId].testPlanName}`
-                      : `Plan #${viewDef.testPlanId}`}
-                    style={{ ...inp, background: "#f8fafc" }}
-                    readOnly
-                  />
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label style={lbl}>Issue Type</label>
-              <input
-                value={viewDef.issueType || ""}
-                style={{ ...inp, background: "#f8fafc" }}
-                readOnly
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Description</label>
-              <textarea
-                value={viewDef.description || ""}
-                readOnly
-                style={{ ...inp, minHeight: 80, resize: "vertical", background: "#f8fafc" }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Expected Result</label>
-              <textarea
-                value={viewDef.expectedResult || ""}
-                readOnly
-                style={{ ...inp, minHeight: 70, resize: "vertical", background: "#f8fafc" }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Actual Result</label>
-              <textarea
-                value={viewDef.actualResult || ""}
-                readOnly
-                style={{ ...inp, minHeight: 70, resize: "vertical", background: "#f8fafc" }}
-              />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Priority</label>
-                <input
-                  value={viewDef.priority || ""}
-                  style={{ ...inp, background: "#f8fafc" }}
-                  readOnly
-                />
-              </div>
-              <div>
-                <label style={lbl}>Raised By</label>
-                <input
-                  value={viewDef.raisedBy || ""}
-                  style={{ ...inp, background: "#f8fafc" }}
-                  readOnly
-                />
-              </div>
-              <div>
-                <label style={lbl}>Assigned To</label>
-                <input
-                  value={viewDef.assignedTo || "Unassigned"}
-                  style={{ ...inp, background: "#f8fafc" }}
-                  readOnly
-                />
-              </div>
-              <div>
-                <label style={lbl}>Target Fix Date</label>
-                <input
-                  type="date"
-                  value={viewDef.targetFixDate ? String(viewDef.targetFixDate).slice(0, 10) : ""}
-                  style={{ ...inp, background: "#f8fafc" }}
-                  readOnly
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={lbl}>Remarks</label>
-              <textarea
-                value={viewDef.remarks || ""}
-                readOnly
-                style={{ ...inp, minHeight: 60, resize: "vertical", background: "#f8fafc" }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Attachments</label>
-              <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
-                {(defectAttachments[viewDef.id] || []).length === 0 && (
-                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments.</div>
-                )}
-                {(defectAttachments[viewDef.id] || []).map(a => (
-                  <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                    <button
-                      type="button"
-                      onClick={() => openAttachment(a.url, a.fileName)}
-                      style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                      title="Open attachment"
-                    >
-                      {a.fileName}
-                    </button>
-                    <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
-                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label style={lbl}>Comments</label>
-              <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
-                {(viewDef.comments || []).length === 0 && (
-                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No comments yet.</div>
-                )}
-                {(viewDef.comments || []).map(c => (
-                  <div key={c.id} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontWeight: 700, color: "#475569", fontSize: 12 }}>{c.tester}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(c.createdAt).toLocaleString()}</span>
-                        {canDelete && (
-                          <button
-                            onClick={() => deleteDefectComment(viewDef.id, c.id)}
-                            style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
-                          >✕</button>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 13, color: "#334155" }}>{c.message}</div>
-                  </div>
-                ))}
-                {canComment && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                    <input
-                      placeholder="Add a comment..."
-                      value={defectCommentDrafts[viewDef.id] || ""}
-                      onChange={e => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: e.target.value }))}
-                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addDefectComment(viewDef.id); } }}
-                      style={{ ...inp, fontSize: 13, flex: 1 }}
-                    />
-                    <button
-                      onClick={() => addDefectComment(viewDef.id)}
-                      disabled={!defectCommentDrafts[viewDef.id]?.trim()}
-                      style={{ ...btnP, opacity: defectCommentDrafts[viewDef.id]?.trim() ? 1 : 0.5 }}
-                    >Add</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => setViewDef(null)} style={btnS}>Close</button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── MODAL: EDIT DEFECT ── */}
-      {editDef && (
-        <Modal onClose={() => setEditDef(null)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Defect</div>
-            <button onClick={() => setEditDef(null)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Market</label>
-                <select
-                  value={editDef.market || "SG"}
-                  onChange={e => setEditDef(p => ({ ...p, market: e.target.value }))}
-                  style={inp}
-                >
-                  {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Run</label>
-                <select
-                  value={editDef.linkedRunId || ""}
-                  onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value || "" }))}
-                  style={inp}
-                >
-                  <option value="">Standalone defect</option>
-                  {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
-                </select>
-              </div>
-              {editDef.linkedRunId && (
-                <div>
-                  <label style={lbl}>Test Case</label>
-                  <select
-                    value={editDef.linkedTestCaseId || ""}
-                    onChange={e => setEditDef(p => ({ ...p, linkedTestCaseId: e.target.value || "" }))}
-                    style={inp}
-                  >
-                    <option value="">No specific test case (run-level defect)</option>
-                    {(() => {
-                      const run = runs.find(r => String(r.id) === String(editDef.linkedRunId));
-                      const options = (run?.entries || [])
-                        .map(en => allTestCaseById[en.testCaseId])
-                        .filter(Boolean);
-                      return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
-                    })()}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label style={lbl}>Issue Type</label>
-              <select
-                value={editDef.issueType || "Functional Issue"}
-                onChange={e => setEditDef(p => ({ ...p, issueType: e.target.value }))}
-                style={inp}
-              >
-                {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label style={lbl}>Description</label>
-              <textarea
-                value={editDef.description || ""}
-                onChange={e => setEditDef(p => ({ ...p, description: e.target.value }))}
-                style={{ ...inp, minHeight: 80, resize: "vertical" }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Expected Result</label>
-              <textarea
-                value={editDef.expectedResult || ""}
-                onChange={e => setEditDef(p => ({ ...p, expectedResult: e.target.value }))}
-                style={{ ...inp, minHeight: 70, resize: "vertical" }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Actual Result</label>
-              <textarea
-                value={editDef.actualResult || ""}
-                onChange={e => setEditDef(p => ({ ...p, actualResult: e.target.value }))}
-                style={{ ...inp, minHeight: 70, resize: "vertical" }}
-              />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Priority</label>
-                <select
-                  value={editDef.priority} onChange={e => setEditDef(p => ({ ...p, priority: e.target.value }))}
-                  style={inp}
-                >
-                  {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Raised By</label>
-                <input
-                  value={editDef.raisedBy || ""}
-                  style={{ ...inp, background: "#f8fafc" }}
-                  readOnly
-                />
-              </div>
-              <div>
-                <label style={lbl}>Assigned To</label>
-                <select
-                  value={editDef.assignedTo || ""}
-                  onChange={e => setEditDef(p => ({ ...p, assignedTo: e.target.value }))}
-                  style={inp}
-                >
-                  <option value="">Unassigned</option>
-                  {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Target Fix Date</label>
-                <input
-                  type="date"
-                  value={editDef.targetFixDate ? String(editDef.targetFixDate).slice(0, 10) : ""}
-                  onChange={e => setEditDef(p => ({ ...p, targetFixDate: e.target.value }))}
-                  style={inp}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={lbl}>Remarks</label>
-              <textarea
-                value={editDef.remarks || ""}
-                onChange={e => setEditDef(p => ({ ...p, remarks: e.target.value }))}
-                style={{ ...inp, minHeight: 60, resize: "vertical" }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Attachments</label>
-              <div
-                onPaste={onDefectPasteUpload}
-                style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-              >
-                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                  Paste screenshot with Ctrl+V or attach file(s)
-                </div>
-                <input
-                  type="file"
-                  multiple
-                  onChange={e => {
-                    queueDefectFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                  style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                {newDefAttachments.length === 0 && (
-                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
-                )}
-
-                {newDefAttachments.map((f, i) => (
-                  <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                    <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                    <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
-                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is created</span>
-                    <button onClick={() => removeQueuedDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => { setEditDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
-            <button onClick={saveDefectEdits} style={{ ...btnP, opacity: !editDef?.description ? 0.5 : 1 }} disabled={!editDef?.description}>Save Changes</button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── MODAL: ADD TC ── */}
-      {showAddTC && (
-        <Modal onClose={() => setShowAddTC(false)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Add Test Case</div>
-            <button onClick={() => setShowAddTC(false)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div><label style={lbl}>Test Name *</label><input value={newTC.name} onChange={e => setNewTC(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="[Market] - [Module] - [Feature] - [Expected]" /></div>
-            <div><label style={lbl}>Description</label><textarea value={newTC.description} onChange={e => setNewTC(p => ({ ...p, description: e.target.value }))} style={{ ...inp, minHeight: 70, resize: "vertical" }} /></div>
-            <div><label style={lbl}>Test Steps</label><textarea value={newTC.steps} onChange={e => setNewTC(p => ({ ...p, steps: e.target.value }))} style={{ ...inp, minHeight: 90, resize: "vertical" }} placeholder="Step 1: …&#10;Step 2: …" /></div>
-            <div><label style={lbl}>Expected Result</label><input value={newTC.expected} onChange={e => setNewTC(p => ({ ...p, expected: e.target.value }))} style={inp} /></div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div><label style={lbl}>Priority</label>
-                <select value={newTC.priority} onChange={e => setNewTC(p => ({ ...p, priority: e.target.value }))} style={inp}>
-                  {TEST_CASE_PRIORITIES.map(p => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-              <div><label style={lbl}>Category</label>
-                <select value={newTC.category} onChange={e => setNewTC(p => ({ ...p, category: e.target.value }))} style={inp}>
-                  {categories.map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-            <div><label style={lbl}>Testing Scope</label>
-              <select value={newTC.testScopeId} onChange={e => setNewTC(p => ({ ...p, testScopeId: e.target.value }))} style={inp}>
-                <option value="">No scope</option>
-                {(testScopesByPlanId[selectedTestPlanId] || []).map(scope => (
-                  <option key={scope.id} value={scope.id}>{scope.name}</option>
-                ))}
-              </select>
-            </div>
-            <div><label style={lbl}>Remarks</label><input value={newTC.remarks} onChange={e => setNewTC(p => ({ ...p, remarks: e.target.value }))} style={inp} /></div>
-            <div style={{ marginTop: 2 }}>
-              <label style={lbl}>Attachments</label>
-              <div
-                onPaste={onNewTestCasePasteUpload}
-                style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-              >
-                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                  Paste screenshot with Ctrl+V or attach file(s)
-                </div>
-                <input
-                  type="file"
-                  multiple
-                  onChange={e => {
-                    queueNewTestCaseFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                  style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                {newTCAttachments.length === 0 && (
-                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
-                )}
-
-                {newTCAttachments.map((f, i) => (
-                  <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                    <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                    <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
-                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after test case is created</span>
-                    <button onClick={() => removeQueuedNewTestCaseFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => setShowAddTC(false)} style={btnS}>Cancel</button>
-            <button onClick={addTC} style={{ ...btnP, opacity: (!newTC.name || !selectedTestPlanId) ? 0.5 : 1 }} disabled={!newTC.name || !selectedTestPlanId}>Add Test Case</button>
-          </div>
-        </Modal>
-      )}
-
-      {showAddProject && canManageProjects && (
-        <Modal onClose={() => setShowAddProject(false)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Add Project</div>
-            <button onClick={() => setShowAddProject(false)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 12 }}>
-            <div>
-              <label style={lbl}>Project Name *</label>
-              <input value={newProjectName} onChange={e => setNewProjectName(e.target.value)} style={inp} />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Start Date *</label>
-                <input type="date" value={newProjectStartDate} onChange={e => setNewProjectStartDate(e.target.value)} style={inp} />
-              </div>
-              <div>
-                <label style={lbl}>End Date *</label>
-                <input type="date" value={newProjectEndDate} onChange={e => setNewProjectEndDate(e.target.value)} style={inp} />
-              </div>
-            </div>
-            {!isValidDateRange(newProjectStartDate, newProjectEndDate) && (newProjectStartDate || newProjectEndDate) && (
-              <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Project start date must be on or before end date.</div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
-            <button onClick={() => setShowAddProject(false)} style={btnS}>Cancel</button>
-            <button onClick={addProject} style={{ ...btnP, opacity: (!newProjectName.trim() || !isValidDateRange(newProjectStartDate, newProjectEndDate)) ? 0.5 : 1 }} disabled={!newProjectName.trim() || !isValidDateRange(newProjectStartDate, newProjectEndDate)}>Create Project</button>
-          </div>
-        </Modal>
-      )}
-
-      {showAddPlan && canManageProjects && (
-        <Modal onClose={() => setShowAddPlan(false)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Add Test Plan</div>
-            <button onClick={() => setShowAddPlan(false)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 12 }}>
-            <div>
-              <label style={lbl}>Project</label>
-              <input value={selectedProject?.name || "No project selected"} style={{ ...inp, background: "#f8fafc" }} readOnly />
-            </div>
-            <div>
-              <label style={lbl}>Project Timeline</label>
-              <input value={formatTimeline(selectedProject?.startDate, selectedProject?.endDate)} style={{ ...inp, background: "#f8fafc" }} readOnly />
-            </div>
-            <div>
-              <label style={lbl}>Test Plan Name *</label>
-              <input value={newPlanName} onChange={e => setNewPlanName(e.target.value)} style={inp} />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Start Date *</label>
-                <input
-                  type="date"
-                  value={newPlanStartDate}
-                  onChange={e => setNewPlanStartDate(e.target.value)}
-                  min={toInputDate(selectedProject?.startDate)}
-                  max={toInputDate(selectedProject?.endDate) || undefined}
-                  style={inp}
-                />
-              </div>
-              <div>
-                <label style={lbl}>End Date *</label>
-                <input
-                  type="date"
-                  value={newPlanEndDate}
-                  onChange={e => setNewPlanEndDate(e.target.value)}
-                  min={toInputDate(selectedProject?.startDate)}
-                  max={toInputDate(selectedProject?.endDate) || undefined}
-                  style={inp}
-                />
-              </div>
-            </div>
-            {!isValidDateRange(newPlanStartDate, newPlanEndDate) && (newPlanStartDate || newPlanEndDate) && (
-              <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Test plan start date must be on or before end date.</div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
-            <button onClick={() => setShowAddPlan(false)} style={btnS}>Cancel</button>
-            <button onClick={addTestPlan} style={{ ...btnP, opacity: (!newPlanName.trim() || !selectedProjectId || !isValidDateRange(newPlanStartDate, newPlanEndDate)) ? 0.5 : 1 }} disabled={!newPlanName.trim() || !selectedProjectId || !isValidDateRange(newPlanStartDate, newPlanEndDate)}>Create Test Plan</button>
-          </div>
-        </Modal>
-      )}
-
-      {showManageScopes && managingTestPlan && canManageProjects && (
-        <Modal onClose={() => { setShowManageScopes(false); setManagingTestPlan(null); }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Testing Scopes - {managingTestPlan.name}</div>
-            <button onClick={() => { setShowManageScopes(false); setManagingTestPlan(null); }} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-            <input
-              value={newScopeName}
-              onChange={e => setNewScopeName(e.target.value)}
-              style={inp}
-              placeholder="Add a scope name"
-            />
-            <button
-              onClick={addTestingScope}
-              style={{ ...btnP, opacity: newScopeName.trim() ? 1 : 0.5 }}
-              disabled={!newScopeName.trim()}
-            >
-              + Add
-            </button>
-          </div>
-          <div style={{ display: "grid", gap: 8 }}>
-            {(testScopesByPlanId[managingTestPlan.id] || []).length === 0 && (
-              <div style={{ color: "#94a3b8", fontSize: 14, padding: "8px 0" }}>No testing scopes yet.</div>
-            )}
-            {(testScopesByPlanId[managingTestPlan.id] || []).map(scope => (
-              <div key={scope.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                <span style={{ color: "#334155", fontWeight: 700 }}>{scope.name}</span>
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Delete testing scope "${scope.name}"?`)) deleteTestingScope(scope.id);
-                  }}
-                  style={btnD}
-                >
-                  Delete
+              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
+                <button onClick={() => { setShowAddRun(false); setTesterSearch(""); }} style={btnS}>Cancel</button>
+                <button onClick={addRun} style={{ ...btnP, opacity: (!newRun.name || newRun.selectedTcIds.length === 0) ? 0.5 : 1 }}
+                  disabled={!newRun.name || newRun.selectedTcIds.length === 0}>
+                  Create Run
                 </button>
               </div>
-            ))}
-          </div>
-        </Modal>
-      )}
+            </Modal>
+          )}
 
-      {showEditProject && canManageProjects && (
-        <Modal onClose={() => setShowEditProject(false)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Project</div>
-            <button onClick={() => setShowEditProject(false)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 12 }}>
-            <div>
-              <label style={lbl}>Project Name *</label>
-              <input value={editProjectName} onChange={e => setEditProjectName(e.target.value)} style={inp} />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Start Date *</label>
-                <input type="date" value={editProjectStartDate} onChange={e => setEditProjectStartDate(e.target.value)} style={inp} />
+          {/* ── MODAL: CREATE DEFECT ── */}
+          {showAddDef && (
+            <Modal onClose={() => { setShowAddDef(null); setNewDefAttachments([]); }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Create Defect</div>
+                <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={xBtn}>✕</button>
               </div>
-              <div>
-                <label style={lbl}>End Date *</label>
-                <input type="date" value={editProjectEndDate} onChange={e => setEditProjectEndDate(e.target.value)} style={inp} />
-              </div>
-            </div>
-            {!isValidDateRange(editProjectStartDate, editProjectEndDate) && (editProjectStartDate || editProjectEndDate) && (
-              <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Project start date must be on or before end date.</div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
-            <button onClick={() => setShowEditProject(false)} style={btnS}>Cancel</button>
-            <button onClick={updateProjectName} style={{ ...btnP, opacity: (!editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate)) ? 0.5 : 1 }} disabled={!editProjectName.trim() || !isValidDateRange(editProjectStartDate, editProjectEndDate)}>Save Changes</button>
-          </div>
-        </Modal>
-      )}
-
-      {showEditPlan && canManageProjects && (
-        <Modal onClose={() => setShowEditPlan(false)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Test Plan</div>
-            <button onClick={() => setShowEditPlan(false)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 12 }}>
-            <div>
-              <label style={lbl}>Test Plan Name *</label>
-              <input value={editPlanName} onChange={e => setEditPlanName(e.target.value)} style={inp} />
-            </div>
-            <div>
-              <label style={lbl}>Project Timeline</label>
-              <input value={formatTimeline(selectedProject?.startDate, selectedProject?.endDate)} style={{ ...inp, background: "#f8fafc" }} readOnly />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Start Date *</label>
-                <input
-                  type="date"
-                  value={editPlanStartDate}
-                  onChange={e => setEditPlanStartDate(e.target.value)}
-                  min={toInputDate(selectedProject?.startDate)}
-                  max={toInputDate(selectedProject?.endDate) || undefined}
-                  style={inp}
-                />
-              </div>
-              <div>
-                <label style={lbl}>End Date *</label>
-                <input
-                  type="date"
-                  value={editPlanEndDate}
-                  onChange={e => setEditPlanEndDate(e.target.value)}
-                  min={toInputDate(selectedProject?.startDate)}
-                  max={toInputDate(selectedProject?.endDate) || undefined}
-                  style={inp}
-                />
-              </div>
-            </div>
-            {!isValidDateRange(editPlanStartDate, editPlanEndDate) && (editPlanStartDate || editPlanEndDate) && (
-              <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Test plan start date must be on or before end date.</div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
-            <button onClick={() => setShowEditPlan(false)} style={btnS}>Cancel</button>
-            <button onClick={updateTestPlanName} style={{ ...btnP, opacity: (!editPlanName.trim() || !isValidDateRange(editPlanStartDate, editPlanEndDate)) ? 0.5 : 1 }} disabled={!editPlanName.trim() || !isValidDateRange(editPlanStartDate, editPlanEndDate)}>Save Changes</button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── MODAL: Edit TC ── */}
-      {editTC && (
-        <Modal onClose={() => setEditTC(null)}>
-          <div style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: 22
-          }}>
-            <div style={{
-              fontSize: 17,
-              fontWeight: 800
-            }}>
-              Edit Test Case
-            </div>
-
-            <button
-              onClick={() => setEditTC(null)}
-              style={xBtn}
-            >
-              ✕
-            </button>
-          </div>
-
-          <div style={{ display: "grid", gap: 14 }}>
-
-            <div>
-              <label style={lbl}>Test Name *</label>
-
-              <input
-                value={editTC.name}
-                onChange={e =>
-                  setEditTC(p => ({
-                    ...p,
-                    name: e.target.value
-                  }))
-                }
-                style={inp}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Description</label>
-
-              <textarea
-                value={editTC.description}
-                onChange={e =>
-                  setEditTC(p => ({
-                    ...p,
-                    description: e.target.value
-                  }))
-                }
-                style={{
-                  ...inp,
-                  minHeight: 70,
-                  resize: "vertical"
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Test Steps</label>
-
-              <textarea
-                value={editTC.steps}
-                onChange={e =>
-                  setEditTC(p => ({
-                    ...p,
-                    steps: e.target.value
-                  }))
-                }
-                style={{
-                  ...inp,
-                  minHeight: 90,
-                  resize: "vertical"
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Expected Result</label>
-
-              <input
-                value={editTC.expected}
-                onChange={e =>
-                  setEditTC(p => ({
-                    ...p,
-                    expected: e.target.value
-                  }))
-                }
-                style={inp}
-              />
-            </div>
-
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 12
-            }}>
-
-              <div>
-                <label style={lbl}>Priority</label>
-
-                <select
-                  value={editTC.priority}
-                  onChange={e =>
-                    setEditTC(p => ({
-                      ...p,
-                      priority: e.target.value
-                    }))
-                  }
-                  style={inp}
-                >
-                  {TEST_CASE_PRIORITIES.map(p =>
-                    <option key={p}>{p}</option>
-                  )}
-                </select>
-              </div>
-
-              <div>
-                <label style={lbl}>Category</label>
-
-                <select
-                  value={editTC.category}
-                  onChange={e =>
-                    setEditTC(p => ({
-                      ...p,
-                      category: e.target.value
-                    }))
-                  }
-                  style={inp}
-                >
-                  {categories.map(c =>
-                    <option key={c}>{c}</option>
-                  )}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label style={lbl}>Remarks</label>
-
-              <input
-                value={editTC.remarks}
-                onChange={e =>
-                  setEditTC(p => ({
-                    ...p,
-                    remarks: e.target.value
-                  }))
-                }
-                style={inp}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Testing Scope</label>
-              <select
-                value={editTC.testScopeId || ""}
-                onChange={e =>
-                  setEditTC(p => ({
-                    ...p,
-                    testScopeId: e.target.value
-                  }))
-                }
-                style={inp}
-              >
-                <option value="">No scope</option>
-                {(testScopesByPlanId[editTC.testPlanId] || []).map(scope => (
-                  <option key={scope.id} value={scope.id}>{scope.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ marginTop: 2 }}>
-              <label style={lbl}>Attachments</label>
-              <div
-                onPaste={e => onTestCasePasteUpload(e, editTC.id)}
-                style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-              >
-                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                  Paste screenshot with Ctrl+V or attach file(s)
-                </div>
-                <input
-                  type="file"
-                  multiple
-                  onChange={e => {
-                    uploadTestCaseFiles(editTC.id, e.target.files);
-                    e.target.value = "";
-                  }}
-                  style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                {(testCaseAttachments[editTC.id] || []).length === 0 && (
-                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments yet.</div>
-                )}
-
-                {(testCaseAttachments[editTC.id] || []).map(a => (
-                  <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                    <button
-                      type="button"
-                      onClick={() => openAttachment(a.url, a.fileName)}
-                      style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                      title="Open attachment"
+              <div style={{ display: "grid", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Market</label>
+                    <select
+                      value={newDef.market || "SG"}
+                      onChange={e => setNewDef(p => ({ ...p, market: e.target.value }))}
+                      style={inp}
                     >
-                      {a.fileName}
-                    </button>
-                    <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
-                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
-                    <button onClick={() => deleteTestCaseAttachment(editTC.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                      {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
+                    </select>
                   </div>
-                ))}
-
-                {uploadingTestCaseId === editTC.id && (
-                  <div style={{ color: "#64748b", fontSize: 12 }}>Uploading...</div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div style={{
-            display: "flex",
-            gap: 10,
-            marginTop: 22,
-            justifyContent: "flex-end"
-          }}>
-            <button
-              onClick={() => setEditTC(null)}
-              style={btnS}
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={updateTC}
-              style={btnP}
-            >
-              Save Changes
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── MODAL: EDIT RUN ── */}
-      {editRun && (
-        <Modal onClose={() => { setEditRun(null); setEditRunTesterSearch(""); }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Test Run</div>
-            <button onClick={() => { setEditRun(null); setEditRunTesterSearch(""); }} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 14, marginBottom: 20 }}>
-            <div>
-              <label style={lbl}>Run Name *</label>
-              <input value={editRun.name} onChange={e => setEditRun(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="e.g. UAT 6.1 - SG Regression - Round 1" />
-            </div>
-            <div>
-              <label style={lbl}>Testers</label>
-              <input
-                value={editRunTesterSearch}
-                onChange={e => setEditRunTesterSearch(e.target.value)}
-                style={inp}
-                placeholder="Search testers..."
-              />
-              <div style={{ border: "1.5px solid #e2e8f0", borderRadius: 8, marginTop: 6, maxHeight: 180, overflowY: "auto", background: "#fff" }}>
-                {(() => {
-                  const allTesters = Array.from(new Set([
-                    ...(mentionUsers || []).map(u => ({ id: u.id, displayName: u.displayName })),
-                    ...(users || []).map(u => ({ id: u.id, displayName: u.displayName })),
-                  ].filter(u => u.displayName).reduce((map, u) => { map.set(u.displayName, u); return map; }, new Map()).values()))
-                    .sort((a, b) => a.displayName.localeCompare(b.displayName));
-                  const filtered = editRunTesterSearch
-                    ? allTesters.filter(u => u.displayName.toLowerCase().includes(editRunTesterSearch.toLowerCase()))
-                    : allTesters;
-                  if (filtered.length === 0) return (
-                    <div style={{ padding: "12px", color: "#94a3b8", fontSize: 13, textAlign: "center" }}>No testers found</div>
-                  );
-                  return filtered.map(u => (
-                    <button
-                      key={u.id || u.displayName}
-                      onClick={() => {
-                        const selected = editRun.selectedTesters.includes(u.displayName);
-                        setEditRun(p => ({
-                          ...p,
-                          selectedTesters: selected
-                            ? p.selectedTesters.filter(t => t !== u.displayName)
-                            : [...p.selectedTesters, u.displayName]
-                        }));
-                      }}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        border: "none",
-                        borderBottom: "1px solid #f1f5f9",
-                        background: editRun.selectedTesters.includes(u.displayName) ? "#eff6ff" : "#fff",
-                        color: "#0f172a",
-                        padding: "9px 12px",
-                        fontSize: 13,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8
-                      }}
+                  <div>
+                    <label style={lbl}>Run</label>
+                    <select
+                      value={showAddDef.runId || ""}
+                      onChange={e => setShowAddDef(p => ({ ...p, runId: e.target.value || null }))}
+                      style={inp}
                     >
-                      <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${editRun.selectedTesters.includes(u.displayName) ? "#6366f1" : "#e2e8f0"}`, background: editRun.selectedTesters.includes(u.displayName) ? "#6366f1" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        {editRun.selectedTesters.includes(u.displayName) && <span style={{ color: "#fff", fontSize: 10, fontWeight: 900 }}>✓</span>}
-                      </div>
-                      {u.displayName}
-                    </button>
-                  ));
-                })()}
-              </div>
-              {editRun.selectedTesters.length > 0 && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                  {editRun.selectedTesters.map(t => (
-                    <div key={t} style={{ display: "flex", alignItems: "center", gap: 6, background: "#eff6ff", border: "1px solid #c7d2fe", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "#4f46e5" }}>
-                      {t}
-                      <button onClick={() => setEditRun(p => ({ ...p, selectedTesters: p.selectedTesters.filter(x => x !== t) }))} style={{ background: "none", border: "none", color: "#4f46e5", cursor: "pointer", fontSize: 14, padding: 0 }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <button onClick={() => { setEditRun(null); setEditRunTesterSearch(""); }} style={btnS}>Cancel</button>
-            <button onClick={saveRunEdits} style={{ ...btnP, opacity: !editRun.name ? 0.5 : 1 }} disabled={!editRun.name}>
-              Save Changes
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── MODAL: NEW RUN ── */}
-      {showAddRun && (
-        <Modal onClose={() => { setShowAddRun(false); setTesterSearch(""); }} wide>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>New Test Run</div>
-            <button onClick={() => { setShowAddRun(false); setTesterSearch(""); }} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 14, marginBottom: 20 }}>
-            <div><label style={lbl}>Run Name *</label><input value={newRun.name} onChange={e => setNewRun(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="e.g. UAT 6.1 - SG Regression - Round 1" /></div>
-            <div style={{ position: "relative" }}>
-              <label style={lbl}>Testers (Optional)</label>
-              <input
-                value={testerSearch}
-                onChange={e => setTesterSearch(e.target.value)}
-                style={inp}
-                placeholder="Search testers..."
-              />
-              <div style={{ border: "1.5px solid #e2e8f0", borderRadius: 8, marginTop: 6, maxHeight: 180, overflowY: "auto", background: "#fff" }}>
-                {(() => {
-                  const allTesters = Array.from(new Set([
-                    ...(mentionUsers || []).map(u => ({ id: u.id, displayName: u.displayName })),
-                    ...(users || []).map(u => ({ id: u.id, displayName: u.displayName })),
-                  ].filter(u => u.displayName).reduce((map, u) => { map.set(u.displayName, u); return map; }, new Map()).values()))
-                    .sort((a, b) => a.displayName.localeCompare(b.displayName));
-                  const filtered = testerSearch
-                    ? allTesters.filter(u => u.displayName.toLowerCase().includes(testerSearch.toLowerCase()))
-                    : allTesters;
-                  if (filtered.length === 0) return (
-                    <div style={{ padding: "12px", color: "#94a3b8", fontSize: 13, textAlign: "center" }}>No testers found</div>
-                  );
-                  return filtered.map(u => (
-                    <button
-                      key={u.id || u.displayName}
-                      onClick={() => {
-                        const selected = newRun.selectedTesters.includes(u.displayName);
-                        setNewRun(p => ({
-                          ...p,
-                          selectedTesters: selected
-                            ? p.selectedTesters.filter(t => t !== u.displayName)
-                            : [...p.selectedTesters, u.displayName]
-                        }));
-                      }}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        border: "none",
-                        borderBottom: "1px solid #f1f5f9",
-                        background: newRun.selectedTesters.includes(u.displayName) ? "#eff6ff" : "#fff",
-                        color: "#0f172a",
-                        padding: "9px 12px",
-                        fontSize: 13,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8
-                      }}
-                    >
-                      <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${newRun.selectedTesters.includes(u.displayName) ? "#6366f1" : "#e2e8f0"}`, background: newRun.selectedTesters.includes(u.displayName) ? "#6366f1" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        {newRun.selectedTesters.includes(u.displayName) && <span style={{ color: "#fff", fontSize: 10, fontWeight: 900 }}>✓</span>}
-                      </div>
-                      {u.displayName}
-                    </button>
-                  ));
-                })()}
-              </div>
-              {newRun.selectedTesters.length > 0 && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                  {newRun.selectedTesters.map(t => (
-                    <div key={t} style={{ display: "flex", alignItems: "center", gap: 6, background: "#eff6ff", border: "1px solid #c7d2fe", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "#4f46e5" }}>
-                      {t}
-                      <button onClick={() => setNewRun(p => ({ ...p, selectedTesters: p.selectedTesters.filter(x => x !== t) }))} style={{ background: "none", border: "none", color: "#4f46e5", cursor: "pointer", fontSize: 14, padding: 0 }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{ ...lbl, marginBottom: 10 }}>Select Test Cases</div>
-          <input
-            value={newRun.tcSearch || ""}
-            onChange={e => setNewRun(p => ({ ...p, tcSearch: e.target.value }))}
-            style={{ ...inp, marginBottom: 8 }}
-            placeholder="Search test cases..."
-          />
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "#334155", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={(() => {
-                  const filtered = testCases.filter(tc => {
-                    const q = (newRun.tcSearch || "").toLowerCase();
-                    return (
-                      tc.tcNumber.toLowerCase().includes(q) ||
-                      tc.name.toLowerCase().includes(q)
-                    );
-                  });
-                  return filtered.length > 0 && filtered.every(tc => newRun.selectedTcIds.includes(tc.id));
-                })()}
-                indeterminate={(() => {
-                  const filtered = testCases.filter(tc => {
-                    const q = (newRun.tcSearch || "").toLowerCase();
-                    return (
-                      tc.tcNumber.toLowerCase().includes(q) ||
-                      tc.name.toLowerCase().includes(q)
-                    );
-                  });
-                  const checkedCount = filtered.filter(tc => newRun.selectedTcIds.includes(tc.id)).length;
-                  return checkedCount > 0 && checkedCount < filtered.length;
-                })()}
-                onChange={e => {
-                  const filtered = testCases.filter(tc => {
-                    const q = (newRun.tcSearch || "").toLowerCase();
-                    return (
-                      tc.tcNumber.toLowerCase().includes(q) ||
-                      tc.name.toLowerCase().includes(q)
-                    );
-                  });
-                  if (e.target.checked) {
-                    setNewRun(p => ({
-                      ...p,
-                      selectedTcIds: Array.from(new Set([...p.selectedTcIds, ...filtered.map(tc => tc.id)])),
-                    }));
-                  } else {
-                    setNewRun(p => ({
-                      ...p,
-                      selectedTcIds: p.selectedTcIds.filter(id => !filtered.some(tc => tc.id === id)),
-                    }));
-                  }
-                }}
-                style={{ marginRight: 6 }}
-              />
-              Select All
-            </label>
-            <span style={{ fontSize: 12, color: "#94a3b8" }}>{newRun.selectedTcIds.length} selected</span>
-          </div>
-          <div style={{ border: "1.5px solid #f1f5f9", borderRadius: 10, overflow: "hidden", maxHeight: 340, overflowY: "auto" }}>
-            {testCases
-              .filter(tc => {
-                const q = (newRun.tcSearch || "").toLowerCase();
-                return (
-                  tc.tcNumber.toLowerCase().includes(q) ||
-                  tc.name.toLowerCase().includes(q)
-                );
-              })
-              .map((tc, i) => {
-                const checked = newRun.selectedTcIds.includes(tc.id);
-                return (
-                  <div key={tc.id} onClick={() => setNewRun(p => ({ ...p, selectedTcIds: checked ? p.selectedTcIds.filter(x => x !== tc.id) : [...p.selectedTcIds, tc.id] }))}
-                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", background: checked ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}>
-                    <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${checked ? "#6366f1" : "#e2e8f0"}`, background: checked ? "#6366f1" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {checked && <span style={{ color: "#fff", fontSize: 11, fontWeight: 900 }}>✓</span>}
-                    </div>
-                    <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#fff", padding: "1px 6px", borderRadius: 4, border: "1px solid #c7d2fe", flexShrink: 0 }}>{tc.tcNumber}</span>
-                    <span style={{ fontSize: 15, color: "#1e293b", fontWeight: 500 }}>{tc.name}</span>
-                    <span style={{ marginLeft: "auto", flexShrink: 0 }}><PriBadge label={tc.priority} /></span>
+                      <option value="">Standalone defect</option>
+                      {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
+                    </select>
                   </div>
-                );
-              })}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => { setShowAddRun(false); setTesterSearch(""); }} style={btnS}>Cancel</button>
-            <button onClick={addRun} style={{ ...btnP, opacity: (!newRun.name || newRun.selectedTcIds.length === 0) ? 0.5 : 1 }}
-              disabled={!newRun.name || newRun.selectedTcIds.length === 0}>
-              Create Run
-            </button>
-          </div>
-        </Modal>
-      )}
+                  {showAddDef.runId && (
+                    <div>
+                      <label style={lbl}>Test Case</label>
+                      <select
+                        value={showAddDef.tcId || ""}
+                        onChange={e => setShowAddDef(p => ({ ...p, tcId: e.target.value || null }))}
+                        style={inp}
+                      >
+                        <option value="">No specific test case (run-level defect)</option>
+                        {(() => {
+                          const run = runs.find(r => String(r.id) === String(showAddDef.runId));
+                          const options = (run?.entries || [])
+                            .map(en => allTestCaseById[en.testCaseId])
+                            .filter(Boolean);
+                          return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
+                        })()}
+                      </select>
+                    </div>
+                  )}
+                </div>
 
-      {/* ── MODAL: CREATE DEFECT ── */}
-      {showAddDef && (
-        <Modal onClose={() => { setShowAddDef(null); setNewDefAttachments([]); }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Create Defect</div>
-            <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Market</label>
-                <select
-                  value={newDef.market || "SG"}
-                  onChange={e => setNewDef(p => ({ ...p, market: e.target.value }))}
-                  style={inp}
-                >
-                  {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Run</label>
-                <select
-                  value={showAddDef.runId || ""}
-                  onChange={e => setShowAddDef(p => ({ ...p, runId: e.target.value || null }))}
-                  style={inp}
-                >
-                  <option value="">Standalone defect</option>
-                  {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
-                </select>
-              </div>
-              {showAddDef.runId && (
                 <div>
-                  <label style={lbl}>Test Case</label>
+                  <label style={lbl}>Issue Type</label>
                   <select
-                    value={showAddDef.tcId || ""}
-                    onChange={e => setShowAddDef(p => ({ ...p, tcId: e.target.value || null }))}
+                    value={newDef.issueType || "Functional Issue"}
+                    onChange={e => setNewDef(p => ({ ...p, issueType: e.target.value }))}
                     style={inp}
                   >
-                    <option value="">No specific test case (run-level defect)</option>
-                    {(() => {
-                      const run = runs.find(r => String(r.id) === String(showAddDef.runId));
-                      const options = (run?.entries || [])
-                        .map(en => allTestCaseById[en.testCaseId])
-                        .filter(Boolean);
-                      return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
-                    })()}
+                    {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
                   </select>
                 </div>
-              )}
-            </div>
 
-            <div>
-              <label style={lbl}>Issue Type</label>
-              <select
-                value={newDef.issueType || "Functional Issue"}
-                onChange={e => setNewDef(p => ({ ...p, issueType: e.target.value }))}
-                style={inp}
-              >
-                {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label style={lbl}>Description *</label>
-              <textarea
-                value={newDef.description || ""}
-                onChange={e => setNewDef(p => ({ ...p, description: e.target.value }))}
-                style={{ ...inp, minHeight: 80, resize: "vertical" }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Expected Result</label>
-              <textarea
-                value={newDef.expected || ""}
-                onChange={e => setNewDef(p => ({ ...p, expected: e.target.value }))}
-                style={{ ...inp, minHeight: 70, resize: "vertical" }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Actual Result</label>
-              <textarea
-                value={newDef.actual || ""}
-                onChange={e => setNewDef(p => ({ ...p, actual: e.target.value }))}
-                style={{ ...inp, minHeight: 70, resize: "vertical" }}
-              />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={lbl}>Priority</label>
-                <select
-                  value={newDef.priority} onChange={e => setNewDef(p => ({ ...p, priority: e.target.value }))}
-                  style={inp}
-                >
-                  {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Raised By</label>
-                <input
-                  value={getCurrentUserDisplayName()}
-                  style={{ ...inp, background: "#f8fafc" }}
-                  readOnly
-                />
-              </div>
-              <div>
-                <label style={lbl}>Assigned To</label>
-                <select
-                  value={newDef.assignedTo || ""}
-                  onChange={e => setNewDef(p => ({ ...p, assignedTo: e.target.value }))}
-                  style={inp}
-                >
-                  <option value="">Unassigned</option>
-                  {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Target Fix Date</label>
-                <input
-                  type="date"
-                  value={newDef.targetFix || ""}
-                  onChange={e => setNewDef(p => ({ ...p, targetFix: e.target.value }))}
-                  style={inp}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={lbl}>Remarks</label>
-              <textarea
-                value={newDef.remarks || ""}
-                onChange={e => setNewDef(p => ({ ...p, remarks: e.target.value }))}
-                style={{ ...inp, minHeight: 60, resize: "vertical" }}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Attachments</label>
-              <div
-                onPaste={onDefectPasteUpload}
-                style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-              >
-                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                  Paste screenshot with Ctrl+V or attach file(s)
+                <div>
+                  <label style={lbl}>Description *</label>
+                  <textarea
+                    value={newDef.description || ""}
+                    onChange={e => setNewDef(p => ({ ...p, description: e.target.value }))}
+                    style={{ ...inp, minHeight: 80, resize: "vertical" }}
+                  />
                 </div>
-                <input
-                  type="file"
-                  multiple
-                  onChange={e => {
-                    queueDefectFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                  style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                />
+
+                <div>
+                  <label style={lbl}>Expected Result</label>
+                  <textarea
+                    value={newDef.expected || ""}
+                    onChange={e => setNewDef(p => ({ ...p, expected: e.target.value }))}
+                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Actual Result</label>
+                  <textarea
+                    value={newDef.actual || ""}
+                    onChange={e => setNewDef(p => ({ ...p, actual: e.target.value }))}
+                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={lbl}>Priority</label>
+                    <select
+                      value={newDef.priority} onChange={e => setNewDef(p => ({ ...p, priority: e.target.value }))}
+                      style={inp}
+                    >
+                      {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Raised By</label>
+                    <input
+                      value={getCurrentUserDisplayName()}
+                      style={{ ...inp, background: "#f8fafc" }}
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>Assigned To</label>
+                    <select
+                      value={newDef.assignedTo || ""}
+                      onChange={e => setNewDef(p => ({ ...p, assignedTo: e.target.value }))}
+                      style={inp}
+                    >
+                      <option value="">Unassigned</option>
+                      {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Target Fix Date</label>
+                    <input
+                      type="date"
+                      value={newDef.targetFix || ""}
+                      onChange={e => setNewDef(p => ({ ...p, targetFix: e.target.value }))}
+                      style={inp}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={lbl}>Remarks</label>
+                  <textarea
+                    value={newDef.remarks || ""}
+                    onChange={e => setNewDef(p => ({ ...p, remarks: e.target.value }))}
+                    style={{ ...inp, minHeight: 60, resize: "vertical" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={lbl}>Attachments</label>
+                  <div
+                    onPaste={onDefectPasteUpload}
+                    style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
+                  >
+                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+                      Paste screenshot with Ctrl+V or attach file(s)
+                    </div>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={e => {
+                        queueDefectFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                      style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                    {newDefAttachments.length === 0 && (
+                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
+                    )}
+
+                    {newDefAttachments.map((f, i) => (
+                      <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                        <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
+                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is created</span>
+                        <button onClick={() => removeQueuedDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-
-              <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                {newDefAttachments.length === 0 && (
-                  <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
-                )}
-
-                {newDefAttachments.map((f, i) => (
-                  <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                    <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                    <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
-                    <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is created</span>
-                    <button onClick={() => removeQueuedDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
+                <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
+                <button onClick={submitDefect} style={{ ...btnP, opacity: !newDef.description ? 0.5 : 1 }} disabled={!newDef.description}>Log Defect</button>
+              </div>
+            </Modal>
+          )}
+          {showCategorySettings && isAdmin && (
+            <Modal onClose={() => { setShowCategorySettings(false); setNewCategoryName(""); }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Configure Categories</div>
+                <button onClick={() => { setShowCategorySettings(false); setNewCategoryName(""); }} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
+                {[...categories].sort((a, b) => a.localeCompare(b)).map((cat, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
+                    <span style={{ flex: 1, fontSize: 14, color: "#1e293b", fontWeight: 600 }}>{cat}</span>
+                    <button
+                      onClick={() => {
+                        const updated = categories.filter(c => c !== cat);
+                        setCategories(updated);
+                        localStorage.setItem("uat_categories", JSON.stringify(updated));
+                      }}
+                      style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+                      title="Remove category"
+                    >✕</button>
                   </div>
                 ))}
+                {categories.length === 0 && <div style={{ color: "#94a3b8", fontSize: 13, textAlign: "center", padding: 12 }}>No categories defined.</div>}
               </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
-            <button onClick={submitDefect} style={{ ...btnP, opacity: !newDef.description ? 0.5 : 1 }} disabled={!newDef.description}>Log Defect</button>
-          </div>
-        </Modal>
-      )}
-      {showCategorySettings && isAdmin && (
-        <Modal onClose={() => { setShowCategorySettings(false); setNewCategoryName(""); }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Configure Categories</div>
-            <button onClick={() => { setShowCategorySettings(false); setNewCategoryName(""); }} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
-            {[...categories].sort((a, b) => a.localeCompare(b)).map((cat, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
-                <span style={{ flex: 1, fontSize: 14, color: "#1e293b", fontWeight: 600 }}>{cat}</span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={newCategoryName}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && newCategoryName.trim()) {
+                      const updated = [...categories, newCategoryName.trim()].sort((a, b) => a.localeCompare(b));
+                      setCategories(updated);
+                      localStorage.setItem("uat_categories", JSON.stringify(updated));
+                      setNewCategoryName("");
+                    }
+                  }}
+                  placeholder="New category name…"
+                  style={{ ...inp, flex: 1 }}
+                />
                 <button
                   onClick={() => {
-                    const updated = categories.filter(c => c !== cat);
+                    if (!newCategoryName.trim()) return;
+                    const updated = [...categories, newCategoryName.trim()].sort((a, b) => a.localeCompare(b));
                     setCategories(updated);
                     localStorage.setItem("uat_categories", JSON.stringify(updated));
+                    setNewCategoryName("");
                   }}
-                  style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
-                  title="Remove category"
-                >✕</button>
+                  disabled={!newCategoryName.trim()}
+                  style={{ ...btnP, opacity: !newCategoryName.trim() ? 0.5 : 1 }}
+                >Add</button>
               </div>
-            ))}
-            {categories.length === 0 && <div style={{ color: "#94a3b8", fontSize: 13, textAlign: "center", padding: 12 }}>No categories defined.</div>}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={newCategoryName}
-              onChange={e => setNewCategoryName(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && newCategoryName.trim()) {
-                  const updated = [...categories, newCategoryName.trim()].sort((a, b) => a.localeCompare(b));
-                  setCategories(updated);
-                  localStorage.setItem("uat_categories", JSON.stringify(updated));
-                  setNewCategoryName("");
-                }
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+                <button onClick={() => { setShowCategorySettings(false); setNewCategoryName(""); }} style={btnS}>Close</button>
+              </div>
+            </Modal>
+          )}
+          {showAddUser && (
+            <Modal onClose={() => setShowAddUser(false)}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Create User</div>
+                <button onClick={() => setShowAddUser(false)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 14 }}>
+                <div><label style={lbl}>Username *</label><input type="email" value={newUserName} onChange={e => setNewUserName(e.target.value)} style={inp} placeholder="name@company.com" /></div>
+                <div><label style={lbl}>Display Name *</label><input value={newUserDisplayName} onChange={e => setNewUserDisplayName(e.target.value)} style={inp} /></div>
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", color: "#475569", fontSize: 12, lineHeight: 1.5 }}>
+                  Initial password will be auto-generated by system and sent in the email draft.
+                </div>
+                <div><label style={lbl}>Role *</label>
+                  <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)} style={inp}>
+                    {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
+                  </select>
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 700 }}>
+                  <input type="checkbox" checked={newUserActive} onChange={e => setNewUserActive(e.target.checked)} /> Active
+                </label>
+                {newUserName && !isValidEmail(newUserName) && (
+                  <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Username must be a valid email address.</div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
+                <button onClick={() => setShowAddUser(false)} style={btnS}>Cancel</button>
+                <button onClick={createUserAccount} style={{ ...btnP, opacity: (!newUserName.trim() || !newUserDisplayName.trim() || !isValidEmail(newUserName)) ? 0.5 : 1 }} disabled={!newUserName.trim() || !newUserDisplayName.trim() || !isValidEmail(newUserName)}>Create User</button>
+              </div>
+            </Modal>
+          )}
+          {editUser && (
+            <Modal onClose={() => setEditUser(null)}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Edit User</div>
+                <button onClick={() => setEditUser(null)} style={xBtn}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 14 }}>
+                <div><label style={lbl}>Username *</label><input type="email" value={editUser.username || ""} onChange={e => setEditUser(p => ({ ...p, username: e.target.value }))} style={inp} placeholder="name@company.com" /></div>
+                <div><label style={lbl}>Display Name *</label><input value={editUser.displayName || ""} onChange={e => setEditUser(p => ({ ...p, displayName: e.target.value }))} style={inp} /></div>
+                <div><label style={lbl}>New Password</label><input type="password" value={editUser.password || ""} onChange={e => setEditUser(p => ({ ...p, password: e.target.value }))} style={inp} placeholder="Leave blank to keep current password" /></div>
+                <div><label style={lbl}>Role *</label>
+                  <select value={editUser.role || "Viewer"} onChange={e => setEditUser(p => ({ ...p, role: e.target.value }))} style={inp}>
+                    {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
+                  </select>
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 700 }}>
+                  <input type="checkbox" checked={!!editUser.isActive} onChange={e => setEditUser(p => ({ ...p, isActive: e.target.checked }))} /> Active
+                </label>
+                {editUser.username && !isValidEmail(editUser.username) && (
+                  <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Username must be a valid email address.</div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
+                <button onClick={() => setEditUser(null)} style={btnS}>Cancel</button>
+                <button onClick={saveUserAccount} style={{ ...btnP, opacity: (!(editUser.username || "").trim() || !(editUser.displayName || "").trim() || !isValidEmail(editUser.username || "")) ? 0.5 : 1 }} disabled={!(editUser.username || "").trim() || !(editUser.displayName || "").trim() || !isValidEmail(editUser.username || "")}>Save Changes</button>
+              </div>
+            </Modal>
+          )}
+          {runDateFilterPanel && (
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                position: "fixed",
+                top: runDateFilterPanel.top,
+                left: runDateFilterPanel.left,
+                zIndex: 2500,
+                background: "#fff",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: 10,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+                padding: 10,
+                width: 190
               }}
-              placeholder="New category name…"
-              style={{ ...inp, flex: 1 }}
-            />
-            <button
-              onClick={() => {
-                if (!newCategoryName.trim()) return;
-                const updated = [...categories, newCategoryName.trim()].sort((a, b) => a.localeCompare(b));
-                setCategories(updated);
-                localStorage.setItem("uat_categories", JSON.stringify(updated));
-                setNewCategoryName("");
-              }}
-              disabled={!newCategoryName.trim()}
-              style={{ ...btnP, opacity: !newCategoryName.trim() ? 0.5 : 1 }}
-            >Add</button>
-          </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
-            <button onClick={() => { setShowCategorySettings(false); setNewCategoryName(""); }} style={btnS}>Close</button>
-          </div>
-        </Modal>
-      )}
-      {showAddUser && (
-        <Modal onClose={() => setShowAddUser(false)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Create User</div>
-            <button onClick={() => setShowAddUser(false)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div><label style={lbl}>Username *</label><input type="email" value={newUserName} onChange={e => setNewUserName(e.target.value)} style={inp} placeholder="name@company.com" /></div>
-            <div><label style={lbl}>Display Name *</label><input value={newUserDisplayName} onChange={e => setNewUserDisplayName(e.target.value)} style={inp} /></div>
-            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", color: "#475569", fontSize: 12, lineHeight: 1.5 }}>
-              Initial password will be auto-generated by system and sent in the email draft.
-            </div>
-            <div><label style={lbl}>Role *</label>
-              <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)} style={inp}>
-                {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
-              </select>
-            </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 700 }}>
-              <input type="checkbox" checked={newUserActive} onChange={e => setNewUserActive(e.target.checked)} /> Active
-            </label>
-            {newUserName && !isValidEmail(newUserName) && (
-              <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Username must be a valid email address.</div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => setShowAddUser(false)} style={btnS}>Cancel</button>
-            <button onClick={createUserAccount} style={{ ...btnP, opacity: (!newUserName.trim() || !newUserDisplayName.trim() || !isValidEmail(newUserName)) ? 0.5 : 1 }} disabled={!newUserName.trim() || !newUserDisplayName.trim() || !isValidEmail(newUserName)}>Create User</button>
-          </div>
-        </Modal>
-      )}
-      {editUser && (
-        <Modal onClose={() => setEditUser(null)}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Edit User</div>
-            <button onClick={() => setEditUser(null)} style={xBtn}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div><label style={lbl}>Username *</label><input type="email" value={editUser.username || ""} onChange={e => setEditUser(p => ({ ...p, username: e.target.value }))} style={inp} placeholder="name@company.com" /></div>
-            <div><label style={lbl}>Display Name *</label><input value={editUser.displayName || ""} onChange={e => setEditUser(p => ({ ...p, displayName: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>New Password</label><input type="password" value={editUser.password || ""} onChange={e => setEditUser(p => ({ ...p, password: e.target.value }))} style={inp} placeholder="Leave blank to keep current password" /></div>
-            <div><label style={lbl}>Role *</label>
-              <select value={editUser.role || "Viewer"} onChange={e => setEditUser(p => ({ ...p, role: e.target.value }))} style={inp}>
-                {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
-              </select>
-            </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 700 }}>
-              <input type="checkbox" checked={!!editUser.isActive} onChange={e => setEditUser(p => ({ ...p, isActive: e.target.checked }))} /> Active
-            </label>
-            {editUser.username && !isValidEmail(editUser.username) && (
-              <div style={{ color: "#be123c", fontSize: 12, fontWeight: 700 }}>Username must be a valid email address.</div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => setEditUser(null)} style={btnS}>Cancel</button>
-            <button onClick={saveUserAccount} style={{ ...btnP, opacity: (!(editUser.username || "").trim() || !(editUser.displayName || "").trim() || !isValidEmail(editUser.username || "")) ? 0.5 : 1 }} disabled={!(editUser.username || "").trim() || !(editUser.displayName || "").trim() || !isValidEmail(editUser.username || "")}>Save Changes</button>
-          </div>
-        </Modal>
-      )}
-      {runDateFilterPanel && (
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{
-            position: "fixed",
-            top: runDateFilterPanel.top,
-            left: runDateFilterPanel.left,
-            zIndex: 2500,
-            background: "#fff",
-            border: "1.5px solid #e2e8f0",
-            borderRadius: 10,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-            padding: 10,
-            width: 190
-          }}
-        >
-          <div style={{ display: "grid", gap: 6 }}>
-            <select
-              value={runDateRule}
-              onChange={e => setRunDateRule(e.target.value)}
-              style={{ ...inp, width: "100%", fontSize: 12, padding: "6px 8px" }}
             >
-              {["Any", "Before", "After", "On"].map(rule => <option key={rule}>{rule}</option>)}
-            </select>
-            <input
-              type="date"
-              value={runDateValue}
-              onChange={e => setRunDateValue(e.target.value)}
-              style={{ ...inp, width: "100%", fontSize: 12, padding: "6px 8px" }}
-            />
-          </div>
-        </div>
-      )}
-      {defDateFilterPanel && (
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{
-            position: "fixed",
-            top: defDateFilterPanel.top,
-            left: defDateFilterPanel.left,
-            zIndex: 2500,
-            background: "#fff",
-            border: "1.5px solid #e2e8f0",
-            borderRadius: 10,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-            padding: 10,
-            width: 190
-          }}
-        >
-          <div style={{ display: "grid", gap: 6 }}>
-            <select
-              value={defDateFilterPanel.type === "open" ? defOpenRule : defCloseRule}
-              onChange={e => {
-                if (defDateFilterPanel.type === "open") setDefOpenRule(e.target.value);
-                else setDefCloseRule(e.target.value);
+              <div style={{ display: "grid", gap: 6 }}>
+                <select
+                  value={runDateRule}
+                  onChange={e => setRunDateRule(e.target.value)}
+                  style={{ ...inp, width: "100%", fontSize: 12, padding: "6px 8px" }}
+                >
+                  {["Any", "Before", "After", "On"].map(rule => <option key={rule}>{rule}</option>)}
+                </select>
+                <input
+                  type="date"
+                  value={runDateValue}
+                  onChange={e => setRunDateValue(e.target.value)}
+                  style={{ ...inp, width: "100%", fontSize: 12, padding: "6px 8px" }}
+                />
+              </div>
+            </div>
+          )}
+          {defDateFilterPanel && (
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                position: "fixed",
+                top: defDateFilterPanel.top,
+                left: defDateFilterPanel.left,
+                zIndex: 2500,
+                background: "#fff",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: 10,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+                padding: 10,
+                width: 190
               }}
-              style={{ ...inp, width: "100%", fontSize: 12, padding: "6px 8px" }}
             >
-              {["Any", "Before", "After", "On"].map(rule => <option key={rule}>{rule}</option>)}
-            </select>
-            <input
-              type="date"
-              value={defDateFilterPanel.type === "open" ? defOpenDate : defCloseDate}
-              onChange={e => {
-                if (defDateFilterPanel.type === "open") setDefOpenDate(e.target.value);
-                else setDefCloseDate(e.target.value);
-              }}
-              style={{ ...inp, width: "100%", fontSize: 12, padding: "6px 8px" }}
-            />
-          </div>
-        </div>
-      )}
+              <div style={{ display: "grid", gap: 6 }}>
+                <select
+                  value={defDateFilterPanel.type === "open" ? defOpenRule : defCloseRule}
+                  onChange={e => {
+                    if (defDateFilterPanel.type === "open") setDefOpenRule(e.target.value);
+                    else setDefCloseRule(e.target.value);
+                  }}
+                  style={{ ...inp, width: "100%", fontSize: 12, padding: "6px 8px" }}
+                >
+                  {["Any", "Before", "After", "On"].map(rule => <option key={rule}>{rule}</option>)}
+                </select>
+                <input
+                  type="date"
+                  value={defDateFilterPanel.type === "open" ? defOpenDate : defCloseDate}
+                  onChange={e => {
+                    if (defDateFilterPanel.type === "open") setDefOpenDate(e.target.value);
+                    else setDefCloseDate(e.target.value);
+                  }}
+                  style={{ ...inp, width: "100%", fontSize: 12, padding: "6px 8px" }}
+                />
+              </div>
+            </div>
+          )}
         </div>{/* end content */}
       </div>{/* end body flex */}
       {contextMenu && (
