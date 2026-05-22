@@ -3750,7 +3750,7 @@ export default function App() {
             </div>
           </div>
           {/* Middle two columns */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
             <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
               <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 30 }}>Test Execution Breakdown</div>
               {Object.entries(execByStatus).map(([status, count]) => {
@@ -3780,7 +3780,7 @@ export default function App() {
             </div>
             <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
               <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 34 }}>Defect Status Breakdown</div>
-              <div style={{ display: "flex", gap: 26, alignItems: "flex-start", marginBottom: 18 }}>
+              <div style={{ display: "flex", gap: 36, alignItems: "flex-start", marginBottom: 18 }}>
                 <div style={{ flexShrink: 0 }}>
                   <DonutChart size={165} strokeWidth={35} label={defTotal} subLabel="Total"
                     segments={Object.entries(defByStatus).map(([s, c]) => ({ value: c, color: DEFECT_STATUS[s]?.dot || "#94a3b8" }))}
