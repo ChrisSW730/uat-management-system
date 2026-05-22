@@ -2542,21 +2542,21 @@ export default function App() {
       {/* ── Body (sidebar + content) ── */}
       <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
         {/* Dark Navy Sidebar */}
-        <div style={{ width: sidebarCollapsed ? 64 : 220, background: "#1a2332", display: "flex", flexDirection: "column", transition: "width 0.22s cubic-bezier(.4,0,.2,1)", overflow: "hidden", flexShrink: 0 }}>
+        <div style={{ width: sidebarCollapsed ? 64 : 280, background: "#1a2332", display: "flex", flexDirection: "column", transition: "width 0.22s cubic-bezier(.4,0,.2,1)", overflow: "hidden", flexShrink: 0 }}>
           {/* Logo area */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: sidebarCollapsed ? "0" : "0 14px 0 16px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, height: 64 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: sidebarCollapsed ? "0" : "0 14px 0 16px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, height: 100 }}>
             {sidebarCollapsed ? (
               <button onClick={() => setSidebarCollapsed(false)} title="Expand sidebar"
                 style={{ background: "none", border: "none", cursor: "pointer", color: "#8892a4", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>›</button>
             ) : (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <DiamondMark size={20} outer="#ffffff" inner="#4f46e5" stroke={4} />
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 46, height: 46, background: "linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <DiamondMark size={24} outer="#ffffff" inner="#4f46e5" stroke={4} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>TMS</div>
-                    <div style={{ fontSize: 10, color: "#8892a4", fontWeight: 500 }}>Test Management</div>
+                    <div style={{ fontSize: 18, fontWeight: 750, color: "#fff", lineHeight: 1.2 }}>TMS</div>
+                    <div style={{ fontSize: 12, color: "#8892a4", fontWeight: 500 }}>Test Management System</div>
                   </div>
                 </div>
                 <button onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar"
@@ -2592,19 +2592,19 @@ export default function App() {
             ))}
           </div>
           {/* Bottom user / logout */}
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: sidebarCollapsed ? "12px 0" : "12px 12px", flexShrink: 0, display: "flex", alignItems: "center", gap: 10, justifyContent: sidebarCollapsed ? "center" : "space-between" }}>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: sidebarCollapsed ? "12px 0" : "30px 12px", flexShrink: 0, display: "flex", alignItems: "center", gap: 10, justifyContent: sidebarCollapsed ? "center" : "space-between" }}>
             {!sidebarCollapsed ? (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
                     {(authUser.displayName || authUser.username || "?")[0].toUpperCase()}
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 110 }}>{authUser.displayName || authUser.username}</div>
-                    <div style={{ fontSize: 10, color: "#8892a4" }}>{authUser.role}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 110 }}>{authUser.displayName || authUser.username}</div>
+                    <div style={{ fontSize: 12, color: "#8892a4" }}>{authUser.role}</div>
                   </div>
                 </div>
-                <button onClick={handleLogout} title="Logout" style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 6, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#8892a4", fontSize: 13, flexShrink: 0 }}>⏻</button>
+                <button onClick={handleLogout} title="Logout" style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 6, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#8892a4", fontSize: 13, flexShrink: 0 }}>⏻</button>
               </>
             ) : (
               <button onClick={handleLogout} title="Logout" style={{ background: "none", border: "none", cursor: "pointer", color: "#8892a4", fontSize: 16 }}>⏻</button>
@@ -2615,9 +2615,9 @@ export default function App() {
         <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
 
           {/* ── Page Header ── */}
-          <div style={{ position: "sticky", top: 0, zIndex: 200, background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+          <div style={{ position: "sticky", top: 20, zIndex: 200, background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>
+              <div style={{ fontSize: 30, fontWeight: 750, color: "#0f172a" }}>
                 {({ dashboard: "UAT Dashboard", testcases: "Test Cases", runs: "Test Runs", defects: "Defect Log", projects: "Projects", users: "Users", settings_cat: "Settings" })[activeTab] || ""}
               </div>
               <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
@@ -2665,12 +2665,12 @@ export default function App() {
                   onClick={(e) => { e.stopPropagation(); setShowUserMenu(v => !v); }}
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 4px 6px 0", background: "none", border: "none", cursor: "pointer" }}
                 >
-                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 750, flexShrink: 0 }}>
                     {(authUser.displayName || authUser.username || "?")[0].toUpperCase()}
                   </div>
                   <div style={{ textAlign: "left" }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{authUser.displayName || authUser.username}</div>
-                    <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{authUser.role}</div>
+                    <div style={{ fontSize: 13, fontWeight: 750, color: "#0f172a" }}>{authUser.displayName || authUser.username}</div>
+                    <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em" }}>{authUser.role}</div>
                   </div>
                   <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: 2 }}>▼</span>
                 </button>
@@ -3737,7 +3737,7 @@ export default function App() {
                       <div key={status} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 9 }}>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", background: meta?.dot || "#94a3b8", flexShrink: 0 }} />
                         <span style={{ fontSize: 13, color: "#64748b", width: 92, flexShrink: 0 }}>{status}</span>
-                        <div style={{ width: 480, height: 5, background: "#f1f5f9", borderRadius: 99, overflow: "hidden", flexShrink: 0 }}>
+                        <div style={{ flex: 1, minWidth: 0, height: 5, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
                           <div style={{ width: `${pct}%`, height: "100%", background: meta?.dot || "#94a3b8", borderRadius: 99 }} />
                         </div>
                         <span style={{ fontSize: 13, fontWeight: 700, color: "#334155", width: 18, textAlign: "right", flexShrink: 0 }}>{count}</span>
