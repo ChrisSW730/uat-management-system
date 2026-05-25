@@ -281,8 +281,8 @@ export default function App() {
   const [runDateRule, setRunDateRule] = useState("Any");
   const [runDateValue, setRunDateValue] = useState("");
   const [runDateFilterPanel, setRunDateFilterPanel] = useState(null);
-  const [tcSortCol, setTcSortCol] = useState("");
-  const [tcSortDir, setTcSortDir] = useState("asc");
+  const [tcSortCol, setTcSortCol] = useState("tcNumber");
+  const [tcSortDir, setTcSortDir] = useState("desc");
   const [defSortCol, setDefSortCol] = useState("");
   const [defSortDir, setDefSortDir] = useState("asc");
   const [userSearch, setUserSearch] = useState("");
