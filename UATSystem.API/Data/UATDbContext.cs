@@ -48,6 +48,10 @@ public class UATDbContext : DbContext
             .HasForeignKey(tc => tc.TestScopeId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        modelBuilder.Entity<TestCase>()
+            .HasIndex(tc => tc.TcNumber)
+            .IsUnique();
+
         modelBuilder.Entity<TestRunEntry>()
             .HasOne(e => e.TestRun)
             .WithMany(r => r.Entries)

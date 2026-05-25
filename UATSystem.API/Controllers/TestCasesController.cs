@@ -84,8 +84,23 @@ public class TestCasesController : ControllerBase
             }
         }
 
-        var count = await _db.TestCases.CountAsync();
-        tc.TcNumber = $"TC-{(count + 1):D3}";
+        var existingNumbers = await _db.TestCases
+            .Select(t => t.TcNumber)
+            .ToListAsync();
+
+        var maxNum = existingNumbers
+            .Select(n => n.StartsWith("TC-") && int.TryParse(n[3..], out int v) ? v : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        string candidate;
+        do
+        {
+            maxNum++;
+            candidate = $"TC-{maxNum:D3}";
+        } while (existingNumbers.Contains(candidate));
+
+        tc.TcNumber = candidate;
         tc.CreatedAt = DateTime.UtcNow;
         _db.TestCases.Add(tc);
         await _db.SaveChangesAsync();

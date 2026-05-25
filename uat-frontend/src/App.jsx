@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 import * as XLSX from "xlsx";
 import { api } from "./api";
 import loginBg from "../public/login.png";
@@ -470,6 +470,19 @@ export default function App() {
 
   const mentionInputRefs = useRef({});
   const dashboardRef = useRef(null);
+  const ctxMenuRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!ctxMenuRef.current || !contextMenu) return;
+    const el = ctxMenuRef.current;
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight) {
+      el.style.top = Math.max(0, contextMenu.y - rect.height) + "px";
+    }
+    if (rect.right > window.innerWidth) {
+      el.style.left = Math.max(0, contextMenu.x - rect.width) + "px";
+    }
+  }, [contextMenu]);
 
   function registerMentionInputRef(key, node) {
     if (!key) return;
@@ -6265,7 +6278,7 @@ onMouseLeave={(e) => {
         </div>{/* end content */}
       </div>{/* end body flex */}
       {contextMenu && (
-        <div onClick={e => e.stopPropagation()}
+        <div ref={ctxMenuRef} onClick={e => e.stopPropagation()}
           style={{
             position: "fixed", top: contextMenu.y, left: contextMenu.x,
             background: "#fff", border: "1.5px solid #f1f5f9", borderRadius: 10,
