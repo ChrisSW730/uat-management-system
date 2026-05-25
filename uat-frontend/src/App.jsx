@@ -3852,25 +3852,39 @@ onMouseLeave={(e) => {
               const totalW = data.length * (barW + gapW) - gapW;
               const chartH = height;
               const maxVal = Math.max(...data.map(d => d.passed + d.failed + d.blocked), 1);
+              const ticks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxVal * f));
               return (
                 <div>
-                  <svg width="100%" height={chartH} viewBox={`0 0 ${totalW} ${chartH}`} preserveAspectRatio="none">
-                    {data.map((d, i) => {
-                      const x = i * (barW + gapW);
-                      const pH = (d.passed / maxVal) * chartH;
-                      const fH = (d.failed / maxVal) * chartH;
-                      const bH = (d.blocked / maxVal) * chartH;
-                      return (
-                        <g key={i}>
-                          {pH > 0 && <rect x={x} y={chartH - pH - fH - bH} width={barW} height={pH} fill="#22c55e" rx={2} />}
-                          {fH > 0 && <rect x={x} y={chartH - fH - bH} width={barW} height={fH} fill="#f43f5e" />}
-                          {bH > 0 && <rect x={x} y={chartH - bH} width={barW} height={bH} fill="#f97316" />}
-                          {pH === 0 && fH === 0 && bH === 0 && <rect x={x} y={chartH - 2} width={barW} height={2} fill="#e2e8f0" rx={2} />}
-                        </g>
-                      );
-                    })}
-                  </svg>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {/* Y-axis labels */}
+                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, flexShrink: 0 }}>
+                      {ticks.map((v, i) => (
+                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 20 }}>{v}</span>
+                      ))}
+                    </div>
+                    <div style={{ flex: 1, position: "relative" }}>
+                      <svg width="100%" height={chartH} viewBox={`0 0 ${totalW} ${chartH}`} preserveAspectRatio="none">
+                        {[0.25, 0.5, 0.75, 1].map(f => (
+                          <line key={f} x1={0} y1={chartH * (1 - f)} x2={totalW} y2={chartH * (1 - f)} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                        ))}
+                        {data.map((d, i) => {
+                          const x = i * (barW + gapW);
+                          const pH = (d.passed / maxVal) * chartH;
+                          const fH = (d.failed / maxVal) * chartH;
+                          const bH = (d.blocked / maxVal) * chartH;
+                          return (
+                            <g key={i}>
+                              {pH > 0 && <rect x={x} y={chartH - pH - fH - bH} width={barW} height={pH} fill="#22c55e" rx={2} />}
+                              {fH > 0 && <rect x={x} y={chartH - fH - bH} width={barW} height={fH} fill="#f43f5e" />}
+                              {bH > 0 && <rect x={x} y={chartH - bH} width={barW} height={bH} fill="#f97316" />}
+                              {pH === 0 && fH === 0 && bH === 0 && <rect x={x} y={chartH - 2} width={barW} height={2} fill="#e2e8f0" rx={2} />}
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, paddingLeft: 28 }}>
                     {data.map((d, i) => (
                       <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
                     ))}
@@ -3883,25 +3897,36 @@ onMouseLeave={(e) => {
               const chartW = 600, chartH = height;
               const maxVal = Math.max(...data.flatMap(d => [d.newCount, d.closedCount]), 1);
               const px = i => (i / (data.length - 1)) * chartW;
-              const py = v => chartH - (v / maxVal) * (chartH - 6);
+              const py = v => chartH - (v / maxVal) * chartH;
               const newPts = data.map((d, i) => `${px(i)},${py(d.newCount)}`).join(" ");
               const clPts = data.map((d, i) => `${px(i)},${py(d.closedCount)}`).join(" ");
+              const ticks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxVal * f));
               return (
                 <div>
-                  <svg width="100%" height={chartH} viewBox={`0 0 ${chartW} ${chartH}`} preserveAspectRatio="xMidYMid meet">
-                    {[0.25, 0.5, 0.75, 1].map(f => (
-                      <line key={f} x1={0} y1={chartH * (1 - f)} x2={chartW} y2={chartH * (1 - f)} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-                    ))}
-                    <polyline points={newPts} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                    <polyline points={clPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-                    {data.map((d, i) => (
-                      <g key={i}>
-                        <circle cx={px(i)} cy={py(d.newCount)} r={4} fill="#3b82f6" vectorEffect="non-scaling-stroke" />
-                        <circle cx={px(i)} cy={py(d.closedCount)} r={3.5} fill="#94a3b8" vectorEffect="non-scaling-stroke" />
-                      </g>
-                    ))}
-                  </svg>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {/* Y-axis labels */}
+                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, flexShrink: 0 }}>
+                      {ticks.map((v, i) => (
+                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 20 }}>{v}</span>
+                      ))}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <svg width="100%" height={chartH} viewBox={`0 -5 ${chartW} ${chartH + 5}`} preserveAspectRatio="none">
+                        {[0.25, 0.5, 0.75, 1].map(f => (
+                          <line key={f} x1={0} y1={chartH * (1 - f)} x2={chartW} y2={chartH * (1 - f)} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                        ))}
+                        <polyline points={newPts} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                        <polyline points={clPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                        {data.map((d, i) => (
+                          <g key={i}>
+                            <circle cx={px(i)} cy={py(d.newCount)} r={4} fill="#3b82f6" vectorEffect="non-scaling-stroke" />
+                            <circle cx={px(i)} cy={py(d.closedCount)} r={3.5} fill="#94a3b8" vectorEffect="non-scaling-stroke" />
+                          </g>
+                        ))}
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, paddingLeft: 28 }}>
                     {data.map((d, i) => (
                       <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
                     ))}
