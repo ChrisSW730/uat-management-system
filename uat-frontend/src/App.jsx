@@ -3,6 +3,15 @@ import * as XLSX from "xlsx";
 import { api } from "./api";
 import loginBg from "../public/login.png";
 import html2canvas from "html2canvas";
+import {
+  LayoutDashboard,
+  Briefcase,
+  ClipboardList,
+  Play,
+  Bug,
+  Settings,
+  Users
+} from "lucide-react";
 
 /* -----------------------------------------
    CONSTANTS
@@ -368,7 +377,13 @@ export default function App() {
   const [newRun, setNewRun] = useState(blankRun);
   const [newDef, setNewDef] = useState(blankDef);
 
-  const TABS = [["dashboard", "📊  Dashboard"], ["projects", "💼  Projects"], ["testcases", "📋  Test Cases"], ["runs", "▶  Test Runs"], ["defects", "🐛  Defect Log"]];
+  const TABS = [
+  ["dashboard", <LayoutDashboard size={18} />, "Dashboard"],
+  ["projects", <Briefcase size={18} />, "Projects"],
+  ["testcases", <ClipboardList size={18} />, "Test Cases"],
+  ["runs", <Play size={18} />, "Test Runs"],
+  ["defects", <Bug size={18} />, "Defect Log"]
+];
 
   const canWrite = !!authUser && authUser.role !== "Viewer" && authUser.role !== "Developer";
   const canComment = !!authUser && authUser.role !== "Viewer";
@@ -2647,10 +2662,33 @@ boxShadow:
           {/* Nav groups */}
           <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "8px 0" }}>
             {[
-              { group: "MAIN", items: [["dashboard", "🏠", "Dashboard"], ["projects", "💼", "Projects"]] },
-              { group: "TESTING", items: [["testcases", "📋", "Test Cases"], ["runs", "▶", "Test Runs"], ["defects", "🐛", "Defect Log"]] },
-              ...(isAdmin ? [{ group: "SETTINGS", items: [["settings_cat", "⚙", "Settings"], ["users", "👤", "Users"]] }] : []),
-            ].map(({ group, items }) => (
+  {
+    group: "MAIN",
+    items: [
+      ["dashboard", <LayoutDashboard size={18} />, "Dashboard"],
+      ["projects", <Briefcase size={18} />, "Projects"],
+    ]
+  },
+
+  {
+    group: "TESTING",
+    items: [
+      ["testcases", <ClipboardList size={18} />, "Test Cases"],
+      ["runs", <Play size={18} />, "Test Runs"],
+      ["defects", <Bug size={18} />, "Defect Log"],
+    ]
+  },
+
+  ...(isAdmin
+    ? [{
+        group: "SETTINGS",
+        items: [
+          ["settings_cat", <Settings size={18} />, "Settings"],
+          ["users", <Users size={18} />, "Users"],
+        ]
+      }]
+    : []),
+].map(({ group, items }) => (
               <div key={group}>
                 {!sidebarCollapsed && (
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#4a5568", letterSpacing: "0.1em", padding: "14px 12px 4px", textTransform: "uppercase" }}>{group}</div>
@@ -2668,7 +2706,6 @@ boxShadow:
     }
   }}
 
-  // ADD HERE
   onMouseLeave={(e) => {
     if (!active) {
       e.currentTarget.style.background =
