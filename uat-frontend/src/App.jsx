@@ -5121,7 +5121,7 @@ onMouseLeave={(e) => {
                 <div><label style={lbl}>Test Name *</label><input value={newTC.name} onChange={e => setNewTC(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="[Market] - [Module] - [Feature] - [Expected]" /></div>
                 <div><label style={lbl}>Description</label><textarea value={newTC.description} onChange={e => setNewTC(p => ({ ...p, description: e.target.value }))} style={{ ...inp, minHeight: 70, resize: "vertical" }} /></div>
                 <div><label style={lbl}>Test Steps</label><textarea value={newTC.steps} onChange={e => setNewTC(p => ({ ...p, steps: e.target.value }))} style={{ ...inp, minHeight: 90, resize: "vertical" }} placeholder="Step 1: …&#10;Step 2: …" /></div>
-                <div><label style={lbl}>Expected Result</label><input value={newTC.expected} onChange={e => setNewTC(p => ({ ...p, expected: e.target.value }))} style={inp} /></div>
+                <div><label style={lbl}>Expected Result</label><textarea value={newTC.expected} onChange={e => setNewTC(p => ({ ...p, expected: e.target.value }))} style={{ ...inp, minHeight: 70, resize: "vertical" }} /></div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div><label style={lbl}>Priority</label>
                     <select value={newTC.priority} onChange={e => setNewTC(p => ({ ...p, priority: e.target.value }))} style={inp}>
@@ -5477,7 +5477,7 @@ onMouseLeave={(e) => {
                 <div>
                   <label style={lbl}>Expected Result</label>
 
-                  <input
+                  <textarea
                     value={editTC.expected}
                     onChange={e =>
                       setEditTC(p => ({
@@ -5485,7 +5485,7 @@ onMouseLeave={(e) => {
                         expected: e.target.value
                       }))
                     }
-                    style={inp}
+                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
                   />
                 </div>
 
