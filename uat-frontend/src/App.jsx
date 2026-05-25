@@ -15,7 +15,9 @@ import {
   CheckCircle2,
   XCircle,
   Ban,
-  Activity
+  Activity,
+  Bell,
+  Trash2
 } from "lucide-react";
 
 /* -----------------------------------------
@@ -2844,10 +2846,37 @@ linear-gradient(
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               {/* Notification bell */}
               <div style={{ position: "relative" }}>
-                <button onClick={(e) => { e.stopPropagation(); toggleNotificationsPanel(); }} style={{ ...btnS, padding: "8px 10px", fontSize: 18, lineHeight: 1, position: "relative", border: "none", background: "transparent", boxShadow: "none" }} aria-label="Notifications" title="Notifications">
-                  🔔
+                <button onClick={(e) => {
+  e.stopPropagation();
+
+  // OPEN/CLOSE PANEL
+  toggleNotificationsPanel();
+
+  // AUTO MARK ALL READ WHEN OPEN
+  if (!showNotifications) {
+    markAllNotificationsAsRead();
+  }
+}}
+                onMouseEnter={(e) => {
+  e.currentTarget.style.background =
+    "rgba(255,255,255,0.78)";
+
+  e.currentTarget.style.color =
+    "#6366F1";
+}}
+
+onMouseLeave={(e) => {
+  e.currentTarget.style.background =
+    "rgba(255,255,255,0.55)";
+
+  e.currentTarget.style.color =
+    "#94A3B8";
+}}
+                style={{ ...btnS, padding: "8px 10px", fontSize: 18, lineHeight: 1, position: "relative", border: "none", background: "transparent", boxShadow: "none" }} aria-label="Notifications" title="Notifications">
+                  <Bell size={18} strokeWidth={2.2} />
                   {unreadNotificationsCount > 0 && (
-                    <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 999, background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px", border: "2px solid #fff" }}>
+                    <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 999, background: "linear-gradient(135deg,#EF4444,#F87171)", boxShadow:
+  "0 0 14px rgba(239,68,68,0.35)", color: "#fff", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px", border: "2px solid #fff" }}>
                       {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
                     </span>
                   )}
@@ -2859,7 +2888,7 @@ linear-gradient(
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <button onClick={markAllNotificationsAsRead} style={{ border: "none", background: "none", color: "#4f46e5", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Mark all read</button>
                         <button type="button" onClick={clearAllNotifications} title="Clear all notifications" aria-label="Clear all notifications" style={{ border: "1px solid #e2e8f0", background: "#fff", color: "#475569", borderRadius: 8, height: 28, cursor: "pointer", fontSize: 12, fontWeight: 700, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "0 9px" }}>
-                          <span style={{ fontSize: 13, lineHeight: 1 }}>🗑</span>
+                          <span style={{ fontSize: 13, lineHeight: 1 }}><Trash2 size={14} /></span>
                           <span>Clear all</span>
                         </button>
                       </div>
