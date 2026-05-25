@@ -378,12 +378,12 @@ export default function App() {
   const [newDef, setNewDef] = useState(blankDef);
 
   const TABS = [
-  ["dashboard", <LayoutDashboard size={18} />, "Dashboard"],
-  ["projects", <Briefcase size={18} />, "Projects"],
-  ["testcases", <ClipboardList size={18} />, "Test Cases"],
-  ["runs", <Play size={18} />, "Test Runs"],
-  ["defects", <Bug size={18} />, "Defect Log"]
-];
+    ["dashboard", <LayoutDashboard size={18} />, "Dashboard"],
+    ["projects", <Briefcase size={18} />, "Projects"],
+    ["testcases", <ClipboardList size={18} />, "Test Cases"],
+    ["runs", <Play size={18} />, "Test Runs"],
+    ["defects", <Bug size={18} />, "Defect Log"]
+  ];
 
   const canWrite = !!authUser && authUser.role !== "Viewer" && authUser.role !== "Developer";
   const canComment = !!authUser && authUser.role !== "Viewer";
@@ -2603,8 +2603,8 @@ linear-gradient(
   #312e81 100%
 )
 `,
-boxShadow:
-"0 0 40px rgba(99,102,241,.18)",
+            boxShadow:
+              "0 0 40px rgba(99,102,241,.18)",
 
             // Layout
             display: "flex",
@@ -2662,33 +2662,33 @@ boxShadow:
           {/* Nav groups */}
           <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "8px 0" }}>
             {[
-  {
-    group: "MAIN",
-    items: [
-      ["dashboard", <LayoutDashboard size={18} />, "Dashboard"],
-      ["projects", <Briefcase size={18} />, "Projects"],
-    ]
-  },
+              {
+                group: "MAIN",
+                items: [
+                  ["dashboard", <LayoutDashboard size={18} />, "Dashboard"],
+                  ["projects", <Briefcase size={18} />, "Projects"],
+                ]
+              },
 
-  {
-    group: "TESTING",
-    items: [
-      ["testcases", <ClipboardList size={18} />, "Test Cases"],
-      ["runs", <Play size={18} />, "Test Runs"],
-      ["defects", <Bug size={18} />, "Defect Log"],
-    ]
-  },
+              {
+                group: "TESTING",
+                items: [
+                  ["testcases", <ClipboardList size={18} />, "Test Cases"],
+                  ["runs", <Play size={18} />, "Test Runs"],
+                  ["defects", <Bug size={18} />, "Defect Log"],
+                ]
+              },
 
-  ...(isAdmin
-    ? [{
-        group: "SETTINGS",
-        items: [
-          ["settings_cat", <Settings size={18} />, "Settings"],
-          ["users", <Users size={18} />, "Users"],
-        ]
-      }]
-    : []),
-].map(({ group, items }) => (
+              ...(isAdmin
+                ? [{
+                  group: "SETTINGS",
+                  items: [
+                    ["settings_cat", <Settings size={18} />, "Settings"],
+                    ["users", <Users size={18} />, "Users"],
+                  ]
+                }]
+                : []),
+            ].map(({ group, items }) => (
               <div key={group}>
                 {!sidebarCollapsed && (
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#4a5568", letterSpacing: "0.1em", padding: "14px 12px 4px", textTransform: "uppercase" }}>{group}</div>
@@ -2699,103 +2699,103 @@ boxShadow:
                   return (
                     <button key={key}
                       onClick={() => { if (key === "settings_cat") { setShowCategorySettings(true); } else { setActiveTab(key); } }}
-                       onMouseEnter={(e) => {
-    if (!active) {
-      e.currentTarget.style.background =
-        "rgba(255,255,255,0.035)";
-    }
-  }}
+                      onMouseEnter={(e) => {
+                        if (!active) {
+                          e.currentTarget.style.background =
+                            "rgba(255,255,255,0.035)";
+                        }
+                      }}
 
-  onMouseLeave={(e) => {
-    if (!active) {
-      e.currentTarget.style.background =
-        "transparent";
-    }
-  }}
+                      onMouseLeave={(e) => {
+                        if (!active) {
+                          e.currentTarget.style.background =
+                            "transparent";
+                        }
+                      }}
 
                       title={sidebarCollapsed ? label : ""}
-                     style={{
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
 
-  // PREMIUM GLASS ACTIVE BG
-  background: active
-    ? "rgba(255,255,255,0.07)"
-    : "transparent",
+                        // PREMIUM GLASS ACTIVE BG
+                        background: active
+                          ? "rgba(255,255,255,0.07)"
+                          : "transparent",
 
-  // SOFT GLASS BLUR
-  backdropFilter: active ? "blur(12px)" : "none",
+                        // SOFT GLASS BLUR
+                        backdropFilter: active ? "blur(12px)" : "none",
 
-  // SUBTLE BORDER
-  border: active
-    ? "1px solid rgba(255,255,255,0.05)"
-    : "1px solid transparent",
+                        // SUBTLE BORDER
+                        border: active
+                          ? "1px solid rgba(255,255,255,0.05)"
+                          : "1px solid transparent",
 
-  borderRadius: 14,
+                        borderRadius: 14,
 
-  // TEXT COLOR
-  color: active ? "#ffffff" : "#94A3B8",
+                        // TEXT COLOR
+                        color: active ? "#ffffff" : "#94A3B8",
 
-  padding: "12px 14px",
+                        padding: "12px 14px",
 
-  fontSize: 13,
+                        fontSize: 13,
 
-  // LESS AGGRESSIVE BOLD
-  fontWeight: active ? 600 : 500,
+                        // LESS AGGRESSIVE BOLD
+                        fontWeight: active ? 600 : 500,
 
-  cursor: "pointer",
+                        cursor: "pointer",
 
-  width: sidebarCollapsed
-    ? "100%"
-    : "calc(100% - 24px)",
+                        width: sidebarCollapsed
+                          ? "100%"
+                          : "calc(100% - 24px)",
 
-  margin: sidebarCollapsed
-    ? "4px 0"
-    : "4px 12px",
+                        margin: sidebarCollapsed
+                          ? "4px 0"
+                          : "4px 12px",
 
-  whiteSpace: "nowrap",
+                        whiteSpace: "nowrap",
 
-  justifyContent: sidebarCollapsed
-    ? "center"
-    : "flex-start",
+                        justifyContent: sidebarCollapsed
+                          ? "center"
+                          : "flex-start",
 
-  transition: "all 0.22s ease",
+                        transition: "all 0.22s ease",
 
-  // MODERN HOVER FEEL
-  boxShadow: active
-    ? "0 4px 18px rgba(0,0,0,0.18)"
-    : "none",
-}}>
+                        // MODERN HOVER FEEL
+                        boxShadow: active
+                          ? "0 4px 18px rgba(0,0,0,0.18)"
+                          : "none",
+                      }}>
                       <span
-  style={{
-    fontSize: 16,
+                        style={{
+                          fontSize: 16,
 
-    flexShrink: 0,
+                          flexShrink: 0,
 
-    width: 32,
+                          width: 32,
 
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
 
-    // PREMIUM ICON LOOK
-    color: active
-      ? "#8B5CF6"
-      : "#94A3B8",
+                          // PREMIUM ICON LOOK
+                          color: active
+                            ? "#8B5CF6"
+                            : "#94A3B8",
 
-    opacity: active ? 1 : 0.72,
+                          opacity: active ? 1 : 0.72,
 
-    transition: "all 0.2s ease",
+                          transition: "all 0.2s ease",
 
-    // SOFT ACTIVE GLOW
-    filter: active
-      ? "drop-shadow(0 0 10px rgba(139,92,246,0.35))"
-      : "none",
-  }}
->
-  {icon}
-</span>
+                          // SOFT ACTIVE GLOW
+                          filter: active
+                            ? "drop-shadow(0 0 10px rgba(139,92,246,0.35))"
+                            : "none",
+                        }}
+                      >
+                        {icon}
+                      </span>
                       {!sidebarCollapsed && <span>{label}</span>}
                     </button>
                   );
@@ -2969,27 +2969,27 @@ boxShadow:
                     {filteredSortedUsers.map((user, i) => {
                       const resetCooldown = getPwCooldownRemaining(`reset-${user.id}`);
                       return (
-                      <tr key={user.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                        <td style={{ padding: "13px 16px", width: 190, minWidth: 190 }}>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                            <button onClick={() => openEditUser({ ...user, password: "" })} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>Edit</button>
-                            <button
-                              onClick={() => resetUserPassword(user)}
-                              disabled={resetCooldown > 0}
-                              title={resetCooldown > 0 ? `Wait ${resetCooldown}s before resetting again` : undefined}
-                              style={{ ...btnS, padding: "5px 10px", fontSize: 12, borderColor: "#c7d2fe", color: resetCooldown > 0 ? "#a5b4fc" : "#4338ca", opacity: resetCooldown > 0 ? 0.65 : 1, cursor: resetCooldown > 0 ? "not-allowed" : "pointer" }}
-                            >
-                              {resetCooldown > 0 ? `Reset (${resetCooldown}s)` : "Reset Password"}
-                            </button>
-                            <button onClick={() => { if (window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }} style={xBtn}>✕</button>
-                          </div>
-                        </td>
-                        <td style={{ padding: "13px 16px", fontWeight: 800, color: "#6366f1" }}>{user.username}</td>
-                        <td style={{ padding: "13px 16px", color: "#1e293b", fontWeight: 600 }}>{user.displayName}</td>
-                        <td style={{ padding: "13px 16px" }}><span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "3px 8px", borderRadius: 6, fontWeight: 800, fontSize: 12 }}>{user.role}</span></td>
-                        <td style={{ padding: "13px 16px" }}>{user.isActive ? "Yes" : "No"}</td>
-                        <td style={{ padding: "13px 16px", color: "#64748b" }}>{toInputDate(user.createdAt)}</td>
-                      </tr>
+                        <tr key={user.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                          <td style={{ padding: "13px 16px", width: 190, minWidth: 190 }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
+                              <button onClick={() => openEditUser({ ...user, password: "" })} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>Edit</button>
+                              <button
+                                onClick={() => resetUserPassword(user)}
+                                disabled={resetCooldown > 0}
+                                title={resetCooldown > 0 ? `Wait ${resetCooldown}s before resetting again` : undefined}
+                                style={{ ...btnS, padding: "5px 10px", fontSize: 12, borderColor: "#c7d2fe", color: resetCooldown > 0 ? "#a5b4fc" : "#4338ca", opacity: resetCooldown > 0 ? 0.65 : 1, cursor: resetCooldown > 0 ? "not-allowed" : "pointer" }}
+                              >
+                                {resetCooldown > 0 ? `Reset (${resetCooldown}s)` : "Reset Password"}
+                              </button>
+                              <button onClick={() => { if (window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }} style={xBtn}>✕</button>
+                            </div>
+                          </td>
+                          <td style={{ padding: "13px 16px", fontWeight: 800, color: "#6366f1" }}>{user.username}</td>
+                          <td style={{ padding: "13px 16px", color: "#1e293b", fontWeight: 600 }}>{user.displayName}</td>
+                          <td style={{ padding: "13px 16px" }}><span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "3px 8px", borderRadius: 6, fontWeight: 800, fontSize: 12 }}>{user.role}</span></td>
+                          <td style={{ padding: "13px 16px" }}>{user.isActive ? "Yes" : "No"}</td>
+                          <td style={{ padding: "13px 16px", color: "#64748b" }}>{toInputDate(user.createdAt)}</td>
+                        </tr>
                       );
                     })}
                   </tbody>
@@ -3863,7 +3863,7 @@ boxShadow:
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                     <select value={dashProjectId} onChange={e => { setDashProjectId(e.target.value); setDashPlanId(""); setDashRunId(""); }}
                       style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
-                      <option value="">🏢 All Projects</option>
+                      <option value="">All Projects</option>
                       {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
                     </select>
                     <select value={dashPlanId} onChange={e => { setDashPlanId(e.target.value); setDashRunId(""); }}
@@ -3880,7 +3880,7 @@ boxShadow:
                         <option key={r.id} value={String(r.id)}>{r.name}</option>
                       ))}
                     </select>
-                    <button onClick={() => { if (!dashboardRef.current) return; html2canvas(dashboardRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "uat-dashboard.png"; a.click(); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>📥 Export Report</button>
+                    <button onClick={() => { if (!dashboardRef.current) return; html2canvas(dashboardRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "uat-dashboard.png"; a.click(); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>Export Report</button>
                   </div>
                 </div>
                 {/* Top 5 summary cards */}
