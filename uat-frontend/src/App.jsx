@@ -2661,9 +2661,104 @@ boxShadow:
                   return (
                     <button key={key}
                       onClick={() => { if (key === "settings_cat") { setShowCategorySettings(true); } else { setActiveTab(key); } }}
+                       onMouseEnter={(e) => {
+    if (!active) {
+      e.currentTarget.style.background =
+        "rgba(255,255,255,0.035)";
+    }
+  }}
+
+  // ADD HERE
+  onMouseLeave={(e) => {
+    if (!active) {
+      e.currentTarget.style.background =
+        "transparent";
+    }
+  }}
+
                       title={sidebarCollapsed ? label : ""}
-                      style={{ display: "flex", alignItems: "center", gap: 9, background: active ? "rgba(255,255,255,0.1)" : "none", border: "none", borderRadius: 8, color: active ? "#fff" : "#8892a4", padding: "10px 0", fontSize: 13, fontWeight: active ? 700 : 500, cursor: "pointer", width: sidebarCollapsed ? "100%" : "calc(100% - 24px)", margin: sidebarCollapsed ? "2px 0" : "2px 12px", whiteSpace: "nowrap", justifyContent: sidebarCollapsed ? "center" : "flex-start", transition: "all 0.13s" }}>
-                      <span style={{ fontSize: 16, flexShrink: 0, opacity: active ? 1 : 0.8, width: 32, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
+                     style={{
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+
+  // PREMIUM GLASS ACTIVE BG
+  background: active
+    ? "rgba(255,255,255,0.07)"
+    : "transparent",
+
+  // SOFT GLASS BLUR
+  backdropFilter: active ? "blur(12px)" : "none",
+
+  // SUBTLE BORDER
+  border: active
+    ? "1px solid rgba(255,255,255,0.05)"
+    : "1px solid transparent",
+
+  borderRadius: 14,
+
+  // TEXT COLOR
+  color: active ? "#ffffff" : "#94A3B8",
+
+  padding: "12px 14px",
+
+  fontSize: 13,
+
+  // LESS AGGRESSIVE BOLD
+  fontWeight: active ? 600 : 500,
+
+  cursor: "pointer",
+
+  width: sidebarCollapsed
+    ? "100%"
+    : "calc(100% - 24px)",
+
+  margin: sidebarCollapsed
+    ? "4px 0"
+    : "4px 12px",
+
+  whiteSpace: "nowrap",
+
+  justifyContent: sidebarCollapsed
+    ? "center"
+    : "flex-start",
+
+  transition: "all 0.22s ease",
+
+  // MODERN HOVER FEEL
+  boxShadow: active
+    ? "0 4px 18px rgba(0,0,0,0.18)"
+    : "none",
+}}>
+                      <span
+  style={{
+    fontSize: 16,
+
+    flexShrink: 0,
+
+    width: 32,
+
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+
+    // PREMIUM ICON LOOK
+    color: active
+      ? "#8B5CF6"
+      : "#94A3B8",
+
+    opacity: active ? 1 : 0.72,
+
+    transition: "all 0.2s ease",
+
+    // SOFT ACTIVE GLOW
+    filter: active
+      ? "drop-shadow(0 0 10px rgba(139,92,246,0.35))"
+      : "none",
+  }}
+>
+  {icon}
+</span>
                       {!sidebarCollapsed && <span>{label}</span>}
                     </button>
                   );
