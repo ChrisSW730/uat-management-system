@@ -10,7 +10,12 @@ import {
   Play,
   Bug,
   Settings,
-  Users
+  Users,
+  Files,
+  CheckCircle2,
+  XCircle,
+  Ban,
+  Activity
 } from "lucide-react";
 
 /* -----------------------------------------
@@ -3884,36 +3889,264 @@ linear-gradient(
                   </div>
                 </div>
                 {/* Top 5 summary cards */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, marginBottom: 18 }}>
-                  {[
-                    { icon: "📋", iconBg: "#eff6ff", label: "Total Test Cases", value: tcCount, sub: "Linked to active plans", color: "#6366f1" },
-                    { icon: "✅", iconBg: "#f0fdf4", label: "Passed", value: passedTotal, sub: `of ${entryCount.toLocaleString()} executed`, color: "#15803d" },
-                    { icon: "❌", iconBg: "#fff1f2", label: "Failed", value: failedTotal, sub: `of ${entryCount.toLocaleString()} executed`, color: "#be123c" },
-                    { icon: "🚫", iconBg: "#fff7ed", label: "Blocked", value: blockedTotal, sub: `of ${entryCount.toLocaleString()} executed`, color: "#c2410c" },
-                  ].map(({ icon, iconBg, label, value, sub, color }) => (
-                    <div key={label} style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 16 }}>
-                      <div style={{ width: 56, height: 56, borderRadius: 14, background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>{icon}</div>
-                      <div>
-                        <div style={{ fontSize: 12, color, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{value.toLocaleString()}</div>
-                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{sub}</div>
-                      </div>
-                    </div>
-                  ))}
-                  <div style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 12 }}>
-                      <div style={{ width: 56, height: 56, borderRadius: 14, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0, marginTop: 18 }}>📈</div>
-                      <div>
-                        <div style={{ fontSize: 12, color: "#6366f1", fontWeight: 700, marginBottom: 4 }}>Execution Progress</div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{passRate}%</div>
-                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{passedTotal.toLocaleString()} passed / {tcCount.toLocaleString()} total</div>
-                      </div>
-                    </div>
-                    <div style={{ marginLeft: 72, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                      <div style={{ width: `${passRate}%`, height: "100%", background: "linear-gradient(90deg,#6366f1,#818cf8)", borderRadius: 99 }} />
-                    </div>
-                  </div>
-                </div>
+                <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(5,1fr)",
+    gap: 16,
+    marginBottom: 20,
+  }}
+>
+  {[
+    {
+      icon: <Files size={24} strokeWidth={2.2} />,
+      iconBg: "rgba(99,102,241,0.10)",
+      iconColor: "#6366F1",
+      label: "Total Test Cases",
+      value: tcCount,
+      sub: "Linked to active plans",
+      color: "#6366F1",
+    },
+
+    {
+      icon: <CheckCircle2 size={24} strokeWidth={2.2} />,
+      iconBg: "rgba(34,197,94,0.10)",
+      iconColor: "#22C55E",
+      label: "Passed",
+      value: passedTotal,
+      sub: `of ${entryCount.toLocaleString()} executed`,
+      color: "#16A34A",
+    },
+
+    {
+      icon: <XCircle size={24} strokeWidth={2.2} />,
+      iconBg: "rgba(239,68,68,0.10)",
+      iconColor: "#EF4444",
+      label: "Failed",
+      value: failedTotal,
+      sub: `of ${entryCount.toLocaleString()} executed`,
+      color: "#DC2626",
+    },
+
+    {
+      icon: <Ban size={24} strokeWidth={2.2} />,
+      iconBg: "rgba(245,158,11,0.10)",
+      iconColor: "#F59E0B",
+      label: "Blocked",
+      value: blockedTotal,
+      sub: `of ${entryCount.toLocaleString()} executed`,
+      color: "#EA580C",
+    },
+  ].map(
+    ({
+      icon,
+      iconBg,
+      iconColor,
+      label,
+      value,
+      sub,
+      color,
+    }) => (
+      <div
+        key={label}
+        style={{
+          background: "rgba(255,255,255,0.75)",
+
+          backdropFilter: "blur(14px)",
+
+          border: "1px solid rgba(255,255,255,0.65)",
+
+          borderRadius: 20,
+
+          padding: "20px",
+
+          boxShadow:
+            "0 10px 30px rgba(15,23,42,0.05)",
+
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+
+          transition: "all 0.2s ease",
+        }}
+      >
+        <div
+          style={{
+            width: 56,
+            height: 56,
+
+            borderRadius: 18,
+
+            background: iconBg,
+
+            border: `1px solid ${iconColor}20`,
+
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+
+            color: iconColor,
+
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: 12,
+              color,
+              fontWeight: 700,
+              marginBottom: 6,
+            }}
+          >
+            {label}
+          </div>
+
+          <div
+            style={{
+              fontSize: 30,
+              fontWeight: 800,
+              color: "#0F172A",
+              lineHeight: 1,
+            }}
+          >
+            {value.toLocaleString()}
+          </div>
+
+          <div
+            style={{
+              fontSize: 11,
+              color: "#94A3B8",
+              marginTop: 6,
+            }}
+          >
+            {sub}
+          </div>
+        </div>
+      </div>
+    )
+  )}
+
+  {/* Progress Card */}
+  <div
+    style={{
+      background: "rgba(255,255,255,0.75)",
+
+      backdropFilter: "blur(14px)",
+
+      border: "1px solid rgba(255,255,255,0.65)",
+
+      borderRadius: 20,
+
+      padding: "20px",
+
+      boxShadow:
+        "0 10px 30px rgba(15,23,42,0.05)",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        marginBottom: 5,
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+
+          borderRadius: 18,
+
+          background:
+            "rgba(99,102,241,0.10)",
+
+          border:
+            "1px solid rgba(99,102,241,0.18)",
+
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+
+          color: "#6366F1",
+
+          flexShrink: 0,
+
+          transform: "translateY(10px)",
+        }}
+      >
+        <Activity size={24} strokeWidth={2.2} />
+      </div>
+
+      <div>
+        <div
+          style={{
+            fontSize: 12,
+            color: "#6366F1",
+            fontWeight: 700,
+            marginBottom: 6,
+          }}
+        >
+          Execution Progress
+        </div>
+
+        <div
+          style={{
+            fontSize: 30,
+            fontWeight: 800,
+            color: "#0F172A",
+            lineHeight: 1,
+          }}
+        >
+          {passRate}%
+        </div>
+
+        <div
+          style={{
+            fontSize: 11,
+            color: "#94A3B8",
+            marginTop: 6,
+          }}
+        >
+          {passedTotal.toLocaleString()} passed /{" "}
+          {tcCount.toLocaleString()} total
+        </div>
+      </div>
+    </div>
+
+    <div
+  style={{
+    marginLeft: 72,
+
+    height: 10,
+
+    background: "#EEF2FF",
+
+    borderRadius: 999,
+
+    overflow: "hidden",
+  }}
+>
+      <div
+        style={{
+          width: `${passRate}%`,
+          height: "100%",
+
+          background:
+            "linear-gradient(90deg,#6366F1,#8B5CF6)",
+
+          borderRadius: 999,
+
+          transition: "width 0.4s ease",
+        }}
+      />
+    </div>
+  </div>
+</div>
                 {/* Middle two columns */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
                   <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
