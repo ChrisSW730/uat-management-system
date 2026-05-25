@@ -52,6 +52,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 

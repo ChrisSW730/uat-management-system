@@ -248,6 +248,18 @@ export default function App() {
   const [defCloseRule, setDefCloseRule] = useState("Any");
   const [defCloseDate, setDefCloseDate] = useState("");
   const [users, setUsers] = useState([]);
+  // cooldownEndsAt: { ["reset-{id}"]: timestampMs }
+  const [pwCooldowns, setPwCooldowns] = useState({});
+  const [, setPwTick] = useState(0); // forces re-render each second
+  useEffect(() => {
+    const id = setInterval(() => setPwTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const getPwCooldownRemaining = (key) => {
+    const endsAt = pwCooldowns[key];
+    if (!endsAt) return 0;
+    return Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+  };
   const [defDateFilterPanel, setDefDateFilterPanel] = useState(null);
   const [runSearch, setRunSearch] = useState("");
   const [runDateRule, setRunDateRule] = useState("Any");
@@ -1309,11 +1321,22 @@ export default function App() {
   }
 
   async function resetUserPassword(user) {
+    const cooldownKey = `reset-${user.id}`;
+    const remaining = getPwCooldownRemaining(cooldownKey);
+    if (remaining > 0) {
+      alert(`Please wait ${remaining} second(s) before resetting this user's password again.`);
+      return;
+    }
     const ok = window.confirm(`Reset password for ${user.username}? A new temporary password will be generated.`);
     if (!ok) return;
 
     try {
       const result = await api.resetUserPassword(user.id);
+
+      // Start cooldown based on server response or fallback to 60s
+      const cooldownSec = result.cooldownSeconds ?? 60;
+      setPwCooldowns(prev => ({ ...prev, [cooldownKey]: Date.now() + cooldownSec * 1000 }));
+
       setUsers(prev => prev.map(u => (u.id === result.user.id ? result.user : u)));
 
       const subject = "Test Management System - Your Password Has Been Reset";
@@ -1334,6 +1357,15 @@ export default function App() {
       const mailto = `mailto:${encodeURIComponent(user.username)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       window.location.href = mailto;
     } catch (error) {
+      // Parse 429 remaining seconds if available
+      try {
+        const errData = JSON.parse(error.message);
+        if (errData?.remainingSeconds) {
+          setPwCooldowns(prev => ({ ...prev, [cooldownKey]: Date.now() + errData.remainingSeconds * 1000 }));
+          alert(`Please wait ${errData.remainingSeconds} second(s) before resetting this user's password again.`);
+          return;
+        }
+      } catch (_) { /* not JSON */ }
       alert(`Failed to reset password: ${error.message}`);
     }
   }
@@ -2802,12 +2834,21 @@ boxShadow:
                   </thead>
                   <tbody>
                     {filteredSortedUsers.length === 0 && <tr><td colSpan={6} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No users found</td></tr>}
-                    {filteredSortedUsers.map((user, i) => (
+                    {filteredSortedUsers.map((user, i) => {
+                      const resetCooldown = getPwCooldownRemaining(`reset-${user.id}`);
+                      return (
                       <tr key={user.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                        <td style={{ padding: "13px 16px", width: 170, minWidth: 170 }}>
+                        <td style={{ padding: "13px 16px", width: 190, minWidth: 190 }}>
                           <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
                             <button onClick={() => openEditUser({ ...user, password: "" })} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>Edit</button>
-                            <button onClick={() => resetUserPassword(user)} style={{ ...btnS, padding: "5px 10px", fontSize: 12, borderColor: "#c7d2fe", color: "#4338ca" }}>Reset Password</button>
+                            <button
+                              onClick={() => resetUserPassword(user)}
+                              disabled={resetCooldown > 0}
+                              title={resetCooldown > 0 ? `Wait ${resetCooldown}s before resetting again` : undefined}
+                              style={{ ...btnS, padding: "5px 10px", fontSize: 12, borderColor: "#c7d2fe", color: resetCooldown > 0 ? "#a5b4fc" : "#4338ca", opacity: resetCooldown > 0 ? 0.65 : 1, cursor: resetCooldown > 0 ? "not-allowed" : "pointer" }}
+                            >
+                              {resetCooldown > 0 ? `Reset (${resetCooldown}s)` : "Reset Password"}
+                            </button>
                             <button onClick={() => { if (window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }} style={xBtn}>✕</button>
                           </div>
                         </td>
@@ -2817,7 +2858,8 @@ boxShadow:
                         <td style={{ padding: "13px 16px" }}>{user.isActive ? "Yes" : "No"}</td>
                         <td style={{ padding: "13px 16px", color: "#64748b" }}>{toInputDate(user.createdAt)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

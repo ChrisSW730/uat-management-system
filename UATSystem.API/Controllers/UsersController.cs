@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using UATSystem.API.Data;
 using UATSystem.API.Models;
@@ -19,11 +20,32 @@ public class UsersController : ControllerBase
 {
     private readonly UATDbContext _db;
     private readonly SmtpSettings _smtpSettings;
+    private readonly IMemoryCache _cache;
+    private readonly int _cooldownSeconds;
 
-    public UsersController(UATDbContext db, IOptions<SmtpSettings> smtpSettings)
+    public UsersController(UATDbContext db, IOptions<SmtpSettings> smtpSettings, IMemoryCache cache, IConfiguration config)
     {
         _db = db;
         _smtpSettings = smtpSettings.Value;
+        _cache = cache;
+        _cooldownSeconds = config.GetValue<int>("PasswordEmail:CooldownSeconds", 60);
+    }
+
+    private IActionResult? CheckCooldown(string cacheKey)
+    {
+        if (_cache.TryGetValue(cacheKey, out DateTime lastSent))
+        {
+            var elapsed = (DateTime.UtcNow - lastSent).TotalSeconds;
+            var remaining = (int)Math.Ceiling(_cooldownSeconds - elapsed);
+            if (remaining > 0)
+                return StatusCode(429, new { message = $"Please wait {remaining} second(s) before trying again.", remainingSeconds = remaining });
+        }
+        return null;
+    }
+
+    private void SetCooldown(string cacheKey)
+    {
+        _cache.Set(cacheKey, DateTime.UtcNow, TimeSpan.FromSeconds(_cooldownSeconds));
     }
 
     [HttpGet]
@@ -185,6 +207,9 @@ public class UsersController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return NotFound();
 
+        var cooldownCheck = CheckCooldown($"send-initial-password:{id}");
+        if (cooldownCheck != null) return cooldownCheck;
+
         try
         {
             using (var client = new SmtpClient(_smtpSettings.Host, _smtpSettings.Port))
@@ -212,7 +237,8 @@ Test Management System
                 await client.SendMailAsync(message);
             }
 
-            return Ok(new { message = "Initial password email sent successfully" });
+            SetCooldown($"send-initial-password:{id}");
+            return Ok(new { message = "Initial password email sent successfully", cooldownSeconds = _cooldownSeconds });
         }
         catch (Exception ex)
         {
@@ -261,13 +287,17 @@ Test Management System
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return NotFound();
 
+        var cooldownCheck = CheckCooldown($"reset-password:{id}");
+        if (cooldownCheck != null) return cooldownCheck;
+
         var newInitialPassword = GenerateInitialPassword();
         user.PasswordHash = new PasswordHasher<UserAccount>().HashPassword(user, newInitialPassword);
         user.MustChangePassword = true;
         user.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
-        return Ok(new ResetPasswordResponse(ToDto(user), newInitialPassword));
+        SetCooldown($"reset-password:{id}");
+        return Ok(new ResetPasswordResponse(ToDto(user), newInitialPassword, _cooldownSeconds));
     }
 }
 
@@ -277,4 +307,4 @@ public record CreateUserResponse(UserDto User, string InitialPassword);
 public record UpdateUserRequest(string Username, string DisplayName, string? Password, string Role, bool IsActive = true);
 public record SendInitialPasswordRequest(string Email, string InitialPassword, string CreatedBy);
 public record ChangePasswordRequest(string OldPassword, string NewPassword);
-public record ResetPasswordResponse(UserDto User, string InitialPassword);
+public record ResetPasswordResponse(UserDto User, string InitialPassword, int CooldownSeconds);
