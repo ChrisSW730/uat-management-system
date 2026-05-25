@@ -4829,19 +4829,66 @@ linear-gradient(
                       </div>
                     ))}
                     {canComment && (
-                      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                        <input
-                          placeholder="Add a comment..."
-                          value={defectCommentDrafts[viewDef.id] || ""}
-                          onChange={e => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: e.target.value }))}
-                          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addDefectComment(viewDef.id); } }}
-                          style={{ ...inp, fontSize: 13, flex: 1 }}
-                        />
-                        <button
-                          onClick={() => addDefectComment(viewDef.id)}
-                          disabled={!defectCommentDrafts[viewDef.id]?.trim()}
-                          style={{ ...btnP, opacity: defectCommentDrafts[viewDef.id]?.trim() ? 1 : 0.5 }}
-                        >Add</button>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <input
+                            placeholder="Add a comment... (use @Display Name to tag)"
+                            value={defectCommentDrafts[viewDef.id] || ""}
+                            ref={node => registerMentionInputRef(`defect-${viewDef.id}`, node)}
+                            onChange={e => {
+                              const value = e.target.value;
+                              handleMentionInputChange(
+                                "defect",
+                                `defect-${viewDef.id}`,
+                                value,
+                                next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next }))
+                              );
+                            }}
+                            onKeyDown={e => {
+                              handleMentionKeyDown(
+                                e,
+                                "defect",
+                                `defect-${viewDef.id}`,
+                                defectCommentDrafts[viewDef.id] || "",
+                                next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next }))
+                              );
+                              if (e.key === "Enter" && !e.shiftKey && !(mentionPicker?.type === "defect" && mentionPicker?.key === `defect-${viewDef.id}` && mentionPicker?.list?.length)) {
+                                e.preventDefault();
+                                addDefectComment(viewDef.id);
+                              }
+                            }}
+                            style={{ ...inp, fontSize: 13, flex: 1 }}
+                          />
+                          <button
+                            onClick={() => addDefectComment(viewDef.id)}
+                            disabled={!defectCommentDrafts[viewDef.id]?.trim()}
+                            style={{ ...btnP, opacity: defectCommentDrafts[viewDef.id]?.trim() ? 1 : 0.5 }}
+                          >Add</button>
+                        </div>
+                        {mentionPicker?.type === "defect" && mentionPicker?.key === `defect-${viewDef.id}` && (
+                          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                            {mentionPicker.list.map((u, idx) => (
+                              <button
+                                key={`defect-mention-${viewDef.id}-${u.id}`}
+                                type="button"
+                                onMouseDown={e => e.preventDefault()}
+                                onClick={() => {
+                                  const current = defectCommentDrafts[viewDef.id] || "";
+                                  selectMention(
+                                    "defect",
+                                    `defect-${viewDef.id}`,
+                                    current,
+                                    next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next })),
+                                    u.displayName
+                                  );
+                                }}
+                                style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: mentionPicker.activeIndex === idx ? "#eff6ff" : "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                              >
+                                {u.displayName}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
