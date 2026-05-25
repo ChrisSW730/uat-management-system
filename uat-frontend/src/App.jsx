@@ -99,7 +99,7 @@ function PriBadge({ label }) {
   return <span style={{ background: m.bg, color: m.text, padding: "3px 10px", borderRadius: 6, fontSize: 14, fontWeight: 700, textTransform: "uppercase", boxShadow: `0 2px 8px ${m.shadow}`, whiteSpace: "nowrap" }}>{label}</span>;
 }
 
-function Modal({ children, onClose, wide, zIndex = 1000 }) {
+function Modal({ children, onClose, wide, zIndex = 1000, onPaste }) {
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -107,7 +107,7 @@ function Modal({ children, onClose, wide, zIndex = 1000 }) {
   }, []);
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(5px)", zIndex, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, padding: 32, width: "100%", maxWidth: wide ? 900 : 700, maxHeight: "93vh", overflowY: "auto", boxShadow: "0 32px 80px rgba(0,0,0,0.18)", border: "1px solid #f1f5f9" }}>
+      <div onClick={e => e.stopPropagation()} onPaste={onPaste} style={{ background: "#fff", borderRadius: 20, padding: 32, width: "100%", maxWidth: wide ? 900 : 700, maxHeight: "93vh", overflowY: "auto", boxShadow: "0 32px 80px rgba(0,0,0,0.18)", border: "1px solid #f1f5f9" }}>
         {children}
       </div>
     </div>
@@ -2033,6 +2033,20 @@ export default function App() {
 
       setDefects(p => p.map(d => d.id === updated.id ? updated : d));
       setViewDef(d => d?.id === updated.id ? updated : d);
+
+      if (newDefAttachments.length > 0) {
+        try {
+          const uploaded = await api.uploadDefectAttachments(updated.id, newDefAttachments, getCurrentUserName());
+          setDefectAttachments(p => ({
+            ...p,
+            [updated.id]: [...(p[updated.id] || []), ...uploaded],
+          }));
+        } catch (uploadErr) {
+          alert("Defect saved but attachment upload failed: " + uploadErr.message);
+        }
+        setNewDefAttachments([]);
+      }
+
       setEditDef(null);
     } catch (e) {
       alert("Failed to update defect: " + e.message);
@@ -2112,6 +2126,7 @@ export default function App() {
     try {
       setUploadingDefectId(defectId);
       const uploaded = await api.uploadDefectAttachments(defectId, selected, getCurrentUserName());
+      if (!Array.isArray(uploaded)) throw new Error("Unexpected server response");
       setDefectAttachments(p => ({
         ...p,
         [defectId]: [...(p[defectId] || []), ...uploaded],
@@ -4355,7 +4370,7 @@ onMouseLeave={(e) => {
 
           {/* ── MODAL: VIEW TC ── */}
           {viewTC && (
-            <Modal onClose={() => setViewTC(null)} zIndex={1300}>
+            <Modal onClose={() => setViewTC(null)} zIndex={1300} onPaste={canWrite ? e => onTestCasePasteUpload(e, viewTC.id) : undefined}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
                 <div>
                   <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 10px", borderRadius: 6, border: "1px solid #c7d2fe" }}>{viewTC.tcNumber}</span>
@@ -4379,7 +4394,6 @@ onMouseLeave={(e) => {
               <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1.5px solid #f1f5f9" }}>
                 <div style={{ ...lbl, marginBottom: 10 }}>Attachments</div>
                 {canWrite && <div
-                  onPaste={e => onTestCasePasteUpload(e, viewTC.id)}
                   style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
                 >
                   <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
@@ -4388,6 +4402,7 @@ onMouseLeave={(e) => {
                   <input
                     type="file"
                     multiple
+                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
                     onChange={e => {
                       uploadTestCaseFiles(viewTC.id, e.target.files);
                       e.target.value = "";
@@ -4944,7 +4959,7 @@ onMouseLeave={(e) => {
 
           {/* ── MODAL: EDIT DEFECT ── */}
           {editDef && (
-            <Modal onClose={() => setEditDef(null)}>
+            <Modal onClose={() => setEditDef(null)} onPaste={e => onDefectPasteUpload(e, editDef.id)}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
                 <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Defect</div>
                 <button onClick={() => setEditDef(null)} style={xBtn}>✕</button>
@@ -5082,8 +5097,29 @@ onMouseLeave={(e) => {
 
                 <div>
                   <label style={lbl}>Attachments</label>
+
+                  {/* Existing uploaded attachments */}
+                  <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
+                    {(defectAttachments[editDef.id] || []).map(a => (
+                      <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                        <button
+                          type="button"
+                          onClick={() => openAttachment(a.url, a.fileName)}
+                          style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                          title="Open attachment"
+                        >
+                          {a.fileName}
+                        </button>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
+                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
+                        {canDelete && (
+                          <button onClick={() => deleteDefectAttachment(editDef.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
                   <div
-                    onPaste={onDefectPasteUpload}
                     style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
                   >
                     <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
@@ -5092,8 +5128,9 @@ onMouseLeave={(e) => {
                     <input
                       type="file"
                       multiple
+                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
                       onChange={e => {
-                        queueDefectFiles(e.target.files);
+                        queueNewDefectFiles(e.target.files);
                         e.target.value = "";
                       }}
                       style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
@@ -5102,15 +5139,15 @@ onMouseLeave={(e) => {
 
                   <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
                     {newDefAttachments.length === 0 && (
-                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
+                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No new attachments queued.</div>
                     )}
 
                     {newDefAttachments.map((f, i) => (
                       <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
                         <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
                         <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
-                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is created</span>
-                        <button onClick={() => removeQueuedDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after saving</span>
+                        <button onClick={() => removeQueuedNewDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
                       </div>
                     ))}
                   </div>
@@ -5125,7 +5162,7 @@ onMouseLeave={(e) => {
 
           {/* ── MODAL: ADD TC ── */}
           {showAddTC && (
-            <Modal onClose={() => setShowAddTC(false)}>
+            <Modal onClose={() => setShowAddTC(false)} onPaste={onNewTestCasePasteUpload}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
                 <div style={{ fontSize: 17, fontWeight: 800 }}>Add Test Case</div>
                 <button onClick={() => setShowAddTC(false)} style={xBtn}>✕</button>
@@ -5159,7 +5196,6 @@ onMouseLeave={(e) => {
                 <div style={{ marginTop: 2 }}>
                   <label style={lbl}>Attachments</label>
                   <div
-                    onPaste={onNewTestCasePasteUpload}
                     style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
                   >
                     <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
@@ -5168,6 +5204,7 @@ onMouseLeave={(e) => {
                     <input
                       type="file"
                       multiple
+                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
                       onChange={e => {
                         queueNewTestCaseFiles(e.target.files);
                         e.target.value = "";
@@ -5411,7 +5448,7 @@ onMouseLeave={(e) => {
 
           {/* ── MODAL: Edit TC ── */}
           {editTC && (
-            <Modal onClose={() => setEditTC(null)}>
+            <Modal onClose={() => setEditTC(null)} onPaste={e => onTestCasePasteUpload(e, editTC.id)}>
               <div style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -5584,7 +5621,6 @@ onMouseLeave={(e) => {
                 <div style={{ marginTop: 2 }}>
                   <label style={lbl}>Attachments</label>
                   <div
-                    onPaste={e => onTestCasePasteUpload(e, editTC.id)}
                     style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
                   >
                     <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
@@ -5593,6 +5629,7 @@ onMouseLeave={(e) => {
                     <input
                       type="file"
                       multiple
+                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
                       onChange={e => {
                         uploadTestCaseFiles(editTC.id, e.target.files);
                         e.target.value = "";
@@ -5912,7 +5949,7 @@ onMouseLeave={(e) => {
 
           {/* ── MODAL: CREATE DEFECT ── */}
           {showAddDef && (
-            <Modal onClose={() => { setShowAddDef(null); setNewDefAttachments([]); }}>
+            <Modal onClose={() => { setShowAddDef(null); setNewDefAttachments([]); }} onPaste={onNewDefectPasteUpload}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
                 <div style={{ fontSize: 17, fontWeight: 800 }}>Create Defect</div>
                 <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={xBtn}>✕</button>
@@ -6051,7 +6088,6 @@ onMouseLeave={(e) => {
                 <div>
                   <label style={lbl}>Attachments</label>
                   <div
-                    onPaste={onDefectPasteUpload}
                     style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
                   >
                     <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
@@ -6060,8 +6096,9 @@ onMouseLeave={(e) => {
                     <input
                       type="file"
                       multiple
+                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
                       onChange={e => {
-                        queueDefectFiles(e.target.files);
+                        queueNewDefectFiles(e.target.files);
                         e.target.value = "";
                       }}
                       style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
@@ -6078,7 +6115,7 @@ onMouseLeave={(e) => {
                         <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
                         <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
                         <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is created</span>
-                        <button onClick={() => removeQueuedDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                        <button onClick={() => removeQueuedNewDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
                       </div>
                     ))}
                   </div>
