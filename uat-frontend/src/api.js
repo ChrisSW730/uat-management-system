@@ -1,4 +1,4 @@
-const BASE = "http://localhost:5176/api";
+const BASE = "/api";
 const rawFetch = window.fetch.bind(window);
 
 function readAuth() {
