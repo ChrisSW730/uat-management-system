@@ -208,6 +208,24 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
   );
 }
 
+function getInitialDefectLinkId() {
+  try {
+    const url = new URL(window.location.href);
+    const queryId = url.searchParams.get("defect");
+    if (queryId) {
+      const parsed = Number(queryId);
+      if (Number.isFinite(parsed)) return String(parsed);
+    }
+
+    const defectMatch = url.pathname.match(/\/defects\/(\d+)$/);
+    if (defectMatch) return defectMatch[1];
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 /* -----------------------------------------
    SHARED STYLES
 ----------------------------------------- */
@@ -244,6 +262,7 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
+  const [pendingDefectLinkId, setPendingDefectLinkId] = useState(() => getInitialDefectLinkId());
   const [authUser, setAuthUser] = useState(() => {
     try {
       const auth = JSON.parse(localStorage.getItem("uatAuth") || "null");
@@ -526,6 +545,18 @@ export default function App() {
     requestAnimationFrame(() => focusMentionInput(pickerKey));
   }
 
+  async function copyDefectLink(defectId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("defect", String(defectId));
+    url.hash = "";
+
+    try {
+      await navigator.clipboard.writeText(url.toString());
+    } catch {
+      window.prompt("Copy defect link", url.toString());
+    }
+  }
+
   function handleMentionKeyDown(e, pickerType, pickerKey, currentValue, setValue) {
     if (mentionPicker?.type !== pickerType || mentionPicker?.key !== pickerKey || !mentionPicker.list?.length) return;
 
@@ -803,6 +834,24 @@ export default function App() {
       .finally(() => setLoading(false));
 
   }, [authUser, isAdmin]);
+
+  useEffect(() => {
+    if (!authUser || loading || !pendingDefectLinkId) return;
+
+    const defectId = Number(pendingDefectLinkId);
+    if (!Number.isFinite(defectId)) {
+      setPendingDefectLinkId(null);
+      return;
+    }
+
+    const targetDefect = (defects || []).find(d => Number(d.id) === defectId);
+    if (!targetDefect) return;
+
+    setActiveTab("defects");
+    setViewDef(targetDefect);
+    setShowNotifications(false);
+    setPendingDefectLinkId(null);
+  }, [authUser, loading, pendingDefectLinkId, defects]);
 
   useEffect(() => {
     api.getTestCases(selectedTestPlanId || undefined)
@@ -4762,11 +4811,19 @@ onMouseLeave={(e) => {
           {viewDef && (
             <Modal onClose={() => setViewDef(null)}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <div style={{ fontSize: 17, fontWeight: 800 }}>Defect Details</div>
                   <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 6, border: "1px solid #c7d2fe" }}>
                     {viewDef.defectNumber || `#${viewDef.id}`}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => copyDefectLink(viewDef.id)}
+                    style={{ ...btnS, padding: "4px 10px", fontSize: 12, lineHeight: 1.2 }}
+                    title="Copy shareable defect link"
+                  >
+                    Copy Link
+                  </button>
                 </div>
                 <button onClick={() => setViewDef(null)} style={xBtn}>✕</button>
               </div>
