@@ -515,6 +515,17 @@ export default function App() {
     requestAnimationFrame(() => focusMentionInput(pickerKey));
   }
 
+  function replyToComment(pickerKey, currentValue, setValue, displayName) {
+    const mention = `@${displayName}`;
+    const base = currentValue || "";
+    const alreadyMentioned = base.includes(mention);
+    const needsSpace = base.length > 0 && !/\s$/.test(base);
+    const nextValue = alreadyMentioned ? base : `${base}${needsSpace ? " " : ""}${mention} `;
+    setValue(nextValue);
+    setMentionPicker(null);
+    requestAnimationFrame(() => focusMentionInput(pickerKey));
+  }
+
   function handleMentionKeyDown(e, pickerType, pickerKey, currentValue, setValue) {
     if (mentionPicker?.type !== pickerType || mentionPicker?.key !== pickerKey || !mentionPicker.list?.length) return;
 
@@ -4561,12 +4572,24 @@ onMouseLeave={(e) => {
                                     .map(c => (
                                       <div
                                         key={c.id}
+                                        onClick={() => {
+                                          if (!canComment) return;
+                                          const key = `run-${entry.testCaseId}`;
+                                          const current = commentDrafts[entry.testCaseId] || "";
+                                          replyToComment(
+                                            key,
+                                            current,
+                                            next => setCommentDrafts(p => ({ ...p, [entry.testCaseId]: next })),
+                                            c.tester
+                                          );
+                                        }}
                                         style={{
                                           background: "#fff",
                                           border: "1px solid #e2e8f0",
                                           borderRadius: 8,
                                           padding: "8px 12px",
-                                          marginBottom: 8
+                                          marginBottom: 8,
+                                          cursor: canComment ? "pointer" : "default"
                                         }}
                                       >
                                         <div style={{
@@ -4596,13 +4619,14 @@ onMouseLeave={(e) => {
 
                                             {canDelete && (
                                               <button
-                                                onClick={() =>
+                                                onClick={e => {
+                                                  e.stopPropagation();
                                                   deleteComment(
                                                     viewRun.id,
                                                     entry.testCaseId,
                                                     c.id
-                                                  )
-                                                }
+                                                  );
+                                                }}
                                                 style={{
                                                   border: "none",
                                                   background: "none",
@@ -4899,14 +4923,31 @@ onMouseLeave={(e) => {
                       <div style={{ color: "#94a3b8", fontSize: 13 }}>No comments yet.</div>
                     )}
                     {(viewDef.comments || []).map(c => (
-                      <div key={c.id} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
+                      <div
+                        key={c.id}
+                        onClick={() => {
+                          if (!canComment) return;
+                          const key = `defect-${viewDef.id}`;
+                          const current = defectCommentDrafts[viewDef.id] || "";
+                          replyToComment(
+                            key,
+                            current,
+                            next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next })),
+                            c.tester
+                          );
+                        }}
+                        style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", cursor: canComment ? "pointer" : "default" }}
+                      >
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                           <span style={{ fontWeight: 700, color: "#475569", fontSize: 12 }}>{c.tester}</span>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(c.createdAt).toLocaleString()}</span>
                             {canDelete && (
                               <button
-                                onClick={() => deleteDefectComment(viewDef.id, c.id)}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  deleteDefectComment(viewDef.id, c.id);
+                                }}
                                 style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
                               >✕</button>
                             )}
