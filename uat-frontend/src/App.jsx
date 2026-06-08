@@ -4738,7 +4738,12 @@ onMouseLeave={(e) => {
           {viewDef && (
             <Modal onClose={() => setViewDef(null)}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-                <div style={{ fontSize: 17, fontWeight: 800 }}>Defect Details</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ fontSize: 17, fontWeight: 800 }}>Defect Details</div>
+                  <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 6, border: "1px solid #c7d2fe" }}>
+                    {viewDef.defectNumber || `#${viewDef.id}`}
+                  </span>
+                </div>
                 <button onClick={() => setViewDef(null)} style={xBtn}>✕</button>
               </div>
               <div style={{ display: "grid", gap: 14 }}>
