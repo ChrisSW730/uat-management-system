@@ -1048,13 +1048,35 @@ export default function App() {
     const last7 = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(d.getDate() - 6 + i); return d.toISOString().slice(0, 10); });
     const trendDays = last7.map(dateStr => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      const dayRuns = scopedRuns.filter(r => r.createdAt?.slice(0, 10) === dateStr);
-      const dayEntries = dayRuns.flatMap(r => (r.entries || []).filter(e => tcIdSet.has(e.testCaseId)));
-      return { label, passed: dayEntries.filter(e => e.execStatus === "Passed").length, failed: dayEntries.filter(e => e.execStatus === "Failed").length, blocked: dayEntries.filter(e => e.execStatus === "Blocked").length };
+      const dayEntries = scopedRuns.flatMap(run =>
+        (run.entries || []).filter(entry => {
+          if (!tcIdSet.has(entry.testCaseId)) return false;
+
+          const status = entry.execStatus;
+          if (!["Passed", "Failed", "Blocked"].includes(status)) return false;
+
+          const changedDate = (entry.statusChangedAt || "").slice(0, 10);
+          const fallbackDate = (run.createdAt || "").slice(0, 10);
+          // Prefer the actual status update date. Fallback keeps older records visible.
+          const eventDate = changedDate || fallbackDate;
+          return eventDate === dateStr;
+        })
+      );
+
+      return {
+        label,
+        passed: dayEntries.filter(e => e.execStatus === "Passed").length,
+        failed: dayEntries.filter(e => e.execStatus === "Failed").length,
+        blocked: dayEntries.filter(e => e.execStatus === "Blocked").length,
+      };
     });
     const defectTrendDays = last7.map(dateStr => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      return { label, newCount: filteredDefects.filter(d => (d.dateRaised || d.createdAt || "").slice(0, 10) === dateStr).length, closedCount: filteredDefects.filter(d => d.closeDateTime?.slice(0, 10) === dateStr).length };
+      return {
+        label,
+        newCount: filteredDefects.filter(d => (d.openDateTime || d.dateRaised || d.createdAt || "").slice(0, 10) === dateStr).length,
+        closedCount: filteredDefects.filter(d => d.closeDateTime?.slice(0, 10) === dateStr).length,
+      };
     });
     return {
       allDashPlans, tcCount: dashRunId ? runTcCount : filteredTCs.length, entryCount: filteredEntries.length,
