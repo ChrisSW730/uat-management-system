@@ -17,7 +17,9 @@ import {
   Ban,
   Activity,
   Bell,
-  Trash2
+  Trash2,
+  Target,
+  Search
 } from "lucide-react";
 
 /* -----------------------------------------
@@ -2935,36 +2937,38 @@ linear-gradient(
               {/* Notification bell */}
               <div style={{ position: "relative" }}>
                 <button onClick={(e) => {
-  e.stopPropagation();
+                  e.stopPropagation();
 
-  // OPEN/CLOSE PANEL
-  toggleNotificationsPanel();
+                  // OPEN/CLOSE PANEL
+                  toggleNotificationsPanel();
 
-  // AUTO MARK ALL READ WHEN OPEN
-  if (!showNotifications) {
-    markAllNotificationsAsRead();
-  }
-}}
-                onMouseEnter={(e) => {
-  e.currentTarget.style.background =
-    "rgba(255,255,255,0.78)";
+                  // AUTO MARK ALL READ WHEN OPEN
+                  if (!showNotifications) {
+                    markAllNotificationsAsRead();
+                  }
+                }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255,255,255,0.78)";
 
-  e.currentTarget.style.color =
-    "#6366F1";
-}}
+                    e.currentTarget.style.color =
+                      "#6366F1";
+                  }}
 
-onMouseLeave={(e) => {
-  e.currentTarget.style.background =
-    "rgba(255,255,255,0.55)";
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255,255,255,0.55)";
 
-  e.currentTarget.style.color =
-    "#94A3B8";
-}}
-                style={{ ...btnS, padding: "8px 10px", fontSize: 18, lineHeight: 1, position: "relative", border: "none", background: "transparent", boxShadow: "none" }} aria-label="Notifications" title="Notifications">
+                    e.currentTarget.style.color =
+                      "#94A3B8";
+                  }}
+                  style={{ ...btnS, padding: "8px 10px", fontSize: 18, lineHeight: 1, position: "relative", border: "none", background: "transparent", boxShadow: "none" }} aria-label="Notifications" title="Notifications">
                   <Bell size={18} strokeWidth={2.2} />
                   {unreadNotificationsCount > 0 && (
-                    <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 999, background: "linear-gradient(135deg,#EF4444,#F87171)", boxShadow:
-  "0 0 14px rgba(239,68,68,0.35)", color: "#fff", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px", border: "2px solid #fff" }}>
+                    <span style={{
+                      position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 999, background: "linear-gradient(135deg,#EF4444,#F87171)", boxShadow:
+                        "0 0 14px rgba(239,68,68,0.35)", color: "#fff", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px", border: "2px solid #fff"
+                    }}>
                       {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
                     </span>
                   )}
@@ -3209,8 +3213,23 @@ onMouseLeave={(e) => {
                           {(() => {
                             const count = defects.filter(d => d.testPlanId === tp.id).length;
                             return count > 0 ? (
-                              <span style={{ background: "#fee2e2", color: "#b91c1c", borderRadius: 999, fontSize: 12, fontWeight: 800, padding: "2px 8px", minWidth: 24, textAlign: "center" }}>
-                                🐛 {count}
+                              <span
+                                style={{
+                                  background: "#fee2e2",
+                                  color: "#b91c1c",
+                                  borderRadius: 999,
+                                  fontSize: 12,
+                                  fontWeight: 800,
+                                  padding: "2px 8px",
+                                  minWidth: 24,
+                                  textAlign: "center",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                }}
+                              >
+                                <Bug size={12} />
+                                {count}
                               </span>
                             ) : null;
                           })()}
@@ -3248,13 +3267,15 @@ onMouseLeave={(e) => {
                           );
                         })()}
                       </button>
-                      {canManageProjects && <button
-                        onClick={() => openManageScopes(tp)}
-                        style={{ ...btnS, padding: "5px 10px", fontSize: 13 }}
-                        title="Manage testing scopes"
-                      >
-                        🎯
-                      </button>}
+                      {canManageProjects && (
+                        <button
+                          onClick={() => openManageScopes(tp)}
+                          style={{ ...btnS, padding: "5px 10px", fontSize: 13 }}
+                          title="Manage testing scopes"
+                        >
+                          <Target size={16} />
+                        </button>
+                      )}
                       {canManageProjects && <button
                         onClick={() => {
                           setEditingPlanId(tp.id);
@@ -3293,8 +3314,27 @@ onMouseLeave={(e) => {
               {/* toolbar */}
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
                 <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14 }}>🔍</span>
-                  <input placeholder="Search ID or name…" value={tcSearch} onChange={e => setTcSearch(e.target.value)} style={{ ...inp, paddingLeft: 32, width: 230 }} />
+                  <Search
+                    size={16}
+                    style={{
+                      position: "absolute",
+                      left: 10,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "#94a3b8",
+                    }}
+                  />
+
+                  <input
+                    placeholder="Search ID or name..."
+                    value={tcSearch}
+                    onChange={e => setTcSearch(e.target.value)}
+                    style={{
+                      ...inp,
+                      paddingLeft: 36,
+                      width: 230,
+                    }}
+                  />
                 </div>
                 <select value={tcCatFilter} onChange={e => setTcCatFilter(e.target.value)} style={{ ...inp, width: 220 }}>
                   <option value="All">All Categories</option>
@@ -3507,12 +3547,37 @@ onMouseLeave={(e) => {
           {activeTab === "runs" && (
             <div style={{ padding: "20px 2.5%" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-                <input
-                  value={runSearch}
-                  onChange={e => setRunSearch(e.target.value)}
-                  placeholder="Search runs…"
-                  style={{ flex: 1, minWidth: 180, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 14, color: "#0f172a", outline: "none" }}
-                />
+                <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
+                  <Search
+                    size={16}
+                    style={{
+                      position: "absolute",
+                      left: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "#94a3b8",
+                      pointerEvents: "none",
+                    }}
+                  />
+
+                  <input
+                    value={runSearch}
+                    onChange={e => setRunSearch(e.target.value)}
+                    placeholder="Search runs..."
+                    style={{
+                      flex: 1,
+                      width: "100%",
+                      background: "#f8fafc",
+                      border: "1.5px solid #e2e8f0",
+                      borderRadius: 8,
+                      padding: "8px 12px 8px 38px",
+                      fontSize: 14,
+                      color: "#0f172a",
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", position: "relative" }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>Date</span>
                   <button
@@ -3648,12 +3713,31 @@ onMouseLeave={(e) => {
           {activeTab === "defects" && (
             <div style={{ padding: "20px 2.5%" }}>
               <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-                <input
-                  placeholder="Search defect / run / TC / assignee..."
-                  value={defSearch}
-                  onChange={e => setDefSearch(e.target.value)}
-                  style={{ ...inp, width: 320 }}
-                />
+                <div style={{ position: "relative", width: 320 }}>
+                  <Search
+                    size={16}
+                    style={{
+                      position: "absolute",
+                      left: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "#94a3b8",
+                      pointerEvents: "none",
+                    }}
+                  />
+
+                  <input
+                    placeholder="Search defect / run / TC / assignee..."
+                    value={defSearch}
+                    onChange={e => setDefSearch(e.target.value)}
+                    style={{
+                      ...inp,
+                      width: "100%",
+                      paddingLeft: 38,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
                 <select value={defStatusFilter} onChange={e => setDefStatusFilter(e.target.value)} style={{ ...inp, width: 180 }}>
                   <option>All</option>
                   {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
@@ -4032,263 +4116,263 @@ onMouseLeave={(e) => {
                 </div>
                 {/* Top 5 summary cards */}
                 <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(5,1fr)",
-    gap: 16,
-    marginBottom: 20,
-  }}
->
-  {[
-    {
-      icon: <Files size={24} strokeWidth={2.2} />,
-      iconBg: "rgba(99,102,241,0.10)",
-      iconColor: "#6366F1",
-      label: "Total Test Cases",
-      value: tcCount,
-      sub: "Linked to active plans",
-      color: "#6366F1",
-    },
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(5,1fr)",
+                    gap: 16,
+                    marginBottom: 20,
+                  }}
+                >
+                  {[
+                    {
+                      icon: <Files size={24} strokeWidth={2.2} />,
+                      iconBg: "rgba(99,102,241,0.10)",
+                      iconColor: "#6366F1",
+                      label: "Total Test Cases",
+                      value: tcCount,
+                      sub: "Linked to active plans",
+                      color: "#6366F1",
+                    },
 
-    {
-      icon: <CheckCircle2 size={24} strokeWidth={2.2} />,
-      iconBg: "rgba(34,197,94,0.10)",
-      iconColor: "#22C55E",
-      label: "Passed",
-      value: passedTotal,
-      sub: `of ${entryCount.toLocaleString()} executed`,
-      color: "#16A34A",
-    },
+                    {
+                      icon: <CheckCircle2 size={24} strokeWidth={2.2} />,
+                      iconBg: "rgba(34,197,94,0.10)",
+                      iconColor: "#22C55E",
+                      label: "Passed",
+                      value: passedTotal,
+                      sub: `of ${entryCount.toLocaleString()} executed`,
+                      color: "#16A34A",
+                    },
 
-    {
-      icon: <XCircle size={24} strokeWidth={2.2} />,
-      iconBg: "rgba(239,68,68,0.10)",
-      iconColor: "#EF4444",
-      label: "Failed",
-      value: failedTotal,
-      sub: `of ${entryCount.toLocaleString()} executed`,
-      color: "#DC2626",
-    },
+                    {
+                      icon: <XCircle size={24} strokeWidth={2.2} />,
+                      iconBg: "rgba(239,68,68,0.10)",
+                      iconColor: "#EF4444",
+                      label: "Failed",
+                      value: failedTotal,
+                      sub: `of ${entryCount.toLocaleString()} executed`,
+                      color: "#DC2626",
+                    },
 
-    {
-      icon: <Ban size={24} strokeWidth={2.2} />,
-      iconBg: "rgba(245,158,11,0.10)",
-      iconColor: "#F59E0B",
-      label: "Blocked",
-      value: blockedTotal,
-      sub: `of ${entryCount.toLocaleString()} executed`,
-      color: "#EA580C",
-    },
-  ].map(
-    ({
-      icon,
-      iconBg,
-      iconColor,
-      label,
-      value,
-      sub,
-      color,
-    }) => (
-      <div
-        key={label}
-        style={{
-          background: "rgba(255,255,255,0.75)",
+                    {
+                      icon: <Ban size={24} strokeWidth={2.2} />,
+                      iconBg: "rgba(245,158,11,0.10)",
+                      iconColor: "#F59E0B",
+                      label: "Blocked",
+                      value: blockedTotal,
+                      sub: `of ${entryCount.toLocaleString()} executed`,
+                      color: "#EA580C",
+                    },
+                  ].map(
+                    ({
+                      icon,
+                      iconBg,
+                      iconColor,
+                      label,
+                      value,
+                      sub,
+                      color,
+                    }) => (
+                      <div
+                        key={label}
+                        style={{
+                          background: "rgba(255,255,255,0.75)",
 
-          backdropFilter: "blur(14px)",
+                          backdropFilter: "blur(14px)",
 
-          border: "1px solid rgba(255,255,255,0.65)",
+                          border: "1px solid rgba(255,255,255,0.65)",
 
-          borderRadius: 20,
+                          borderRadius: 20,
 
-          padding: "20px",
+                          padding: "20px",
 
-          boxShadow:
-            "0 10px 30px rgba(15,23,42,0.05)",
+                          boxShadow:
+                            "0 10px 30px rgba(15,23,42,0.05)",
 
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 16,
 
-          transition: "all 0.2s ease",
-        }}
-      >
-        <div
-          style={{
-            width: 56,
-            height: 56,
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 56,
+                            height: 56,
 
-            borderRadius: 18,
+                            borderRadius: 18,
 
-            background: iconBg,
+                            background: iconBg,
 
-            border: `1px solid ${iconColor}20`,
+                            border: `1px solid ${iconColor}20`,
 
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
 
-            color: iconColor,
+                            color: iconColor,
 
-            flexShrink: 0,
-          }}
-        >
-          {icon}
-        </div>
+                            flexShrink: 0,
+                          }}
+                        >
+                          {icon}
+                        </div>
 
-        <div>
-          <div
-            style={{
-              fontSize: 12,
-              color,
-              fontWeight: 700,
-              marginBottom: 6,
-            }}
-          >
-            {label}
-          </div>
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color,
+                              fontWeight: 700,
+                              marginBottom: 6,
+                            }}
+                          >
+                            {label}
+                          </div>
 
-          <div
-            style={{
-              fontSize: 30,
-              fontWeight: 800,
-              color: "#0F172A",
-              lineHeight: 1,
-            }}
-          >
-            {value.toLocaleString()}
-          </div>
+                          <div
+                            style={{
+                              fontSize: 30,
+                              fontWeight: 800,
+                              color: "#0F172A",
+                              lineHeight: 1,
+                            }}
+                          >
+                            {value.toLocaleString()}
+                          </div>
 
-          <div
-            style={{
-              fontSize: 11,
-              color: "#94A3B8",
-              marginTop: 6,
-            }}
-          >
-            {sub}
-          </div>
-        </div>
-      </div>
-    )
-  )}
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#94A3B8",
+                              marginTop: 6,
+                            }}
+                          >
+                            {sub}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
 
-  {/* Progress Card */}
-  <div
-    style={{
-      background: "rgba(255,255,255,0.75)",
+                  {/* Progress Card */}
+                  <div
+                    style={{
+                      background: "rgba(255,255,255,0.75)",
 
-      backdropFilter: "blur(14px)",
+                      backdropFilter: "blur(14px)",
 
-      border: "1px solid rgba(255,255,255,0.65)",
+                      border: "1px solid rgba(255,255,255,0.65)",
 
-      borderRadius: 20,
+                      borderRadius: 20,
 
-      padding: "20px",
+                      padding: "20px",
 
-      boxShadow:
-        "0 10px 30px rgba(15,23,42,0.05)",
-    }}
-  >
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        marginBottom: 5,
-      }}
-    >
-      <div
-        style={{
-          width: 56,
-          height: 56,
+                      boxShadow:
+                        "0 10px 30px rgba(15,23,42,0.05)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 16,
+                        marginBottom: 5,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 56,
+                          height: 56,
 
-          borderRadius: 18,
+                          borderRadius: 18,
 
-          background:
-            "rgba(99,102,241,0.10)",
+                          background:
+                            "rgba(99,102,241,0.10)",
 
-          border:
-            "1px solid rgba(99,102,241,0.18)",
+                          border:
+                            "1px solid rgba(99,102,241,0.18)",
 
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
 
-          color: "#6366F1",
+                          color: "#6366F1",
 
-          flexShrink: 0,
+                          flexShrink: 0,
 
-          transform: "translateY(10px)",
-        }}
-      >
-        <Activity size={24} strokeWidth={2.2} />
-      </div>
+                          transform: "translateY(10px)",
+                        }}
+                      >
+                        <Activity size={24} strokeWidth={2.2} />
+                      </div>
 
-      <div>
-        <div
-          style={{
-            fontSize: 12,
-            color: "#6366F1",
-            fontWeight: 700,
-            marginBottom: 6,
-          }}
-        >
-          Execution Progress
-        </div>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "#6366F1",
+                            fontWeight: 700,
+                            marginBottom: 6,
+                          }}
+                        >
+                          Execution Progress
+                        </div>
 
-        <div
-          style={{
-            fontSize: 30,
-            fontWeight: 800,
-            color: "#0F172A",
-            lineHeight: 1,
-          }}
-        >
-          {passRate}%
-        </div>
+                        <div
+                          style={{
+                            fontSize: 30,
+                            fontWeight: 800,
+                            color: "#0F172A",
+                            lineHeight: 1,
+                          }}
+                        >
+                          {passRate}%
+                        </div>
 
-        <div
-          style={{
-            fontSize: 11,
-            color: "#94A3B8",
-            marginTop: 6,
-          }}
-        >
-          {passedTotal.toLocaleString()} passed /{" "}
-          {tcCount.toLocaleString()} total
-        </div>
-      </div>
-    </div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "#94A3B8",
+                            marginTop: 6,
+                          }}
+                        >
+                          {passedTotal.toLocaleString()} passed /{" "}
+                          {tcCount.toLocaleString()} total
+                        </div>
+                      </div>
+                    </div>
 
-    <div
-  style={{
-    marginLeft: 72,
+                    <div
+                      style={{
+                        marginLeft: 72,
 
-    height: 10,
+                        height: 10,
 
-    background: "#EEF2FF",
+                        background: "#EEF2FF",
 
-    borderRadius: 999,
+                        borderRadius: 999,
 
-    overflow: "hidden",
-  }}
->
-      <div
-        style={{
-          width: `${passRate}%`,
-          height: "100%",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${passRate}%`,
+                          height: "100%",
 
-          background:
-            "linear-gradient(90deg,#6366F1,#8B5CF6)",
+                          background:
+                            "linear-gradient(90deg,#6366F1,#8B5CF6)",
 
-          borderRadius: 999,
+                          borderRadius: 999,
 
-          transition: "width 0.4s ease",
-        }}
-      />
-    </div>
-  </div>
-</div>
+                          transition: "width 0.4s ease",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
                 {/* Middle two columns */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
                   <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
@@ -4786,9 +4870,22 @@ onMouseLeave={(e) => {
                                     {entry.statusChangedBy && <div>by {entry.statusChangedBy}</div>}
                                   </div>
                                 )}
-                                {canWrite && (entry.execStatus === "Fail" || entry.execStatus === "Failed") && entryDefects.length === 0 && (
-                                  <button onClick={() => createDefect(viewRun.id, entry.testCaseId)} style={btnD}>🐛 Create Defect</button>
-                                )}
+                                {canWrite &&
+                                  (entry.execStatus === "Fail" || entry.execStatus === "Failed") &&
+                                  entryDefects.length === 0 && (
+                                    <button
+                                      onClick={() => createDefect(viewRun.id, entry.testCaseId)}
+                                      style={{
+                                        ...btnD,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                      }}
+                                    >
+                                      <Bug size={14} />
+                                      Create Defect
+                                    </button>
+                                  )}
                                 {entryDefects.map(d => (
                                   <span key={d.id} style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", background: "#fff1f2", border: "1px solid #fecdd3", padding: "3px 10px", borderRadius: 20, cursor: "pointer" }}
                                     onClick={() => setViewDef(d)}>
