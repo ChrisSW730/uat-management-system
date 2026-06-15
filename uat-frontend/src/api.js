@@ -273,10 +273,20 @@ export const api = {
     method: "PATCH", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   }).then(r => r.json()),
-  addEntryToRun: (runId, testCaseId) => fetch(`${BASE}/testruns/${runId}/entries`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ testCaseId })
-  }).then(r => r.json()),
+  addEntryToRun: async (runId, testCaseId) => {
+    const response = await fetch(`${BASE}/testruns/${runId}/entries`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ testCaseId })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to add test case to run");
+    }
+
+    return await response.json();
+  },
   deleteTestRun: (runId) => fetch(`${BASE}/testruns/${runId}`, {
     method: "DELETE"
   }),

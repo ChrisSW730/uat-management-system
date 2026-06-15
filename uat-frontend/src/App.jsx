@@ -1956,15 +1956,8 @@ export default function App() {
   async function addTcToRun(runId, tcId) {
     try {
       const updatedRun = await api.addEntryToRun(runId, tcId);
-      setRuns(p => p.map(r => r.id !== runId ? r : {
-        ...r,
-        entries: r.entries.map(e =>
-          e.testCaseId !== tcId
-            ? e
-            : { ...e, defects: [...(e.defects || []), duped] }
-        )
-      }));
-      setViewRun(updatedRun);
+      setRuns(p => p.map(r => r.id === runId ? updatedRun : r));
+      setViewRun(prev => (prev && prev.id === runId ? updatedRun : prev));
     } catch (e) { alert("Failed to add TC: " + e.message); }
   }
 
