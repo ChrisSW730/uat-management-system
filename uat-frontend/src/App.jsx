@@ -4296,32 +4296,59 @@ linear-gradient(
                 </svg>
               );
             };
+            const buildNiceAxis = (maxValue, targetTickCount = 5) => {
+              const safeMax = Math.max(Number(maxValue) || 0, 1);
+              const rawStep = safeMax / Math.max(1, targetTickCount - 1);
+              const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
+              const normalized = rawStep / magnitude;
+              const niceNormalized = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+              const step = niceNormalized * magnitude;
+              const maxScale = Math.ceil(safeMax / step) * step;
+
+              const ticks = [];
+              for (let v = 0; v <= maxScale + step / 2; v += step) {
+                ticks.push(Number(v.toFixed(6)));
+              }
+
+              return {
+                maxScale,
+                ticks,
+              };
+            };
+
+            const formatAxisTick = (value) => {
+              if (Number.isInteger(value)) return String(value);
+              if (Math.abs(value) < 1) return value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+              return value.toFixed(1).replace(/\.0$/, "");
+            };
+
             const BarChart = ({ data, height = 170 }) => {
               if (!data || data.length === 0) return null;
               const barW = 22, gapW = 10;
               const totalW = data.length * (barW + gapW) - gapW;
               const chartH = height;
               const maxVal = Math.max(...data.map(d => d.passed + d.failed + d.blocked), 1);
-              const ticks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxVal * f));
+              const { maxScale, ticks } = buildNiceAxis(maxVal);
+              const yLabels = [...ticks].reverse();
               return (
                 <div>
                   <div style={{ display: "flex", gap: 4 }}>
                     {/* Y-axis labels */}
                     <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, flexShrink: 0 }}>
-                      {ticks.map((v, i) => (
-                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 20 }}>{v}</span>
+                      {yLabels.map((v, i) => (
+                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 24 }}>{formatAxisTick(v)}</span>
                       ))}
                     </div>
                     <div style={{ flex: 1, position: "relative" }}>
                       <svg width="100%" height={chartH} viewBox={`0 0 ${totalW} ${chartH}`} preserveAspectRatio="none">
-                        {[0.25, 0.5, 0.75, 1].map(f => (
-                          <line key={f} x1={0} y1={chartH * (1 - f)} x2={totalW} y2={chartH * (1 - f)} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                        {ticks.slice(1).map(v => (
+                          <line key={v} x1={0} y1={chartH - (v / maxScale) * chartH} x2={totalW} y2={chartH - (v / maxScale) * chartH} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
                         ))}
                         {data.map((d, i) => {
                           const x = i * (barW + gapW);
-                          const pH = (d.passed / maxVal) * chartH;
-                          const fH = (d.failed / maxVal) * chartH;
-                          const bH = (d.blocked / maxVal) * chartH;
+                          const pH = (d.passed / maxScale) * chartH;
+                          const fH = (d.failed / maxScale) * chartH;
+                          const bH = (d.blocked / maxScale) * chartH;
                           return (
                             <g key={i}>
                               {pH > 0 && <rect x={x} y={chartH - pH - fH - bH} width={barW} height={pH} fill="#22c55e" rx={2} />}
@@ -4346,24 +4373,25 @@ linear-gradient(
               if (!data || data.length < 2) return null;
               const chartW = 600, chartH = height;
               const maxVal = Math.max(...data.flatMap(d => [d.newCount, d.closedCount]), 1);
+              const { maxScale, ticks } = buildNiceAxis(maxVal);
+              const yLabels = [...ticks].reverse();
               const px = i => (i / (data.length - 1)) * chartW;
-              const py = v => chartH - (v / maxVal) * chartH;
+              const py = v => chartH - (v / maxScale) * chartH;
               const newPts = data.map((d, i) => `${px(i)},${py(d.newCount)}`).join(" ");
               const clPts = data.map((d, i) => `${px(i)},${py(d.closedCount)}`).join(" ");
-              const ticks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxVal * f));
               return (
                 <div>
                   <div style={{ display: "flex", gap: 4 }}>
                     {/* Y-axis labels */}
                     <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, flexShrink: 0 }}>
-                      {ticks.map((v, i) => (
-                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 20 }}>{v}</span>
+                      {yLabels.map((v, i) => (
+                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 24 }}>{formatAxisTick(v)}</span>
                       ))}
                     </div>
                     <div style={{ flex: 1 }}>
                       <svg width="100%" height={chartH} viewBox={`0 -5 ${chartW} ${chartH + 5}`} preserveAspectRatio="none">
-                        {[0.25, 0.5, 0.75, 1].map(f => (
-                          <line key={f} x1={0} y1={chartH * (1 - f)} x2={chartW} y2={chartH * (1 - f)} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                        {ticks.slice(1).map(v => (
+                          <line key={v} x1={0} y1={chartH - (v / maxScale) * chartH} x2={chartW} y2={chartH - (v / maxScale) * chartH} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
                         ))}
                         <polyline points={newPts} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                         <polyline points={clPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
