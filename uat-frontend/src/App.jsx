@@ -19,7 +19,9 @@ import {
   Bell,
   Trash2,
   Target,
-  Search
+  Search,
+  Eye, 
+  EyeOff
 } from "lucide-react";
 
 /* -----------------------------------------
@@ -130,9 +132,53 @@ function DetailBlock({ label, value, pre, accent, danger }) {
   );
 }
 
-function LoginScreen({ username, password, error, busy, onUsernameChange, onPasswordChange, onSubmit, onContactAdmin, onForgotPassword }) {
+function readStoredAuth() {
+  try {
+    const sessionAuth = JSON.parse(sessionStorage.getItem("uatAuth") || "null");
+    if (sessionAuth?.token && sessionAuth?.user) return sessionAuth;
+  } catch {
+    // ignore malformed auth cache
+  }
+
+  try {
+    const localAuth = JSON.parse(localStorage.getItem("uatAuth") || "null");
+    if (localAuth?.token && localAuth?.user) return localAuth;
+  } catch {
+    // ignore malformed auth cache
+  }
+
+  return null;
+}
+
+function persistAuth(result, rememberMe) {
+  const serialized = JSON.stringify(result);
+  const storage = rememberMe ? localStorage : sessionStorage;
+  const alternateStorage = rememberMe ? sessionStorage : localStorage;
+
+  alternateStorage.removeItem("uatAuth");
+  alternateStorage.removeItem("uatToken");
+  alternateStorage.removeItem("uatUserName");
+  alternateStorage.removeItem("uatUserRole");
+
+  storage.setItem("uatAuth", serialized);
+  storage.setItem("uatToken", result.token);
+  storage.setItem("uatUserName", result.user.username);
+  storage.setItem("uatUserRole", result.user.role);
+}
+
+function clearStoredAuth() {
+  localStorage.removeItem("uatAuth");
+  localStorage.removeItem("uatToken");
+  localStorage.removeItem("uatUserName");
+  localStorage.removeItem("uatUserRole");
+  sessionStorage.removeItem("uatAuth");
+  sessionStorage.removeItem("uatToken");
+  sessionStorage.removeItem("uatUserName");
+  sessionStorage.removeItem("uatUserRole");
+}
+
+function LoginScreen({ username, password, rememberMe, error, busy, onUsernameChange, onPasswordChange, onRememberMeChange, onSubmit, onContactAdmin, onForgotPassword }) {
   const [showPw, setShowPw] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   return (
     <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", fontFamily: "'Inter','Segoe UI',sans-serif", background: "#f8faff" }}>
@@ -176,13 +222,36 @@ function LoginScreen({ username, password, error, busy, onUsernameChange, onPass
                   placeholder="Enter your password"
                   style={{ width: "100%", padding: "15px 52px 15px 48px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.78)", backdropFilter: "blur(10px)", fontSize: 15, color: "#0f172a", outline: "none", boxSizing: "border-box", boxShadow: "0 8px 20px rgba(15,23,42,0.03)", transition: "all 0.18s ease" }}
                 />
-                <button type="button" onClick={() => setShowPw(v => !v)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 16 }}>{showPw ? "🙈" : "👁"}</button>
+                <button
+  type="button"
+  onClick={() => setShowPw(v => !v)}
+  title={showPw ? "Hide password" : "Show password"}
+  style={{
+    position: "absolute",
+    right: 14,
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "transparent",
+    border: "none",
+    outline: "none",
+    boxShadow: "none",
+    cursor: "pointer",
+    color: "#94a3b8",
+    padding: 0,
+    margin: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+</button>
               </div>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: -2 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "#475569", cursor: "pointer" }}>
-                <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#6366f1" }} />
+                <input type="checkbox" checked={rememberMe} onChange={e => onRememberMeChange(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#6366f1" }} />
                 Remember me
               </label>
               <span
@@ -262,17 +331,11 @@ export default function App() {
   const [defSearch, setDefSearch] = useState("");
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginRememberMe, setLoginRememberMe] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const [pendingDefectLinkId, setPendingDefectLinkId] = useState(() => getInitialDefectLinkId());
-  const [authUser, setAuthUser] = useState(() => {
-    try {
-      const auth = JSON.parse(localStorage.getItem("uatAuth") || "null");
-      return auth?.user || null;
-    } catch {
-      return null;
-    }
-  });
+  const [authUser, setAuthUser] = useState(() => readStoredAuth()?.user || null);
   const [defStatusFilter, setDefStatusFilter] = useState("All");
   const [defPriFilter, setDefPriFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState("All");
@@ -605,11 +668,8 @@ export default function App() {
     setLoginError("");
     setLoginBusy(true);
     try {
-      const result = await api.login(loginUsername, loginPassword);
-      localStorage.setItem("uatAuth", JSON.stringify(result));
-      localStorage.setItem("uatToken", result.token);
-      localStorage.setItem("uatUserName", result.user.username);
-      localStorage.setItem("uatUserRole", result.user.role);
+      const result = await api.login(loginUsername, loginPassword, loginRememberMe);
+      persistAuth(result, loginRememberMe);
       setAuthUser(result.user);
       setActiveTab("dashboard");
       setLoginPassword("");
@@ -697,10 +757,7 @@ export default function App() {
   }
 
   function handleLogout() {
-    localStorage.removeItem("uatAuth");
-    localStorage.removeItem("uatToken");
-    localStorage.removeItem("uatUserName");
-    localStorage.removeItem("uatUserRole");
+    clearStoredAuth();
     setAuthUser(null);
     setProjects([]);
     setTestCases([]);
@@ -2598,10 +2655,12 @@ export default function App() {
       <LoginScreen
         username={loginUsername}
         password={loginPassword}
+        rememberMe={loginRememberMe}
         error={loginError}
         busy={loginBusy}
         onUsernameChange={setLoginUsername}
         onPasswordChange={setLoginPassword}
+        onRememberMeChange={setLoginRememberMe}
         onSubmit={handleLogin}
         onContactAdmin={handleContactAdministrator}
         onForgotPassword={handleForgotPassword}
@@ -2734,7 +2793,7 @@ linear-gradient(
             // Better spacing
             padding: "14px 12px",
           }}
-        >>
+        >
           {/* Logo area */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: sidebarCollapsed ? "0" : "0 14px 0 16px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, height: 100 }}>
             {sidebarCollapsed ? (

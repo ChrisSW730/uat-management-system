@@ -3,10 +3,20 @@ const rawFetch = window.fetch.bind(window);
 
 function readAuth() {
   try {
-    return JSON.parse(localStorage.getItem("uatAuth") || "null");
+    const sessionAuth = JSON.parse(sessionStorage.getItem("uatAuth") || "null");
+    if (sessionAuth?.token) return sessionAuth;
+  } catch {
+    // ignore malformed session auth
+  }
+
+  try {
+    const localAuth = JSON.parse(localStorage.getItem("uatAuth") || "null");
+    if (localAuth?.token) return localAuth;
   } catch {
     return null;
   }
+
+  return null;
 }
 
 async function authFetch(resource, options = {}) {
@@ -31,11 +41,11 @@ async function authFetch(resource, options = {}) {
 window.fetch = authFetch;
 
 export const api = {
-  login: async (username, password) => {
+  login: async (username, password, rememberMe = false) => {
     const response = await rawFetch(`${BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password, rememberMe })
     });
 
     if (!response.ok) {

@@ -47,10 +47,10 @@ public class AuthController : ControllerBase
             return Unauthorized("Invalid credentials.");
         }
 
-        var token = CreateToken(user);
+        var token = CreateToken(user, request.RememberMe);
         return Ok(new AuthResponse(
             token,
-            DateTime.UtcNow.AddMinutes(GetTokenExpiryMinutes()),
+            DateTime.UtcNow.AddMinutes(GetTokenExpiryMinutes(request.RememberMe)),
             new AuthUserDto(user.Id, user.Username, user.DisplayName, user.Role, user.MustChangePassword)
         ));
     }
@@ -99,16 +99,21 @@ public class AuthController : ControllerBase
         return Ok(users);
     }
 
-    private int GetTokenExpiryMinutes()
+    private int GetTokenExpiryMinutes(bool rememberMe)
     {
-        if (int.TryParse(_config["Jwt:ExpiresMinutes"], out var minutes) && minutes > 0)
+        var configKey = rememberMe ? "Jwt:RememberMeExpiresMinutes" : "Jwt:ExpiresMinutes";
+        if (int.TryParse(_config[configKey], out var minutes) && minutes > 0)
         {
             return minutes;
+        }
+        if (rememberMe)
+        {
+            return 43200;
         }
         return 480;
     }
 
-    private string CreateToken(UserAccount user)
+    private string CreateToken(UserAccount user, bool rememberMe)
     {
         var key = _config["Jwt:Key"] ?? "DEV_ONLY_SUPER_SECRET_CHANGE_ME_1234567890";
         var issuer = _config["Jwt:Issuer"] ?? "UATSystem";
@@ -131,7 +136,7 @@ public class AuthController : ControllerBase
             issuer,
             audience,
             claims,
-            expires: DateTime.UtcNow.AddMinutes(GetTokenExpiryMinutes()),
+            expires: DateTime.UtcNow.AddMinutes(GetTokenExpiryMinutes(rememberMe)),
             signingCredentials: creds
         );
 
@@ -139,7 +144,7 @@ public class AuthController : ControllerBase
     }
 }
 
-public record LoginRequest(string Username, string Password);
+public record LoginRequest(string Username, string Password, bool RememberMe = false);
 public record AuthUserDto(int Id, string Username, string DisplayName, string Role, bool MustChangePassword = false);
 public record AuthResponse(string Token, DateTime ExpiresAtUtc, AuthUserDto User);
 public record AdminContactsDto(List<string> Usernames);
