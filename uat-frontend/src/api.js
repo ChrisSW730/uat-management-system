@@ -362,7 +362,7 @@ export const api = {
     return await response.json();
   },
   getDefectAudits: (id) => fetch(`${BASE}/defects/${id}/audits`).then(r => r.json()),
-  getDefectAttachments: (id) => fetch(`${BASE}/defects/${id}/attachments`).then(r => r.json()),
+  getDefectAttachments: (id) => fetch(`${BASE}/defects/${id}/attachments`).then(r => r.ok ? r.json() : []),
   uploadDefectAttachments: (id, files, uploadedBy) => {
     const form = new FormData();
     files.forEach(f => form.append("files", f));

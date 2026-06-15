@@ -1539,9 +1539,19 @@ export default function App() {
   async function deleteDefects(ids) {
     try {
       await Promise.all(ids.map(id => api.deleteDefect(id)));
-      setDefects(p => p.filter(def => !ids.includes(def.id)));
+      const idSet = new Set(ids);
+      setDefects(p => p.filter(def => !idSet.has(def.id)));
       setSelectedDefectIds([]);
-      setViewDef(d => (d && ids.includes(d.id) ? null : d));
+      setViewDef(d => (d && idSet.has(d.id) ? null : d));
+      setEditDef(d => (d && idSet.has(d.id) ? null : d));
+      // Remove deleted defects from run entry caches so badges disappear immediately
+      const pruneEntries = entries =>
+        (entries || []).map(e => ({
+          ...e,
+          defects: (e.defects || []).filter(d => !idSet.has(d.id)),
+        }));
+      setRuns(p => p.map(r => ({ ...r, entries: pruneEntries(r.entries) })));
+      setViewRun(r => r ? { ...r, entries: pruneEntries(r.entries) } : r);
     } catch (e) { alert("Failed to delete defect(s): " + e.message); }
   }
 
@@ -2208,7 +2218,7 @@ export default function App() {
     const tc = allTestCaseById[tcId];
     setNewDef({ ...blankDef, raisedBy: getCurrentUserDisplayName() });
     setNewDefAttachments([]);
-    setShowAddDef({ runId, tcId, tcName: tc?.name || tcId });
+    setShowAddDef({ runId, tcId, tcName: tc?.name || tcId, tcTestPlanId: tc?.testPlanId ?? null });
   }
 
   function createStandaloneDefect() {
@@ -2219,11 +2229,13 @@ export default function App() {
 
   async function submitDefect() {
     try {
-      const { runId, tcId } = showAddDef;
+      const { runId, tcId, tcTestPlanId } = showAddDef;
+      // Prefer the plan linked to the test case; fall back to the page filter only for standalone defects.
+      const resolvedTestPlanId = tcTestPlanId ?? (selectedTestPlanId ? Number(selectedTestPlanId) : null);
       const defect = await api.createDefect({
         testRunId: runId,
         testCaseId: tcId,
-        testPlanId: selectedTestPlanId ? Number(selectedTestPlanId) : null,
+        testPlanId: resolvedTestPlanId,
         market: newDef.market,
         description: newDef.description,
         issueType: newDef.issueType,
