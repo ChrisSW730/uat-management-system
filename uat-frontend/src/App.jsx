@@ -1088,7 +1088,7 @@ export default function App() {
           eventDate: (entry.statusChangedAt || run.createdAt || "").slice(0, 10),
         }))
     );
-    const executedStatuses = new Set(["Passed", "Failed", "Blocked", "Invalid", "Skip", "Deferred"]);
+    const executedStatuses = new Set(["Passed", "Invalid", "Skip", "Deferred"]);
     const eventEntriesByTc = eventEntries.reduce((map, entry) => {
       if (!map[entry.testCaseId]) map[entry.testCaseId] = [];
       map[entry.testCaseId].push(entry);
@@ -1114,10 +1114,10 @@ export default function App() {
       const opened = (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10);
       return opened && opened <= last7[0];
     }).filter(def => {
+      const isClosed = ["Closed", "Rejected"].includes(def.status);
+      if (!isClosed) return true; // currently open/reopened — was open at window start
       const closed = (def.closeDateTime || "").slice(0, 10);
-      if (closed && closed <= last7[0]) return false;
-      if (!closed && ["Closed", "Rejected"].includes(def.status)) return false;
-      return true;
+      return !(closed && closed <= last7[0]); // exclude only if it was closed before the window
     }).length;
 
     const defectBurndownDays = last7.map((dateStr, index) => {
@@ -1126,10 +1126,11 @@ export default function App() {
         const opened = (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10);
         if (!opened || opened > dateStr) return false;
 
+        const isClosed = ["Closed", "Rejected"].includes(def.status);
+        if (!isClosed) return true; // currently open/reopened — count as remaining
         const closed = (def.closeDateTime || "").slice(0, 10);
-        if (closed && closed <= dateStr) return false;
-        if (!closed && ["Closed", "Rejected"].includes(def.status)) return false;
-        return true;
+        if (closed && closed <= dateStr) return false; // was closed by this date
+        return true; // closed but after this date
       }).length;
       const ideal = Math.max(0, Math.round(defectBurnStart * (1 - (index / Math.max(1, last7.length - 1)))));
       return { label, remaining, ideal };
