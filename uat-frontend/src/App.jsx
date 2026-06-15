@@ -3588,7 +3588,7 @@ linear-gradient(
                       setSelectedTestPlanId(e.target.value);
                       setNewTC(prev => ({ ...prev, testScopeId: "" }));
                     }}
-                    style={{ ...inp, width: 210 }}
+                    style={{ ...inp, width: 450 }}
                   >
                     <option value="">Select Test Plan</option>
                     {selectedProjectPlans.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
@@ -4022,7 +4022,7 @@ linear-gradient(
                     <option>All</option>
                     {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m => <option key={m}>{m}</option>)}
                   </select>
-                  <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 200 }}>
+                  <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 450 }}>
                     <option value="All">All Test Plans</option>
                     {projects.flatMap(p => (p.testPlans || []).map(tp => (
                       <option key={tp.id} value={String(tp.id)}>{p.name} — {tp.name}</option>
