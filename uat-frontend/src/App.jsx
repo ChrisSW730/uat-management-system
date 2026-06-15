@@ -1315,38 +1315,32 @@ export default function App() {
           continue;
         }
 
-        const planValue = pick("Test Plan Id", "TestPlanId", "Plan Id", "Test Plan", "Plan");
-        let testPlanId = selectedTestPlanId ? Number(selectedTestPlanId) : NaN;
-        if (planValue !== undefined) {
-          const numericPlanId = Number(String(planValue).trim());
-          if (Number.isFinite(numericPlanId)) {
-            testPlanId = numericPlanId;
-          } else {
-            const planName = String(planValue).trim().toLowerCase();
-            const matchedPlan = allPlans.find(plan => String(plan.name || "").trim().toLowerCase() === planName);
-            if (matchedPlan) {
-              testPlanId = matchedPlan.id;
-            }
-          }
-        }
+        const planValue = String(pick("Test Plan", "Plan") ?? "").trim();
+        const matchedPlan = allPlans.find(plan => String(plan.name || "").trim().toLowerCase() === planValue.toLowerCase());
+        const testPlanId = matchedPlan?.id;
 
-        if (!Number.isFinite(testPlanId)) {
-          failures.push(`Row ${rowNumber}: Test Plan Id or an active selected test plan is required.`);
+        if (!planValue) {
+          failures.push(`Row ${rowNumber}: Test Plan is required.`);
           continue;
         }
 
-        const scopeValue = pick("Test Scope Id", "TestScopeId", "Scope Id", "Test Scope", "Scope");
+        if (!testPlanId) {
+          failures.push(`Row ${rowNumber}: Test Plan '${planValue}' not found.`);
+          continue;
+        }
+
+        const scopeValue = pick("Test Scope", "Scope");
         let testScopeId = null;
         if (scopeValue !== undefined) {
-          const numericScopeId = Number(String(scopeValue).trim());
-          if (Number.isFinite(numericScopeId)) {
-            testScopeId = numericScopeId;
-          } else {
-            const plan = allPlans.find(item => item.id === testPlanId);
-            const scopeName = String(scopeValue).trim().toLowerCase();
+          const plan = allPlans.find(item => item.id === testPlanId);
+          const scopeName = String(scopeValue).trim().toLowerCase();
+          if (scopeName) {
             const matchedScope = (plan?.testScopes || []).find(scope => String(scope.name || "").trim().toLowerCase() === scopeName);
             if (matchedScope) {
               testScopeId = matchedScope.id;
+            } else {
+              failures.push(`Row ${rowNumber}: Test Scope '${String(scopeValue).trim()}' not found under Test Plan '${planValue}'.`);
+              continue;
             }
           }
         }
@@ -2568,18 +2562,56 @@ export default function App() {
       "Priority",
       "Category",
       "Remarks",
-      "Test Plan Id",
-      "Test Scope Id",
+      "Test Plan",
+      "Test Scope",
     ];
     const sheet = XLSX.utils.aoa_to_sheet([headers]);
     XLSX.utils.book_append_sheet(workbook, sheet, "Test Cases");
 
+    const categoryHint = (categories || []).length
+      ? (categories || []).join(", ")
+      : "Free text (recommended: existing categories in Settings)";
+
     const guide = XLSX.utils.aoa_to_sheet([
-      ["Fill in row 2 onward, then upload this file using Import Excel."],
-      ["You can use Test Plan Id or the selected test plan in the app."],
-      ["Test Scope Id is optional and must belong to the chosen test plan."],
+      ["How to Use", "Details"],
+      ["Step 1", "Fill in row 2 onward in the Test Cases sheet."],
+      ["Step 2", "Upload the file using Import > Import Excel."],
+      ["Where to find values", "Use the Test Plan Scope Lookup sheet in this template, or check values in the Projects tab."],
+      ["", ""],
+      ["Column", "Accepted Values / Rules"],
+      ["Name", "Required. Any non-empty text."],
+      ["Test Plan", "Required. Must match an existing test plan name exactly."],
+      ["Priority", `Optional. Accepted values: ${TEST_CASE_PRIORITIES.join(", ")}. Default: Medium.`],
+      ["Category", `Optional. ${categoryHint}`],
+      ["Test Scope", "Optional scope name (exact name match). Must belong to the provided Test Plan."],
+      ["Description / Steps / Expected Result / Remarks", "Optional free text."],
     ]);
     XLSX.utils.book_append_sheet(workbook, guide, "Instructions");
+
+    const lookupRows = [["Project", "Test Plan", "Test Scope"]];
+    (projects || []).forEach(project => {
+      const plans = project.testPlans || [];
+      if (plans.length === 0) return;
+
+      plans.forEach(plan => {
+        const scopes = plan.testScopes || [];
+        if (scopes.length === 0) {
+          lookupRows.push([project.name || "", plan.name || "", ""]);
+          return;
+        }
+
+        scopes.forEach(scope => {
+          lookupRows.push([project.name || "", plan.name || "", scope.name || ""]);
+        });
+      });
+    });
+
+    if (lookupRows.length === 1) {
+      lookupRows.push(["No project/test plan data loaded.", "", ""]);
+    }
+
+    const lookupSheet = XLSX.utils.aoa_to_sheet(lookupRows);
+    XLSX.utils.book_append_sheet(workbook, lookupSheet, "Test Plan Scope Lookup");
 
     XLSX.writeFileXLSX(workbook, `test-case-import-template-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
@@ -3665,7 +3697,7 @@ linear-gradient(
                               }}
                               style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "10px 12px", cursor: importingTestCases ? "not-allowed" : "pointer", color: importingTestCases ? "#94a3b8" : "#334155", fontSize: 14, fontWeight: 600 }}
                               disabled={importingTestCases}
-                              title="Upload an Excel file with columns like Name, Description, Steps, Expected Result, Priority, Category, Remarks, Test Plan Id/Name, and optional Test Scope Id/Name"
+                              title="Upload an Excel file with columns like Name, Test Plan, Description, Steps, Expected Result, Priority, Category, Remarks, and optional Test Scope"
                             >
                               {importingTestCases ? "Importing..." : "Import Excel"}
                             </button>
@@ -3678,7 +3710,7 @@ linear-gradient(
               </div>
 
               <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
-                Required: <strong>Name</strong> and a <strong>Test Plan Id</strong> or a selected test plan. Optional columns: Description, Steps, Expected Result, Priority, Category, Remarks, Test Scope Id, Test Scope.
+                Required: <strong>Name</strong> and <strong>Test Plan</strong>. Optional columns: Description, Steps, Expected Result, Priority, Category, Remarks, Test Scope.
               </div>
 
               <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
