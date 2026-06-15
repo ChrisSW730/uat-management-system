@@ -213,10 +213,19 @@ export const api = {
     const qp = testPlanId ? `?testPlanId=${testPlanId}` : "";
     return fetch(`${BASE}/testcases${qp}`).then(r => r.json());
   },
-  createTestCase: (data) => fetch(`${BASE}/testcases`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
-  }).then(r => r.json()),
+  createTestCase: async (data) => {
+    const response = await fetch(`${BASE}/testcases`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    return await response.json();
+  },
   deleteTestCase: (id) => fetch(`${BASE}/testcases/${id}`, {
   method: "DELETE"
   }),

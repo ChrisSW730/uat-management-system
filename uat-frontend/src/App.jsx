@@ -177,6 +177,10 @@ function clearStoredAuth() {
   sessionStorage.removeItem("uatUserRole");
 }
 
+function normalizeExcelHeader(value) {
+  return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 function LoginScreen({ username, password, rememberMe, error, busy, onUsernameChange, onPasswordChange, onRememberMeChange, onSubmit, onContactAdmin, onForgotPassword }) {
   const [showPw, setShowPw] = useState(false);
 
@@ -334,6 +338,8 @@ export default function App() {
   const [loginRememberMe, setLoginRememberMe] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
+  const importTestCaseInputRef = useRef(null);
+  const [importingTestCases, setImportingTestCases] = useState(false);
   const [pendingDefectLinkId, setPendingDefectLinkId] = useState(() => getInitialDefectLinkId());
   const [authUser, setAuthUser] = useState(() => readStoredAuth()?.user || null);
   const [defStatusFilter, setDefStatusFilter] = useState("All");
@@ -387,6 +393,7 @@ export default function App() {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showImportMenu, setShowImportMenu] = useState(false);
   const [defectAttachments, setDefectAttachments] = useState({});
   const [uploadingDefectId, setUploadingDefectId] = useState(null);
   const [newDefAttachments, setNewDefAttachments] = useState([]);
@@ -1259,6 +1266,123 @@ export default function App() {
       setNewTCAttachments([]);
       setShowAddTC(false);
     } catch (e) { alert("Failed to add test case: " + e.message); }
+  }
+
+  async function handleImportTestCases(file) {
+    if (!file) return;
+    if (!canWrite) {
+      alert("You do not have permission to import test cases.");
+      return;
+    }
+
+    setImportingTestCases(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheetName = workbook.SheetNames.find(name => /test\s*cases?/i.test(name)) || workbook.SheetNames[0];
+
+      if (!sheetName) {
+        throw new Error("The workbook does not contain any sheets.");
+      }
+
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+      if (!rows.length) {
+        throw new Error("No data rows were found in the selected sheet.");
+      }
+
+      const allPlans = (projects || []).flatMap(project => project.testPlans || []);
+      const imported = [];
+      const failures = [];
+
+      for (let index = 0; index < rows.length; index++) {
+        const row = rows[index];
+        const rowNumber = index + 2;
+        const rowMap = Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeExcelHeader(key), value]));
+        const pick = (...keys) => {
+          for (const key of keys) {
+            const normalized = normalizeExcelHeader(key);
+            const value = rowMap[normalized];
+            if (value !== undefined && value !== null && String(value).trim() !== "") {
+              return value;
+            }
+          }
+          return undefined;
+        };
+
+        const name = String(pick("Name", "Test Name", "Title") ?? "").trim();
+        if (!name) {
+          failures.push(`Row ${rowNumber}: Name is required.`);
+          continue;
+        }
+
+        const planValue = pick("Test Plan Id", "TestPlanId", "Plan Id", "Test Plan", "Plan");
+        let testPlanId = selectedTestPlanId ? Number(selectedTestPlanId) : NaN;
+        if (planValue !== undefined) {
+          const numericPlanId = Number(String(planValue).trim());
+          if (Number.isFinite(numericPlanId)) {
+            testPlanId = numericPlanId;
+          } else {
+            const planName = String(planValue).trim().toLowerCase();
+            const matchedPlan = allPlans.find(plan => String(plan.name || "").trim().toLowerCase() === planName);
+            if (matchedPlan) {
+              testPlanId = matchedPlan.id;
+            }
+          }
+        }
+
+        if (!Number.isFinite(testPlanId)) {
+          failures.push(`Row ${rowNumber}: Test Plan Id or an active selected test plan is required.`);
+          continue;
+        }
+
+        const scopeValue = pick("Test Scope Id", "TestScopeId", "Scope Id", "Test Scope", "Scope");
+        let testScopeId = null;
+        if (scopeValue !== undefined) {
+          const numericScopeId = Number(String(scopeValue).trim());
+          if (Number.isFinite(numericScopeId)) {
+            testScopeId = numericScopeId;
+          } else {
+            const plan = allPlans.find(item => item.id === testPlanId);
+            const scopeName = String(scopeValue).trim().toLowerCase();
+            const matchedScope = (plan?.testScopes || []).find(scope => String(scope.name || "").trim().toLowerCase() === scopeName);
+            if (matchedScope) {
+              testScopeId = matchedScope.id;
+            }
+          }
+        }
+
+        try {
+          const created = await api.createTestCase({
+            testPlanId,
+            testScopeId,
+            name,
+            description: String(pick("Description") ?? ""),
+            steps: String(pick("Steps", "Step") ?? ""),
+            expectedResult: String(pick("Expected Result", "Expected") ?? ""),
+            priority: String(pick("Priority") ?? "Medium") || "Medium",
+            category: String(pick("Category") ?? "General") || "General",
+            remarks: String(pick("Remarks", "Remark") ?? ""),
+          });
+          imported.push(created);
+        } catch (error) {
+          failures.push(`Row ${rowNumber}: ${error.message}`);
+        }
+      }
+
+      if (imported.length > 0) {
+        setTestCases(p => [...p, ...imported]);
+        setAllTestCases(p => [...p, ...imported]);
+      }
+
+      alert(
+        `Imported ${imported.length} test case(s).` +
+        (failures.length ? ` ${failures.length} row(s) failed.` : "")
+      );
+    } catch (error) {
+      alert(`Failed to import test cases: ${error.message}`);
+    } finally {
+      setImportingTestCases(false);
+    }
   }
 
   async function updateTC() {
@@ -2434,6 +2558,32 @@ export default function App() {
     XLSX.writeFileXLSX(workbook, filename);
   }
 
+  function downloadTestCaseImportTemplate() {
+    const workbook = XLSX.utils.book_new();
+    const headers = [
+      "Name",
+      "Description",
+      "Steps",
+      "Expected Result",
+      "Priority",
+      "Category",
+      "Remarks",
+      "Test Plan Id",
+      "Test Scope Id",
+    ];
+    const sheet = XLSX.utils.aoa_to_sheet([headers]);
+    XLSX.utils.book_append_sheet(workbook, sheet, "Test Cases");
+
+    const guide = XLSX.utils.aoa_to_sheet([
+      ["Fill in row 2 onward, then upload this file using Import Excel."],
+      ["You can use Test Plan Id or the selected test plan in the app."],
+      ["Test Scope Id is optional and must belong to the chosen test plan."],
+    ]);
+    XLSX.utils.book_append_sheet(workbook, guide, "Instructions");
+
+    XLSX.writeFileXLSX(workbook, `test-case-import-template-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
   async function exportTestCases() {
     try {
       const summaryRows = sortedFilteredTC.map(tc => {
@@ -2740,7 +2890,7 @@ export default function App() {
 
   return (
     //<div style={{ minHeight:"100vh", background:"#fff", fontFamily:"'Inter','Segoe UI',sans-serif", color:"#0f172a" }}>
-    <div onClick={() => { setShowNotifications(false); setShowUserMenu(false); }} style={{ height: "100vh", background: "#fff", fontFamily: "'Inter','Segoe UI',sans-serif", color: "#0f172a", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <div onClick={() => { setShowNotifications(false); setShowUserMenu(false); setShowImportMenu(false); }} style={{ height: "100vh", background: "#fff", fontFamily: "'Inter','Segoe UI',sans-serif", color: "#0f172a", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
       {/* ── Body (sidebar + content) ── */}
       <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -3372,6 +3522,19 @@ linear-gradient(
             <div style={{ padding: "20px 2.5%" }}>
               {/* toolbar */}
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+                <input
+                  ref={importTestCaseInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  style={{ display: "none" }}
+                  onChange={async e => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) {
+                      await handleImportTestCases(file);
+                    }
+                  }}
+                />
                 <div style={{ position: "relative" }}>
                   <Search
                     size={16}
@@ -3455,6 +3618,7 @@ linear-gradient(
                     {selectedTcIds.length === filteredTC.length ? "Clear Selection" : "Select All"}
                   </button>
                 )}
+                {canWrite && <button onClick={() => setShowAddTC(true)} style={btnP}>+ Add Test Case</button>}
                 <div style={{ flex: 1 }} />
                 {selectedTcIds.length > 0 && canDelete && (
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -3465,8 +3629,48 @@ linear-gradient(
                     </button>
                   </div>
                 )}
-                <button onClick={exportTestCases} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredTC.length === 0}>Export Excel</button>
-                {canWrite && <button onClick={() => setShowAddTC(true)} style={btnP}>+ Add Test Case</button>}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }} onClick={e => e.stopPropagation()}>
+                  <button onClick={exportTestCases} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredTC.length === 0}>Export Excel</button>
+                  {canWrite && (
+                    <>
+                      <button
+                        onClick={() => setShowImportMenu(v => !v)}
+                        style={{ ...btnS, padding: "9px 14px", fontSize: 14, minWidth: 120, display: "inline-flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
+                      >
+                        <span>Import</span>
+                        <span style={{ fontSize: 12 }}>▾</span>
+                      </button>
+                      {showImportMenu && (
+                        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 190, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 12px 28px rgba(15,23,42,0.15)", zIndex: 20, padding: 8 }}>
+                          <button
+                            onClick={() => {
+                              setShowImportMenu(false);
+                              downloadTestCaseImportTemplate();
+                            }}
+                            style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "10px 12px", cursor: "pointer", color: "#334155", fontSize: 14, fontWeight: 600 }}
+                          >
+                            Download Template
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowImportMenu(false);
+                              importTestCaseInputRef.current?.click();
+                            }}
+                            style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "10px 12px", cursor: importingTestCases ? "not-allowed" : "pointer", color: importingTestCases ? "#94a3b8" : "#334155", fontSize: 14, fontWeight: 600 }}
+                            disabled={importingTestCases}
+                            title="Upload an Excel file with columns like Name, Description, Steps, Expected Result, Priority, Category, Remarks, Test Plan Id/Name, and optional Test Scope Id/Name"
+                          >
+                            {importingTestCases ? "Importing..." : "Import Excel"}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+                Required: <strong>Name</strong> and a <strong>Test Plan Id</strong> or a selected test plan. Optional columns: Description, Steps, Expected Result, Priority, Category, Remarks, Test Scope Id, Test Scope.
               </div>
 
               <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
@@ -4186,6 +4390,7 @@ linear-gradient(
                     {
                       icon: <Files size={24} strokeWidth={2.2} />,
                       iconBg: "rgba(99,102,241,0.10)",
+
                       iconColor: "#6366F1",
                       label: "Total Test Cases",
                       value: tcCount,
