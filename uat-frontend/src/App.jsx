@@ -1078,12 +1078,69 @@ export default function App() {
         closedCount: filteredDefects.filter(d => d.closeDateTime?.slice(0, 10) === dateStr).length,
       };
     });
+
+    const eventEntries = scopedRuns.flatMap(run =>
+      (run.entries || [])
+        .filter(entry => tcIdSet.has(entry.testCaseId))
+        .map(entry => ({
+          testCaseId: entry.testCaseId,
+          execStatus: entry.execStatus,
+          eventDate: (entry.statusChangedAt || run.createdAt || "").slice(0, 10),
+        }))
+    );
+    const executedStatuses = new Set(["Passed", "Failed", "Blocked", "Invalid", "Skip", "Deferred"]);
+    const eventEntriesByTc = eventEntries.reduce((map, entry) => {
+      if (!map[entry.testCaseId]) map[entry.testCaseId] = [];
+      map[entry.testCaseId].push(entry);
+      return map;
+    }, {});
+
+    const burndownTcIds = dashRunId
+      ? Array.from(new Set(filteredEntries.map(entry => entry.testCaseId)))
+      : Array.from(tcIdSet);
+    const tcBurnStart = burndownTcIds.length;
+    const tcBurndownDays = last7.map((dateStr, index) => {
+      const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const completed = burndownTcIds.filter(tcId => {
+        const events = eventEntriesByTc[tcId] || [];
+        return events.some(event => event.eventDate && event.eventDate <= dateStr && executedStatuses.has(event.execStatus));
+      }).length;
+      const remaining = Math.max(0, tcBurnStart - completed);
+      const ideal = Math.max(0, Math.round(tcBurnStart * (1 - (index / Math.max(1, last7.length - 1)))));
+      return { label, remaining, ideal };
+    });
+
+    const defectBurnStart = filteredDefects.filter(def => {
+      const opened = (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10);
+      return opened && opened <= last7[0];
+    }).filter(def => {
+      const closed = (def.closeDateTime || "").slice(0, 10);
+      if (closed && closed <= last7[0]) return false;
+      if (!closed && ["Closed", "Rejected"].includes(def.status)) return false;
+      return true;
+    }).length;
+
+    const defectBurndownDays = last7.map((dateStr, index) => {
+      const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const remaining = filteredDefects.filter(def => {
+        const opened = (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10);
+        if (!opened || opened > dateStr) return false;
+
+        const closed = (def.closeDateTime || "").slice(0, 10);
+        if (closed && closed <= dateStr) return false;
+        if (!closed && ["Closed", "Rejected"].includes(def.status)) return false;
+        return true;
+      }).length;
+      const ideal = Math.max(0, Math.round(defectBurnStart * (1 - (index / Math.max(1, last7.length - 1)))));
+      return { label, remaining, ideal };
+    });
+
     return {
       allDashPlans, tcCount: dashRunId ? runTcCount : filteredTCs.length, entryCount: filteredEntries.length,
       passedTotal, failedTotal,
       passRate: runTcCount > 0 ? Math.round((new Set(filteredEntries.filter(e => e.execStatus !== "Not Run").map(e => e.testCaseId)).size / runTcCount) * 100) : 0,
       defTotal: filteredDefects.length, openDefs,
-      execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, availableRuns,
+      execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays, availableRuns,
     };
   }, [dashProjectId, dashPlanId, dashRunId, projects, allTestCases, runs, defects]);
 
@@ -4434,8 +4491,56 @@ linear-gradient(
                 </div>
               );
             };
+            const BurndownChart = ({ data, height = 170 }) => {
+              if (!data || data.length === 0) return null;
+              if (data.length === 1) {
+                const value = data[0].remaining ?? 0;
+                return <div style={{ fontSize: 12, color: "#64748b" }}>Remaining: {value}</div>;
+              }
+
+              const chartW = 600;
+              const chartH = height;
+              const maxVal = Math.max(...data.flatMap(d => [d.remaining, d.ideal]), 1);
+              const { maxScale, ticks } = buildNiceAxis(maxVal);
+              const yLabels = [...ticks].reverse();
+              const px = i => (i / (data.length - 1)) * chartW;
+              const py = v => chartH - (v / maxScale) * chartH;
+              const remainingPts = data.map((d, i) => `${px(i)},${py(d.remaining)}`).join(" ");
+              const idealPts = data.map((d, i) => `${px(i)},${py(d.ideal)}`).join(" ");
+
+              return (
+                <div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, flexShrink: 0 }}>
+                      {yLabels.map((v, i) => (
+                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 24 }}>{formatAxisTick(v)}</span>
+                      ))}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <svg width="100%" height={chartH} viewBox={`0 -5 ${chartW} ${chartH + 5}`} preserveAspectRatio="none">
+                        {ticks.slice(1).map(v => (
+                          <line key={v} x1={0} y1={chartH - (v / maxScale) * chartH} x2={chartW} y2={chartH - (v / maxScale) * chartH} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                        ))}
+                        <polyline points={idealPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" vectorEffect="non-scaling-stroke" />
+                        <polyline points={remainingPts} fill="none" stroke="#6366f1" strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                        {data.map((d, i) => (
+                          <g key={i}>
+                            <circle cx={px(i)} cy={py(d.remaining)} r={3.5} fill="#6366f1" vectorEffect="non-scaling-stroke" />
+                          </g>
+                        ))}
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, paddingLeft: 28 }}>
+                    {data.map((d, i) => (
+                      <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            };
             const { tcCount, entryCount, passedTotal, failedTotal, defTotal, openDefs, passRate, availableRuns,
-              execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays } = dashboardStats;
+              execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays } = dashboardStats;
             const blockedTotal = execByStatus["Blocked"] || 0;
             const execSegs = [
               { value: passedTotal, color: "#22c55e" },
@@ -4850,6 +4955,34 @@ linear-gradient(
                           })}
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 18 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 20 }}>📉 Burndown (Last 7 Days)</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Remaining Test Cases</div>
+                      <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
+                        {[ ["Remaining", "#6366f1"], ["Ideal", "#94a3b8"] ].map(([l, c]) => (
+                          <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
+                          </span>
+                        ))}
+                      </div>
+                      <BurndownChart data={tcBurndownDays} height={170} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Remaining Defects</div>
+                      <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
+                        {[ ["Remaining", "#6366f1"], ["Ideal", "#94a3b8"] ].map(([l, c]) => (
+                          <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
+                          </span>
+                        ))}
+                      </div>
+                      <BurndownChart data={defectBurndownDays} height={170} />
                     </div>
                   </div>
                 </div>
