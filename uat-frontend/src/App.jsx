@@ -20,7 +20,7 @@ import {
   Trash2,
   Target,
   Search,
-  Eye, 
+  Eye,
   EyeOff
 } from "lucide-react";
 
@@ -223,29 +223,29 @@ function LoginScreen({ username, password, rememberMe, error, busy, onUsernameCh
                   style={{ width: "100%", padding: "15px 52px 15px 48px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.78)", backdropFilter: "blur(10px)", fontSize: 15, color: "#0f172a", outline: "none", boxSizing: "border-box", boxShadow: "0 8px 20px rgba(15,23,42,0.03)", transition: "all 0.18s ease" }}
                 />
                 <button
-  type="button"
-  onClick={() => setShowPw(v => !v)}
-  title={showPw ? "Hide password" : "Show password"}
-  style={{
-    position: "absolute",
-    right: 14,
-    top: "50%",
-    transform: "translateY(-50%)",
-    background: "transparent",
-    border: "none",
-    outline: "none",
-    boxShadow: "none",
-    cursor: "pointer",
-    color: "#94a3b8",
-    padding: 0,
-    margin: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  }}
->
-  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-</button>
+                  type="button"
+                  onClick={() => setShowPw(v => !v)}
+                  title={showPw ? "Hide password" : "Show password"}
+                  style={{
+                    position: "absolute",
+                    right: 14,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "transparent",
+                    border: "none",
+                    outline: "none",
+                    boxShadow: "none",
+                    cursor: "pointer",
+                    color: "#94a3b8",
+                    padding: 0,
+                    margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
