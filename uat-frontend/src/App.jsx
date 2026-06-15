@@ -3521,7 +3521,7 @@ linear-gradient(
           {activeTab === "testcases" && (
             <div style={{ padding: "20px 2.5%" }}>
               {/* toolbar */}
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+              <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
                 <input
                   ref={importTestCaseInputRef}
                   type="file"
@@ -3535,137 +3535,145 @@ linear-gradient(
                     }
                   }}
                 />
-                <div style={{ position: "relative" }}>
-                  <Search
-                    size={16}
-                    style={{
-                      position: "absolute",
-                      left: 10,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#94a3b8",
-                    }}
-                  />
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ position: "relative" }}>
+                    <Search
+                      size={16}
+                      style={{
+                        position: "absolute",
+                        left: 10,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "#94a3b8",
+                      }}
+                    />
 
-                  <input
-                    placeholder="Search ID or name..."
-                    value={tcSearch}
-                    onChange={e => setTcSearch(e.target.value)}
-                    style={{
-                      ...inp,
-                      paddingLeft: 36,
-                      width: 230,
+                    <input
+                      placeholder="Search ID or name..."
+                      value={tcSearch}
+                      onChange={e => setTcSearch(e.target.value)}
+                      style={{
+                        ...inp,
+                        paddingLeft: 36,
+                        width: 230,
+                      }}
+                    />
+                  </div>
+                  <select value={tcCatFilter} onChange={e => setTcCatFilter(e.target.value)} style={{ ...inp, width: 220 }}>
+                    <option value="All">All Categories</option>
+                    {categories.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                  <select value={tcPriFilter} onChange={e => setTcPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
+                    <option value="All">All Priorities</option>
+                    {TEST_CASE_PRIORITIES.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                  <select
+                    value={selectedProjectId}
+                    onChange={e => {
+                      const pid = e.target.value;
+                      setSelectedProjectId(pid);
+                      const p = projects.find(x => String(x.id) === String(pid));
+                      const fp = (p?.testPlans || [])[0];
+                      setSelectedTestPlanId(fp ? String(fp.id) : "");
+                      setNewTC(prev => ({ ...prev, testScopeId: "" }));
                     }}
-                  />
-                </div>
-                <select value={tcCatFilter} onChange={e => setTcCatFilter(e.target.value)} style={{ ...inp, width: 220 }}>
-                  <option value="All">All Categories</option>
-                  {categories.map(c => <option key={c}>{c}</option>)}
-                </select>
-                <select value={tcPriFilter} onChange={e => setTcPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
-                  <option value="All">All Priorities</option>
-                  {TEST_CASE_PRIORITIES.map(p => <option key={p}>{p}</option>)}
-                </select>
-                <select
-                  value={selectedProjectId}
-                  onChange={e => {
-                    const pid = e.target.value;
-                    setSelectedProjectId(pid);
-                    const p = projects.find(x => String(x.id) === String(pid));
-                    const fp = (p?.testPlans || [])[0];
-                    setSelectedTestPlanId(fp ? String(fp.id) : "");
-                    setNewTC(prev => ({ ...prev, testScopeId: "" }));
-                  }}
-                  style={{ ...inp, width: 190 }}
-                >
-                  <option value="">Select Project</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <select
-                  value={selectedTestPlanId}
-                  onChange={e => {
-                    setSelectedTestPlanId(e.target.value);
-                    setNewTC(prev => ({ ...prev, testScopeId: "" }));
-                  }}
-                  style={{ ...inp, width: 210 }}
-                >
-                  <option value="">Select Test Plan</option>
-                  {selectedProjectPlans.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
-                </select>
-                <button
-                  onClick={() => {
-                    setTcSearch("");
-                    setTcCatFilter("All");
-                    setTcPriFilter("All");
-                    setSelectedProjectId("");
-                    setSelectedTestPlanId("");
-                  }}
-                  style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
-                >
-                  Reset
-                </button>
-                {filteredTC.length > 0 && (
+                    style={{ ...inp, width: 190 }}
+                  >
+                    <option value="">Select Project</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <select
+                    value={selectedTestPlanId}
+                    onChange={e => {
+                      setSelectedTestPlanId(e.target.value);
+                      setNewTC(prev => ({ ...prev, testScopeId: "" }));
+                    }}
+                    style={{ ...inp, width: 210 }}
+                  >
+                    <option value="">Select Test Plan</option>
+                    {selectedProjectPlans.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
+                  </select>
+
                   <button
                     onClick={() => {
-                      if (selectedTcIds.length === filteredTC.length) {
-                        setSelectedTcIds([]);
-                      } else {
-                        setSelectedTcIds(filteredTC.map(tc => tc.id));
-                      }
+                      setTcSearch("");
+                      setTcCatFilter("All");
+                      setTcPriFilter("All");
+                      setSelectedProjectId("");
+                      setSelectedTestPlanId("");
                     }}
-                    style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
+                    style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
                   >
-                    {selectedTcIds.length === filteredTC.length ? "Clear Selection" : "Select All"}
+                    Reset
                   </button>
-                )}
-                {canWrite && <button onClick={() => setShowAddTC(true)} style={btnP}>+ Add Test Case</button>}
-                <div style={{ flex: 1 }} />
-                {selectedTcIds.length > 0 && canDelete && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedTcIds.length} selected</span>
-                    <button onClick={() => { if (window.confirm(`Delete ${selectedTcIds.length} test case(s)?`)) deleteTestCases(selectedTcIds); }}
-                      style={{ background: "#fff1f2", color: "#be123c", border: "1.5px solid #fecdd3", borderRadius: 8, padding: "8px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                      🗑 Delete Selected
+                  {filteredTC.length > 0 && (
+                    <button
+                      onClick={() => {
+                        if (selectedTcIds.length === filteredTC.length) {
+                          setSelectedTcIds([]);
+                        } else {
+                          setSelectedTcIds(filteredTC.map(tc => tc.id));
+                        }
+                      }}
+                      style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
+                    >
+                      {selectedTcIds.length === filteredTC.length ? "Clear Selection" : "Select All"}
                     </button>
-                  </div>
-                )}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }} onClick={e => e.stopPropagation()}>
-                  <button onClick={exportTestCases} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredTC.length === 0}>Export Excel</button>
-                  {canWrite && (
-                    <>
-                      <button
-                        onClick={() => setShowImportMenu(v => !v)}
-                        style={{ ...btnS, padding: "9px 14px", fontSize: 14, minWidth: 120, display: "inline-flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
-                      >
-                        <span>Import</span>
-                        <span style={{ fontSize: 12 }}>▾</span>
-                      </button>
-                      {showImportMenu && (
-                        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 190, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 12px 28px rgba(15,23,42,0.15)", zIndex: 20, padding: 8 }}>
-                          <button
-                            onClick={() => {
-                              setShowImportMenu(false);
-                              downloadTestCaseImportTemplate();
-                            }}
-                            style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "10px 12px", cursor: "pointer", color: "#334155", fontSize: 14, fontWeight: 600 }}
-                          >
-                            Download Template
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowImportMenu(false);
-                              importTestCaseInputRef.current?.click();
-                            }}
-                            style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "10px 12px", cursor: importingTestCases ? "not-allowed" : "pointer", color: importingTestCases ? "#94a3b8" : "#334155", fontSize: 14, fontWeight: 600 }}
-                            disabled={importingTestCases}
-                            title="Upload an Excel file with columns like Name, Description, Steps, Expected Result, Priority, Category, Remarks, Test Plan Id/Name, and optional Test Scope Id/Name"
-                          >
-                            {importingTestCases ? "Importing..." : "Import Excel"}
-                          </button>
-                        </div>
-                      )}
-                    </>
                   )}
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40 }}>
+                    {canWrite && <button onClick={() => setShowAddTC(true)} style={btnP}>+ Add Test Case</button>}
+                    {selectedTcIds.length > 0 && canDelete && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedTcIds.length} selected</span>
+                        <button onClick={() => { if (window.confirm(`Delete ${selectedTcIds.length} test case(s)?`)) deleteTestCases(selectedTcIds); }}
+                          style={{ background: "#fff1f2", color: "#be123c", border: "1.5px solid #fecdd3", borderRadius: 8, padding: "8px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                          🗑 Delete Selected
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }} onClick={e => e.stopPropagation()}>
+                    <button onClick={exportTestCases} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredTC.length === 0}>Export Excel</button>
+                    {canWrite && (
+                      <>
+                        <button
+                          onClick={() => setShowImportMenu(v => !v)}
+                          style={{ ...btnS, padding: "9px 14px", fontSize: 14, minWidth: 120, display: "inline-flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
+                        >
+                          <span>Import</span>
+                          <span style={{ fontSize: 12 }}>▾</span>
+                        </button>
+                        {showImportMenu && (
+                          <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 190, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 12px 28px rgba(15,23,42,0.15)", zIndex: 20, padding: 8 }}>
+                            <button
+                              onClick={() => {
+                                setShowImportMenu(false);
+                                downloadTestCaseImportTemplate();
+                              }}
+                              style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "10px 12px", cursor: "pointer", color: "#334155", fontSize: 14, fontWeight: 600 }}
+                            >
+                              Download Template
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowImportMenu(false);
+                                importTestCaseInputRef.current?.click();
+                              }}
+                              style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "10px 12px", cursor: importingTestCases ? "not-allowed" : "pointer", color: importingTestCases ? "#94a3b8" : "#334155", fontSize: 14, fontWeight: 600 }}
+                              disabled={importingTestCases}
+                              title="Upload an Excel file with columns like Name, Description, Steps, Expected Result, Priority, Category, Remarks, Test Plan Id/Name, and optional Test Scope Id/Name"
+                            >
+                              {importingTestCases ? "Importing..." : "Import Excel"}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -3975,98 +3983,108 @@ linear-gradient(
       ══════════════════════════════════ */}
           {activeTab === "defects" && (
             <div style={{ padding: "20px 2.5%" }}>
-              <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-                <div style={{ position: "relative", width: 320 }}>
-                  <Search
-                    size={16}
-                    style={{
-                      position: "absolute",
-                      left: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#94a3b8",
-                      pointerEvents: "none",
-                    }}
-                  />
+              <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ position: "relative", width: 320 }}>
+                    <Search
+                      size={16}
+                      style={{
+                        position: "absolute",
+                        left: 12,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "#94a3b8",
+                        pointerEvents: "none",
+                      }}
+                    />
 
-                  <input
-                    placeholder="Search defect / run / TC / assignee..."
-                    value={defSearch}
-                    onChange={e => setDefSearch(e.target.value)}
-                    style={{
-                      ...inp,
-                      width: "100%",
-                      paddingLeft: 38,
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-                <select value={defStatusFilter} onChange={e => setDefStatusFilter(e.target.value)} style={{ ...inp, width: 180 }}>
-                  <option>All</option>
-                  {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
-                </select>
-                <select value={defPriFilter} onChange={e => setDefPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
-                  <option>All</option>
-                  {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-                </select>
-                <select value={defMarketFilter} onChange={e => setDefMarketFilter(e.target.value)} style={{ ...inp, width: 120 }}>
-                  <option>All</option>
-                  {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m => <option key={m}>{m}</option>)}
-                </select>
-                <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 200 }}>
-                  <option value="All">All Test Plans</option>
-                  {projects.flatMap(p => (p.testPlans || []).map(tp => (
-                    <option key={tp.id} value={String(tp.id)}>{p.name} — {tp.name}</option>
-                  )))}
-                </select>
-                <button
-                  onClick={() => {
-                    setDefSearch("");
-                    setDefStatusFilter("All");
-                    setDefPriFilter("All");
-                    setDefMarketFilter("All");
-                    setDefPlanFilter("All");
-                    setDefOpenRule("Any");
-                    setDefOpenDate("");
-                    setDefCloseRule("Any");
-                    setDefCloseDate("");
-                  }}
-                  style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
-                >
-                  Reset
-                </button>
-                {filteredDefects.length > 0 && (
+                    <input
+                      placeholder="Search defect / run / TC / assignee..."
+                      value={defSearch}
+                      onChange={e => setDefSearch(e.target.value)}
+                      style={{
+                        ...inp,
+                        width: "100%",
+                        paddingLeft: 38,
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                  <select value={defStatusFilter} onChange={e => setDefStatusFilter(e.target.value)} style={{ ...inp, width: 180 }}>
+                    <option>All</option>
+                    {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
+                  </select>
+                  <select value={defPriFilter} onChange={e => setDefPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
+                    <option>All</option>
+                    {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
+                  </select>
+                  <select value={defMarketFilter} onChange={e => setDefMarketFilter(e.target.value)} style={{ ...inp, width: 120 }}>
+                    <option>All</option>
+                    {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m => <option key={m}>{m}</option>)}
+                  </select>
+                  <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 200 }}>
+                    <option value="All">All Test Plans</option>
+                    {projects.flatMap(p => (p.testPlans || []).map(tp => (
+                      <option key={tp.id} value={String(tp.id)}>{p.name} — {tp.name}</option>
+                    )))}
+                  </select>
+
                   <button
                     onClick={() => {
-                      if (selectedDefectIds.length === filteredDefects.length) {
-                        setSelectedDefectIds([]);
-                      } else {
-                        setSelectedDefectIds(filteredDefects.map(def => def.id));
-                      }
+                      setDefSearch("");
+                      setDefStatusFilter("All");
+                      setDefPriFilter("All");
+                      setDefMarketFilter("All");
+                      setDefPlanFilter("All");
+                      setDefOpenRule("Any");
+                      setDefOpenDate("");
+                      setDefCloseRule("Any");
+                      setDefCloseDate("");
                     }}
-                    style={{ ...btnS, padding: "9px 14px", fontSize: 14 }}
+                    style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
                   >
-                    {selectedDefectIds.length === filteredDefects.length ? "Clear Selection" : "Select All"}
+                    Reset
                   </button>
-                )}
-                <div style={{ flex: 1 }} />
-                {selectedDefectIds.length > 0 && canDelete && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedDefectIds.length} selected</span>
+                  {filteredDefects.length > 0 && (
                     <button
                       onClick={() => {
-                        if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
-                          deleteDefects(selectedDefectIds);
+                        if (selectedDefectIds.length === filteredDefects.length) {
+                          setSelectedDefectIds([]);
+                        } else {
+                          setSelectedDefectIds(filteredDefects.map(def => def.id));
                         }
                       }}
-                      style={{ ...btnD, padding: "9px 14px", fontSize: 14 }}
+                      style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
                     >
-                      🗑 Delete Selected
+                      {selectedDefectIds.length === filteredDefects.length ? "Clear Selection" : "Select All"}
                     </button>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40 }}>
+                    {canWrite && <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>}
+                    {selectedDefectIds.length > 0 && canDelete && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedDefectIds.length} selected</span>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
+                              deleteDefects(selectedDefectIds);
+                            }
+                          }}
+                          style={{ ...btnD, padding: "9px 14px", fontSize: 14 }}
+                        >
+                          🗑 Delete Selected
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-                <button onClick={exportDefects} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredDefects.length === 0}>Export Excel</button>
-                {canWrite && <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>}
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button onClick={exportDefects} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredDefects.length === 0}>Export Excel</button>
+                  </div>
+                </div>
               </div>
               <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflowX: "auto", overflowY: "visible" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
