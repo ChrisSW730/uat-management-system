@@ -20,6 +20,7 @@ import {
   Trash2,
   Target,
   Search,
+  X,
   Eye,
   EyeOff
 } from "lucide-react";
@@ -3710,9 +3711,32 @@ linear-gradient(
                       style={{
                         ...inp,
                         paddingLeft: 36,
+                        paddingRight: 36,
                         width: 230,
                       }}
                     />
+
+                    {tcSearch && (
+                      <button
+                        onClick={() => setTcSearch("")}
+                        title="Clear search"
+                        style={{
+                          position: "absolute",
+                          right: 10,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          border: "none",
+                          background: "transparent",
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          color: "#94a3b8",
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
                   </div>
                   <select value={tcCatFilter} onChange={e => setTcCatFilter(e.target.value)} style={{ ...inp, width: 220 }}>
                     <option value="All">All Categories</option>
@@ -3996,13 +4020,35 @@ linear-gradient(
                       background: "#f8fafc",
                       border: "1.5px solid #e2e8f0",
                       borderRadius: 8,
-                      padding: "8px 12px 8px 38px",
+                      padding: "8px 36px 8px 38px",
                       fontSize: 14,
                       color: "#0f172a",
                       outline: "none",
                       boxSizing: "border-box",
                     }}
                   />
+
+                  {runSearch && (
+                    <button
+                      onClick={() => setRunSearch("")}
+                      title="Clear search"
+                      style={{
+                        position: "absolute",
+                        right: 10,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        padding: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        color: "#94a3b8",
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", position: "relative" }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>Date</span>
@@ -4161,9 +4207,32 @@ linear-gradient(
                         ...inp,
                         width: "100%",
                         paddingLeft: 38,
+                        paddingRight: 36,
                         boxSizing: "border-box",
                       }}
                     />
+
+                    {defSearch && (
+                      <button
+                        onClick={() => setDefSearch("")}
+                        title="Clear search"
+                        style={{
+                          position: "absolute",
+                          right: 10,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          border: "none",
+                          background: "transparent",
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          color: "#94a3b8",
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
                   </div>
                   <select value={defStatusFilter} onChange={e => setDefStatusFilter(e.target.value)} style={{ ...inp, width: 180 }}>
                     <option>All</option>
