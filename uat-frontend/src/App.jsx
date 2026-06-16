@@ -4443,10 +4443,12 @@ linear-gradient(
                           const bH = (d.blocked / maxScale) * chartH;
                           return (
                             <g key={i}>
+                              <title>{`${d.label} • Passed: ${d.passed} • Failed: ${d.failed} • Blocked: ${d.blocked}`}</title>
                               {pH > 0 && <rect x={x} y={chartH - pH - fH - bH} width={barW} height={pH} fill="#22c55e" rx={2} />}
                               {fH > 0 && <rect x={x} y={chartH - fH - bH} width={barW} height={fH} fill="#f43f5e" />}
                               {bH > 0 && <rect x={x} y={chartH - bH} width={barW} height={bH} fill="#f97316" />}
                               {pH === 0 && fH === 0 && bH === 0 && <rect x={x} y={chartH - 2} width={barW} height={2} fill="#e2e8f0" rx={2} />}
+                              <rect x={x} y={0} width={barW} height={chartH} fill="transparent" />
                             </g>
                           );
                         })}
@@ -4487,12 +4489,19 @@ linear-gradient(
                         ))}
                         <polyline points={newPts} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                         <polyline points={clPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-                        {data.map((d, i) => (
-                          <g key={i}>
-                            <circle cx={px(i)} cy={py(d.newCount)} r={4} fill="#3b82f6" vectorEffect="non-scaling-stroke" />
-                            <circle cx={px(i)} cy={py(d.closedCount)} r={3.5} fill="#94a3b8" vectorEffect="non-scaling-stroke" />
-                          </g>
-                        ))}
+                        {data.map((d, i) => {
+                          const x = px(i);
+                          return (
+                            <g key={i}>
+                              <title>{`${d.label} • New: ${d.newCount} • Closed: ${d.closedCount}`}</title>
+                              <rect x={x - 8} y={0} width={16} height={chartH} fill="transparent" />
+                              <circle cx={x} cy={py(d.newCount)} r={4} fill="#3b82f6" vectorEffect="non-scaling-stroke" />
+                              <circle cx={x} cy={py(d.closedCount)} r={3.5} fill="#94a3b8" vectorEffect="non-scaling-stroke" />
+                              <circle cx={x} cy={py(d.newCount)} r={9} fill="transparent" />
+                              <circle cx={x} cy={py(d.closedCount)} r={9} fill="transparent" />
+                            </g>
+                          );
+                        })}
                       </svg>
                     </div>
                   </div>
@@ -4536,11 +4545,17 @@ linear-gradient(
                         ))}
                         <polyline points={idealPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" vectorEffect="non-scaling-stroke" />
                         <polyline points={remainingPts} fill="none" stroke="#6366f1" strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                        {data.map((d, i) => (
-                          <g key={i}>
-                            <circle cx={px(i)} cy={py(d.remaining)} r={3.5} fill="#6366f1" vectorEffect="non-scaling-stroke" />
-                          </g>
-                        ))}
+                        {data.map((d, i) => {
+                          const x = px(i);
+                          const y = py(d.remaining);
+                          return (
+                            <g key={i}>
+                              <title>{`${d.label} • Remaining: ${d.remaining} • Ideal: ${d.ideal}`}</title>
+                              <circle cx={x} cy={y} r={3.5} fill="#6366f1" vectorEffect="non-scaling-stroke" />
+                              <circle cx={x} cy={y} r={10} fill="transparent" />
+                            </g>
+                          );
+                        })}
                       </svg>
                     </div>
                   </div>
