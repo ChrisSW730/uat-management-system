@@ -3364,14 +3364,52 @@ linear-gradient(
               <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <button onClick={openAddUser} style={btnP}>+ Add User</button>
                 <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14 }}>🔍</span>
-                  <input
-                    placeholder="Search username, display name, role..."
-                    value={userSearch}
-                    onChange={e => setUserSearch(e.target.value)}
-                    style={{ ...inp, paddingLeft: 32, width: 300 }}
-                  />
-                </div>
+  <Search
+    size={16}
+    style={{
+      position: "absolute",
+      left: 12,
+      top: "50%",
+      transform: "translateY(-50%)",
+      color: "#94a3b8",
+      pointerEvents: "none",
+    }}
+  />
+
+  <input
+    placeholder="Search username, display name, role..."
+    value={userSearch}
+    onChange={e => setUserSearch(e.target.value)}
+    style={{
+      ...inp,
+      width: 300,
+      paddingLeft: 38,
+      paddingRight: 36,
+    }}
+  />
+
+  {userSearch && (
+    <button
+      onClick={() => setUserSearch("")}
+      title="Clear search"
+      style={{
+        position: "absolute",
+        right: 10,
+        top: "50%",
+        transform: "translateY(-50%)",
+        border: "none",
+        background: "transparent",
+        cursor: "pointer",
+        padding: 0,
+        display: "flex",
+        alignItems: "center",
+        color: "#94a3b8",
+      }}
+    >
+      <X size={14} />
+    </button>
+  )}
+</div>
                 <select value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)} style={{ ...inp, width: 170 }}>
                   <option value="All">All Roles</option>
                   {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
