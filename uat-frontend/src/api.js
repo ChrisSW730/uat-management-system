@@ -1,3 +1,5 @@
+import { readStoredAuth } from "./utils/auth";
+
 const BASE = "/api";
 const rawFetch = window.fetch.bind(window);
 

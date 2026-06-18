@@ -1,8 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
-import * as XLSX from "xlsx";
 import { api } from "./api";
-import loginBg from "../public/login.png";
-import html2canvas from "html2canvas";
 import {
   LayoutDashboard,
   Briefcase,
@@ -24,265 +21,37 @@ import {
   Eye,
   EyeOff
 } from "lucide-react";
-
-/* -----------------------------------------
-   CONSTANTS
------------------------------------------ */
-const EXEC_STATUS = {
-  "Not Run": { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0", dot: "#cbd5e1" },
-  Passed: { bg: "#f0fdf4", text: "#15803d", border: "#bbf7d0", dot: "#22c55e" },
-  Failed: { bg: "#fff1f2", text: "#be123c", border: "#fecdd3", dot: "#f43f5e" },
-  Invalid: { bg: "#eef2ff", text: "#3730a3", border: "#c7d2fe", dot: "#6366f1" },
-  Blocked: { bg: "#fff7ed", text: "#c2410c", border: "#fed7aa", dot: "#f97316" },
-  Skip: { bg: "#faf5ff", text: "#6d28d9", border: "#ddd6fe", dot: "#8b5cf6" },
-  Deferred: { bg: "#fefce8", text: "#a16207", border: "#fde68a", dot: "#eab308" },
-};
-
-const PRIORITY_META = {
-  Showstopper: { bg: "#ef4444", text: "#fff", shadow: "#ef444433" },
-  High: { bg: "#f97316", text: "#fff", shadow: "#f9731633" },
-  Medium: { bg: "#f59e0b", text: "#fff", shadow: "#f59e0b33" },
-  Low: { bg: "#22c55e", text: "#fff", shadow: "#22c55e33" },
-};
-
-const TEST_CASE_PRIORITIES = ["High", "Medium", "Low"];
-
-const DEFECT_STATUS = {
-  New: { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe", dot: "#3b82f6" },
-  "In Progress": { bg: "#ecfdf5", text: "#065f46", border: "#6ee7b7", dot: "#10b981" },
-  Fixed: { bg: "#f0fdf4", text: "#15803d", border: "#bbf7d0", dot: "#22c55e" },
-  Reopened: { bg: "#fff1f2", text: "#be123c", border: "#fecdd3", dot: "#f43f5e" },
-  Rejected: { bg: "#fefce8", text: "#a16207", border: "#fde68a", dot: "#eab308" },
-  "Change Request": { bg: "#faf5ff", text: "#6d28d9", border: "#ddd6fe", dot: "#8b5cf6" },
-  Closed: { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0", dot: "#94a3b8" },
-};
-
-const CATEGORIES = [
-  "User Authentication", "User Management",
-  "Payout & Clawback Creation (Charity Live Campaign)",
-  "Payout & Clawback Creation (Commercial Live Campaign)",
-  "Payout Approval", "BMM", "PAF", "Data Insight",
-];
-
-/* -----------------------------------------
-   SMALL UI COMPONENTS
------------------------------------------ */
-function Dot({ color }) {
-  return <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />;
-}
-
-function DiamondMark({ size = 32, outer = "#ffffff", inner = "#4f46e5", stroke = 6 }) {
-  return (
-    <span style={{ width: size, height: size, transform: "rotate(45deg)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-      <span style={{ width: "100%", height: "100%", boxSizing: "border-box", border: `${stroke}px solid ${outer}`, borderRadius: 4, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ width: "48%", height: "48%", background: inner, borderRadius: 1 }} />
-      </span>
-    </span>
-  );
-}
-
-function ExecBadge({ status }) {
-  const c = EXEC_STATUS[status] || EXEC_STATUS["Not Run"];
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: c.bg, color: c.text, border: `1.5px solid ${c.border}`, padding: "3px 10px 3px 7px", borderRadius: 20, fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
-      <Dot color={c.dot} />{status}
-    </span>
-  );
-}
-
-function DefBadge({ status }) {
-  const c = DEFECT_STATUS[status] || DEFECT_STATUS.New;
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: c.bg, color: c.text, border: `1.5px solid ${c.border}`, padding: "3px 10px 3px 7px", borderRadius: 20, fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
-      <Dot color={c.dot} />{status || "New"}
-    </span>
-  );
-}
-
-function PriBadge({ label }) {
-  const m = PRIORITY_META[label] || { bg: "#e2e8f0", text: "#334155", shadow: "#0000001a" };
-  return <span style={{ background: m.bg, color: m.text, padding: "3px 10px", borderRadius: 6, fontSize: 14, fontWeight: 700, textTransform: "uppercase", boxShadow: `0 2px 8px ${m.shadow}`, whiteSpace: "nowrap" }}>{label}</span>;
-}
-
-function Modal({ children, onClose, wide, zIndex = 1000, onPaste }) {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, []);
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(5px)", zIndex, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} onPaste={onPaste} style={{ background: "#fff", borderRadius: 20, padding: 32, width: "100%", maxWidth: wide ? 900 : 700, maxHeight: "93vh", overflowY: "auto", overscrollBehavior: "contain", boxShadow: "0 32px 80px rgba(0,0,0,0.18)", border: "1px solid #f1f5f9" }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function DetailBlock({ label, value, pre, accent, danger }) {
-  const bg = accent ? "#eff6ff" : danger ? "#fff1f2" : "#f8fafc";
-  const bd = accent ? "#bfdbfe" : danger ? "#fecdd3" : "#f1f5f9";
-  const cl = accent ? "#1d4ed8" : danger ? "#be123c" : "#334155";
-  return (
-    <div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: 5 }}>{label}</div>
-      {pre
-        ? <pre style={{ background: "#f8fafc", border: "1.5px solid #f1f5f9", borderRadius: 8, padding: "10px 14px", color: "#334155", fontSize: 14, whiteSpace: "pre-wrap", margin: 0, fontFamily: "ui-monospace,monospace", lineHeight: 1.6 }}>{value}</pre>
-        : <span style={{ display: "block", background: bg, border: `1.5px solid ${bd}`, borderRadius: 8, padding: "10px 14px", color: cl, fontSize: 14, lineHeight: 1.5 }}>{value || "-"}</span>}
-    </div>
-  );
-}
-
-function readStoredAuth() {
-  try {
-    const sessionAuth = JSON.parse(sessionStorage.getItem("uatAuth") || "null");
-    if (sessionAuth?.token && sessionAuth?.user) return sessionAuth;
-  } catch {
-    // ignore malformed auth cache
-  }
-
-  try {
-    const localAuth = JSON.parse(localStorage.getItem("uatAuth") || "null");
-    if (localAuth?.token && localAuth?.user) return localAuth;
-  } catch {
-    // ignore malformed auth cache
-  }
-
-  return null;
-}
-
-function persistAuth(result, rememberMe) {
-  const serialized = JSON.stringify(result);
-  const storage = rememberMe ? localStorage : sessionStorage;
-  const alternateStorage = rememberMe ? sessionStorage : localStorage;
-
-  alternateStorage.removeItem("uatAuth");
-  alternateStorage.removeItem("uatToken");
-  alternateStorage.removeItem("uatUserName");
-  alternateStorage.removeItem("uatUserRole");
-
-  storage.setItem("uatAuth", serialized);
-  storage.setItem("uatToken", result.token);
-  storage.setItem("uatUserName", result.user.username);
-  storage.setItem("uatUserRole", result.user.role);
-}
-
-function clearStoredAuth() {
-  localStorage.removeItem("uatAuth");
-  localStorage.removeItem("uatToken");
-  localStorage.removeItem("uatUserName");
-  localStorage.removeItem("uatUserRole");
-  sessionStorage.removeItem("uatAuth");
-  sessionStorage.removeItem("uatToken");
-  sessionStorage.removeItem("uatUserName");
-  sessionStorage.removeItem("uatUserRole");
-}
-
-function normalizeExcelHeader(value) {
-  return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
-
-function LoginScreen({ username, password, rememberMe, error, busy, onUsernameChange, onPasswordChange, onRememberMeChange, onSubmit, onContactAdmin, onForgotPassword }) {
-  const [showPw, setShowPw] = useState(false);
-
-  return (
-    <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", fontFamily: "'Inter','Segoe UI',sans-serif", background: "#f8faff" }}>
-      <img src={loginBg} alt="Test Management System" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} />
-
-      <div style={{ position: "relative", zIndex: 2, minHeight: "100vh", display: "flex", justifyContent: "flex-end", alignItems: "center", paddingRight: "8%" }}>
-        <div style={{ width: "100%", height: "auto", maxWidth: 520, padding: "80px 42px", borderRadius: 36, background: "rgba(255,255,255,0.32)", border: "1px solid rgba(255,255,255,0.28)", boxShadow: "0 8px 32px rgba(31,38,135,0.12), inset 0 1px 1px rgba(255,255,255,0.18)", position: "absolute", right: "8%", top: "50%", transform: "translateY(-50%)", overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-            <div style={{ width: 78, height: 78, borderRadius: 24, background: "linear-gradient(135deg,#6366f1,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 30px rgba(99,102,241,0.22)" }}><DiamondMark size={34} outer="#ffffff" inner="#4f46e5" stroke={6} /></div>
-          </div>
-
-          <div style={{ textAlign: "center", marginBottom: 50 }}>
-            <div style={{ fontSize: 34, fontWeight: 750, color: "#0f172a", letterSpacing: "-0.03em", marginBottom: 10 }}>Welcome Back</div>
-            <div style={{ fontSize: 15, color: "#64748b", lineHeight: 1.6 }}>Sign in to continue to your account</div>
-          </div>
-
-          <form onSubmit={onSubmit} style={{ display: "grid", gap: 22 }}>
-            <div>
-              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 700, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase" }}>Username</label>
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 16, zIndex: 2, pointerEvents: "none" }}>👤</span>
-                <input
-                  value={username}
-                  onChange={e => onUsernameChange(e.target.value)}
-                  autoComplete="username"
-                  placeholder="Enter your email address"
-                  style={{ width: "100%", padding: "15px 18px 15px 48px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.78)", backdropFilter: "blur(10px)", fontSize: 15, color: "#0f172a", outline: "none", boxSizing: "border-box", boxShadow: "0 8px 20px rgba(15,23,42,0.03)", transition: "all 0.18s ease" }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 700, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase" }}>Password</label>
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 16, zIndex: 2, pointerEvents: "none" }}>🔒</span>
-                <input
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={e => onPasswordChange(e.target.value)}
-                  autoComplete="current-password"
-                  placeholder="Enter your password"
-                  style={{ width: "100%", padding: "15px 52px 15px 48px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.78)", backdropFilter: "blur(10px)", fontSize: 15, color: "#0f172a", outline: "none", boxSizing: "border-box", boxShadow: "0 8px 20px rgba(15,23,42,0.03)", transition: "all 0.18s ease" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(v => !v)}
-                  title={showPw ? "Hide password" : "Show password"}
-                  style={{
-                    position: "absolute",
-                    right: 14,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    background: "transparent",
-                    border: "none",
-                    outline: "none",
-                    boxShadow: "none",
-                    cursor: "pointer",
-                    color: "#94a3b8",
-                    padding: 0,
-                    margin: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: -2 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "#475569", cursor: "pointer" }}>
-                <input type="checkbox" checked={rememberMe} onChange={e => onRememberMeChange(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#6366f1" }} />
-                Remember me
-              </label>
-              <span
-                onClick={onForgotPassword}
-                style={{ color: "#4f46e5", fontWeight: 700, cursor: "pointer", fontSize: 14, textDecoration: "underline" }}
-              >
-                Forgot password?
-              </span>
-            </div>
-
-            {error && <div style={{ background: "rgba(255,240,242,0.92)", border: "1px solid rgba(244,63,94,0.12)", color: "#be123c", padding: "12px 14px", borderRadius: 14, fontSize: 13 }}>{error}</div>}
-
-            <button type="submit" disabled={busy} style={{ marginTop: 4, width: "100%", padding: "16px 18px", border: "none", borderRadius: 16, background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff", fontSize: 17, fontWeight: 800, cursor: "pointer", boxShadow: "0 14px 35px rgba(99,102,241,0.22)", transition: "all 0.18s ease" }}>
-              {busy ? "Signing in..." : "→ Login"}
-            </button>
-
-            <div style={{ textAlign: "center", marginTop: 4, fontSize: 15, color: "#475569" }}>
-              Don't have an account?{" "}
-              <span onClick={onContactAdmin} style={{ color: "#4f46e5", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Contact Administrator</span>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
+import {
+  EXEC_STATUS,
+  PRIORITY_META,
+  TEST_CASE_PRIORITIES,
+  DEFECT_STATUS,
+  CATEGORIES
+} from "./constants";
+import {
+  readStoredAuth,
+  persistAuth,
+  clearStoredAuth
+} from "./utils/auth";
+import {
+  getXLSX,
+  normalizeExcelHeader,
+  formatExportDateTime,
+  downloadWorkbook
+} from "./utils/excel";
+import LoginScreen from "./components/LoginScreen";
+import Dashboard from "./components/Dashboard";
+import DiamondMark from "./components/ui/DiamondMark";
+import { PriBadge } from "./components/ui/Badge";
+import DetailBlock from "./components/ui/DetailBlock";
+import Modal from "./components/ui/Modal";
+import Projects from "./components/Projects";
+import TestCases from "./components/TestCases";
+import TestRuns from "./components/TestRuns";
+import Defects from "./components/Defects";
+import DefectModals from "./components/DefectModals";
+import TestCaseModals from "./components/TestCaseModals";
+import UsersTab from "./components/Users";
 
 function getInitialDefectLinkId() {
   try {
@@ -921,10 +690,12 @@ export default function App() {
   }, [authUser, loading, pendingDefectLinkId, defects]);
 
   useEffect(() => {
+    if (!authUser) return;
+
     api.getTestCases(selectedTestPlanId || undefined)
       .then(setTestCases)
       .catch(err => console.error("TC Error:", err));
-  }, [selectedTestPlanId]);
+  }, [selectedTestPlanId, authUser]);
 
   useEffect(() => {
     function handleClick() {
@@ -1358,6 +1129,7 @@ export default function App() {
 
     setImportingTestCases(true);
     try {
+      const XLSX = await getXLSX();
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       const sheetName = workbook.SheetNames.find(name => /test\s*cases?/i.test(name)) || workbook.SheetNames[0];
@@ -2619,26 +2391,8 @@ export default function App() {
     return Math.floor((new Date() - new Date(dateStr)) / 86400000);
   }
 
-  function formatExportDateTime(value) {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleString();
-  }
-
-  function appendSheet(workbook, name, rows) {
-    const sheetRows = rows.length > 0 ? rows : [{ Info: "No data" }];
-    const sheet = XLSX.utils.json_to_sheet(sheetRows);
-    XLSX.utils.book_append_sheet(workbook, sheet, name);
-  }
-
-  function downloadWorkbook(filename, sheets) {
-    const workbook = XLSX.utils.book_new();
-    sheets.forEach(sheet => appendSheet(workbook, sheet.name, sheet.rows));
-    XLSX.writeFileXLSX(workbook, filename);
-  }
-
-  function downloadTestCaseImportTemplate() {
+  async function downloadTestCaseImportTemplate() {
+    const XLSX = await getXLSX();
     const workbook = XLSX.utils.book_new();
     const headers = [
       "Name",
@@ -2777,7 +2531,7 @@ export default function App() {
         }));
       });
 
-      downloadWorkbook(`test-cases-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+      await downloadWorkbook(`test-cases-${new Date().toISOString().slice(0, 10)}.xlsx`, [
         { name: "Test Cases", rows: summaryRows },
         { name: "Coverage", rows: coverageRows },
         { name: "Attachments", rows: attachmentRows },
@@ -2787,7 +2541,7 @@ export default function App() {
     }
   }
 
-  function exportRuns() {
+  async function exportRuns() {
     const summaryRows = filteredRuns.map(run => {
       const stats = runStats(run);
       const progress = stats.total > 0 ? Math.round((stats.pass / stats.total) * 100) : 0;
@@ -2847,7 +2601,7 @@ export default function App() {
       })
     );
 
-    downloadWorkbook(`test-runs-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+    await downloadWorkbook(`test-runs-${new Date().toISOString().slice(0, 10)}.xlsx`, [
       { name: "Runs", rows: summaryRows },
       { name: "Run Entries", rows: entryRows },
       { name: "Comments", rows: commentRows },
@@ -2908,7 +2662,7 @@ export default function App() {
         }))
       );
 
-      downloadWorkbook(`defects-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+      await downloadWorkbook(`defects-${new Date().toISOString().slice(0, 10)}.xlsx`, [
         { name: "Defects", rows: detailRows },
         { name: "Status View", rows: statusRows },
         { name: "Attachments", rows: attachmentRows },
@@ -3361,313 +3115,85 @@ linear-gradient(
           TAB: USERS
       ══════════════════════════════════ */}
           {activeTab === "users" && isAdmin && (
-            <div style={{ padding: "20px 2.5%" }}>
-              <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
-                <button onClick={openAddUser} style={btnP}>+ Add User</button>
-                <div style={{ position: "relative" }}>
-                  <Search
-                    size={16}
-                    style={{
-                      position: "absolute",
-                      left: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#94a3b8",
-                      pointerEvents: "none",
-                    }}
-                  />
-
-                  <input
-                    placeholder="Search username, display name, role..."
-                    value={userSearch}
-                    onChange={e => setUserSearch(e.target.value)}
-                    style={{
-                      ...inp,
-                      width: 300,
-                      paddingLeft: 38,
-                      paddingRight: 36,
-                    }}
-                  />
-
-                  {userSearch && (
-                    <button
-                      onClick={() => setUserSearch("")}
-                      title="Clear search"
-                      style={{
-                        position: "absolute",
-                        right: 10,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        padding: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        color: "#94a3b8",
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-                <select value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)} style={{ ...inp, width: 170 }}>
-                  <option value="All">All Roles</option>
-                  {["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
-                </select>
-                <select value={userActiveFilter} onChange={e => setUserActiveFilter(e.target.value)} style={{ ...inp, width: 140 }}>
-                  <option value="All">All Status</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-                <button
-                  onClick={() => {
-                    setUserSearch("");
-                    setUserRoleFilter("All");
-                    setUserActiveFilter("All");
-                    setUserSortCol("username");
-                    setUserSortDir("asc");
-                  }}
-                  style={btnS}
-                >
-                  Clear
-                </button>
-              </div>
-              <div style={{ marginBottom: 12, color: "#64748b", fontSize: 13, fontWeight: 700 }}>Showing {filteredSortedUsers.length} of {users.length} users</div>
-              <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                  <thead>
-                    <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
-                      <th style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Actions</th>
-                      {[
-                        { label: "Username", col: "username" },
-                        { label: "Display Name", col: "displayName" },
-                        { label: "Role", col: "role" },
-                        { label: "Active", col: "isActive" },
-                        { label: "Created", col: "createdAt" },
-                      ].map(({ label, col }) => (
-                        <th
-                          key={label}
-                          onClick={() => toggleUserSort(col)}
-                          style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: userSortCol === col ? "#d4dff0" : undefined }}>
-                          {label}{userSortCol === col ? (userSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSortedUsers.length === 0 && <tr><td colSpan={6} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No users found</td></tr>}
-                    {filteredSortedUsers.map((user, i) => {
-                      const resetCooldown = getPwCooldownRemaining(`reset-${user.id}`);
-                      return (
-                        <tr key={user.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                          <td style={{ padding: "13px 16px", width: 190, minWidth: 190 }}>
-                            <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                              <button onClick={() => openEditUser({ ...user, password: "" })} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>Edit</button>
-                              <button
-                                onClick={() => resetUserPassword(user)}
-                                disabled={resetCooldown > 0}
-                                title={resetCooldown > 0 ? `Wait ${resetCooldown}s before resetting again` : undefined}
-                                style={{ ...btnS, padding: "5px 10px", fontSize: 12, borderColor: "#c7d2fe", color: resetCooldown > 0 ? "#a5b4fc" : "#4338ca", opacity: resetCooldown > 0 ? 0.65 : 1, cursor: resetCooldown > 0 ? "not-allowed" : "pointer" }}
-                              >
-                                {resetCooldown > 0 ? `Reset (${resetCooldown}s)` : "Reset Password"}
-                              </button>
-                              <button onClick={() => { if (window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }} style={xBtn}>✕</button>
-                            </div>
-                          </td>
-                          <td style={{ padding: "13px 16px", fontWeight: 800, color: "#6366f1" }}>{user.username}</td>
-                          <td style={{ padding: "13px 16px", color: "#1e293b", fontWeight: 600 }}>{user.displayName}</td>
-                          <td style={{ padding: "13px 16px" }}><span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "3px 8px", borderRadius: 6, fontWeight: 800, fontSize: 12 }}>{user.role}</span></td>
-                          <td style={{ padding: "13px 16px" }}>{user.isActive ? "Yes" : "No"}</td>
-                          <td style={{ padding: "13px 16px", color: "#64748b" }}>{toInputDate(user.createdAt)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <UsersTab
+              openAddUser={openAddUser}
+              btnP={btnP}
+              userSearch={userSearch}
+              setUserSearch={setUserSearch}
+              inp={inp}
+              userRoleFilter={userRoleFilter}
+              setUserRoleFilter={setUserRoleFilter}
+              userActiveFilter={userActiveFilter}
+              setUserActiveFilter={setUserActiveFilter}
+              setUserSortCol={setUserSortCol}
+              setUserSortDir={setUserSortDir}
+              btnS={btnS}
+              filteredSortedUsers={filteredSortedUsers}
+              users={users}
+              toggleUserSort={toggleUserSort}
+              userSortCol={userSortCol}
+              userSortDir={userSortDir}
+              getPwCooldownRemaining={getPwCooldownRemaining}
+              openEditUser={openEditUser}
+              resetUserPassword={resetUserPassword}
+              deleteUserAccount={deleteUserAccount}
+              xBtn={xBtn}
+              toInputDate={toInputDate}
+            />
           )}
 
           {/* ══════════════════════════════════
           TAB: PROJECTS
       ══════════════════════════════════ */}
           {activeTab === "projects" && (
-            <div style={{ padding: "20px 2.5%" }}>
-              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                {canManageProjects && <button onClick={() => setShowAddProject(true)} style={btnP}>+ Add Project</button>}
-                {canManageProjects && <button onClick={() => setShowAddPlan(true)} style={{ ...btnS, opacity: !selectedProjectId ? 0.5 : 1 }} disabled={!selectedProjectId}>+ Add Test Plan</button>}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 16 }}>
-                <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", overflow: "hidden" }}>
-                  <div style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontWeight: 800, fontSize: 17, color: "#334155" }}>Projects</div>
-                  {(projects || []).length === 0 && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>No projects yet.</div>}
-                  {(projects || []).map(p => (
-                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f8fafc", padding: "8px 10px", background: String(selectedProjectId) === String(p.id) ? "#eff6ff" : "#fff" }}>
-                      <button onClick={() => { setSelectedProjectId(String(p.id)); setSelectedTestPlanId(""); }}
-                        style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", padding: "6px 4px", cursor: "pointer", fontWeight: 700, fontSize: 16, color: String(selectedProjectId) === String(p.id) ? "#1d4ed8" : "#334155" }}>
-                        <div>{p.name}</div>
-                        {(() => {
-                          const tm = getTimelineMeta(p.startDate, p.endDate);
-                          const badge = timelineBadgeStyle(tm.status);
-                          return (
-                            <div style={{ marginTop: 4 }}>
-                              <div>
-                                <span style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 5,
-                                  padding: "3px 10px",
-                                  borderRadius: 999,
-                                  fontSize: 13,
-                                  fontWeight: 800,
-                                  letterSpacing: "0.01em",
-                                  whiteSpace: "nowrap",
-                                  background: badge.bg,
-                                  color: badge.text,
-                                  border: `1px solid ${badge.border}`
-                                }}>
-                                  📅 {formatTimeline(p.startDate, p.endDate)}
-                                </span>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                                <div style={{ flex: 1, height: 8, borderRadius: 99, background: "#e2e8f0", overflow: "hidden" }}>
-                                  <div style={{ width: `${tm.progress}%`, height: "100%", background: tm.color, borderRadius: 99, transition: "width 0.25s ease" }} />
-                                </div>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: tm.color, minWidth: 76, textAlign: "right" }}>{tm.status} {tm.progress}%</span>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </button>
-                      {canManageProjects && <button
-                        onClick={() => {
-                          setEditingProjectId(p.id);
-                          setEditProjectName(p.name || "");
-                          setEditProjectStartDate(toInputDate(p.startDate));
-                          setEditProjectEndDate(toInputDate(p.endDate));
-                          setShowEditProject(true);
-                        }}
-                        style={{ ...btnS, padding: "5px 11px", fontSize: 13 }}
-                      >
-                        Edit
-                      </button>}
-                      {canDelete && <button
-                        onClick={() => {
-                          if (window.confirm(`Delete project "${p.name}" and all its test plans?`)) {
-                            deleteProject(p.id);
-                          }
-                        }}
-                        style={{ ...btnD, padding: "5px 11px", fontSize: 13 }}
-                      >
-                        Delete
-                      </button>}
-                    </div>
-                  ))}
-                </div>
-                <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", overflow: "hidden" }}>
-                  <div style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9", fontWeight: 800, fontSize: 17, color: "#334155" }}>Test Plans {selectedProject ? `- ${selectedProject.name}` : ""}</div>
-                  {!selectedProject && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>Select a project to view plans.</div>}
-                  {selectedProject && selectedProjectPlans.length === 0 && <div style={{ padding: 18, color: "#94a3b8", fontSize: 15 }}>No test plans yet.</div>}
-                  {selectedProjectPlans.map(tp => (
-                    <div key={tp.id} style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #f8fafc", padding: "8px 10px", background: String(selectedTestPlanId) === String(tp.id) ? "#eff6ff" : "#fff" }}>
-                      <button onClick={() => { setSelectedTestPlanId(String(tp.id)); setNewTC(p => ({ ...p, testScopeId: "" })); setActiveTab("testcases"); }}
-                        style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", padding: "6px 4px", cursor: "pointer", fontWeight: 700, fontSize: 16, color: String(selectedTestPlanId) === String(tp.id) ? "#1d4ed8" : "#334155" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span>{tp.name}</span>
-                          {(() => {
-                            const count = defects.filter(d => d.testPlanId === tp.id).length;
-                            return count > 0 ? (
-                              <span
-                                style={{
-                                  background: "#fee2e2",
-                                  color: "#b91c1c",
-                                  borderRadius: 999,
-                                  fontSize: 12,
-                                  fontWeight: 800,
-                                  padding: "2px 8px",
-                                  minWidth: 24,
-                                  textAlign: "center",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                }}
-                              >
-                                <Bug size={12} />
-                                {count}
-                              </span>
-                            ) : null;
-                          })()}
-                        </div>
-                        {(() => {
-                          const tm = getTimelineMeta(tp.startDate, tp.endDate);
-                          const badge = timelineBadgeStyle(tm.status);
-                          return (
-                            <div style={{ marginTop: 4 }}>
-                              <div>
-                                <span style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 5,
-                                  padding: "3px 10px",
-                                  borderRadius: 999,
-                                  fontSize: 13,
-                                  fontWeight: 800,
-                                  letterSpacing: "0.01em",
-                                  whiteSpace: "nowrap",
-                                  background: badge.bg,
-                                  color: badge.text,
-                                  border: `1px solid ${badge.border}`
-                                }}>
-                                  📅 {formatTimeline(tp.startDate, tp.endDate)}
-                                </span>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                                <div style={{ flex: 1, height: 8, borderRadius: 99, background: "#e2e8f0", overflow: "hidden" }}>
-                                  <div style={{ width: `${tm.progress}%`, height: "100%", background: tm.color, borderRadius: 99, transition: "width 0.25s ease" }} />
-                                </div>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: tm.color, minWidth: 76, textAlign: "right" }}>{tm.status} {tm.progress}%</span>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </button>
-                      {canManageProjects && (
-                        <button
-                          onClick={() => openManageScopes(tp)}
-                          style={{ ...btnS, padding: "5px 10px", fontSize: 13 }}
-                          title="Manage testing scopes"
-                        >
-                          <Target size={16} />
-                        </button>
-                      )}
-                      {canManageProjects && <button
-                        onClick={() => {
-                          setEditingPlanId(tp.id);
-                          setEditPlanName(tp.name || "");
-                          setEditPlanStartDate(toInputDate(tp.startDate));
-                          setEditPlanEndDate(toInputDate(tp.endDate));
-                          setShowEditPlan(true);
-                        }}
-                        style={{ ...btnS, padding: "5px 11px", fontSize: 13 }}
-                      >
-                        Edit
-                      </button>}
-                      {canDelete && <button
-                        onClick={() => {
-                          if (window.confirm(`Delete test plan "${tp.name}"?`)) {
-                            deleteTestPlan(tp.id);
-                          }
-                        }}
-                        style={{ ...btnD, padding: "5px 11px", fontSize: 13 }}
-                      >
-                        Delete
-                      </button>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <Projects
+  projects={projects}
+  defects={defects}
+
+  selectedProject={selectedProject}
+  selectedProjectPlans={selectedProjectPlans}
+
+  selectedProjectId={selectedProjectId}
+  setSelectedProjectId={setSelectedProjectId}
+
+  selectedTestPlanId={selectedTestPlanId}
+  setSelectedTestPlanId={setSelectedTestPlanId}
+
+  canManageProjects={canManageProjects}
+  canDelete={canDelete}
+
+  btnP={btnP}
+  btnS={btnS}
+  btnD={btnD}
+
+  setShowAddProject={setShowAddProject}
+  setShowAddPlan={setShowAddPlan}
+
+  getTimelineMeta={getTimelineMeta}
+  timelineBadgeStyle={timelineBadgeStyle}
+  formatTimeline={formatTimeline}
+  toInputDate={toInputDate}
+
+  setEditingProjectId={setEditingProjectId}
+  setEditProjectName={setEditProjectName}
+  setEditProjectStartDate={setEditProjectStartDate}
+  setEditProjectEndDate={setEditProjectEndDate}
+  setShowEditProject={setShowEditProject}
+
+  setEditingPlanId={setEditingPlanId}
+  setEditPlanName={setEditPlanName}
+  setEditPlanStartDate={setEditPlanStartDate}
+  setEditPlanEndDate={setEditPlanEndDate}
+  setShowEditPlan={setShowEditPlan}
+
+  deleteProject={deleteProject}
+  deleteTestPlan={deleteTestPlan}
+
+  openManageScopes={openManageScopes}
+
+  setNewTC={setNewTC}
+  setActiveTab={setActiveTab}
+/>
           )}
 
           {/* ══════════════════════════════════
@@ -3675,1562 +3201,175 @@ linear-gradient(
       ══════════════════════════════════ */}
 
           {activeTab === "testcases" && (
-            <div style={{ padding: "20px 2.5%" }}>
-              {/* toolbar */}
-              <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
-                <input
-                  ref={importTestCaseInputRef}
-                  type="file"
-                  accept=".xlsx,.xls"
-                  style={{ display: "none" }}
-                  onChange={async e => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (file) {
-                      await handleImportTestCases(file);
-                    }
-                  }}
-                />
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                  <div style={{ position: "relative" }}>
-                    <Search
-                      size={16}
-                      style={{
-                        position: "absolute",
-                        left: 10,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        color: "#94a3b8",
-                      }}
-                    />
+            <TestCases
+            tcSearch={tcSearch}
+            setTcSearch={setTcSearch}
 
-                    <input
-                      placeholder="Search ID or name..."
-                      value={tcSearch}
-                      onChange={e => setTcSearch(e.target.value)}
-                      style={{
-                        ...inp,
-                        paddingLeft: 36,
-                        paddingRight: 36,
-                        width: 230,
-                      }}
-                    />
+            tcCatFilter={tcCatFilter}
+            setTcCatFilter={setTcCatFilter}
 
-                    {tcSearch && (
-                      <button
-                        onClick={() => setTcSearch("")}
-                        title="Clear search"
-                        style={{
-                          position: "absolute",
-                          right: 10,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          border: "none",
-                          background: "transparent",
-                          cursor: "pointer",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          color: "#94a3b8",
-                        }}
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                  <select value={tcCatFilter} onChange={e => setTcCatFilter(e.target.value)} style={{ ...inp, width: 220 }}>
-                    <option value="All">All Categories</option>
-                    {categories.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                  <select value={tcPriFilter} onChange={e => setTcPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
-                    <option value="All">All Priorities</option>
-                    {TEST_CASE_PRIORITIES.map(p => <option key={p}>{p}</option>)}
-                  </select>
-                  <select
-                    value={selectedProjectId}
-                    onChange={e => {
-                      const pid = e.target.value;
-                      setSelectedProjectId(pid);
-                      const p = projects.find(x => String(x.id) === String(pid));
-                      const fp = (p?.testPlans || [])[0];
-                      setSelectedTestPlanId(fp ? String(fp.id) : "");
-                      setNewTC(prev => ({ ...prev, testScopeId: "" }));
-                    }}
-                    style={{ ...inp, width: 190 }}
-                  >
-                    <option value="">Select Project</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  <select
-                    value={selectedTestPlanId}
-                    onChange={e => {
-                      setSelectedTestPlanId(e.target.value);
-                      setNewTC(prev => ({ ...prev, testScopeId: "" }));
-                    }}
-                    style={{ ...inp, width: 450 }}
-                  >
-                    <option value="">Select Test Plan</option>
-                    {selectedProjectPlans.map(tp => <option key={tp.id} value={tp.id}>{tp.name}</option>)}
-                  </select>
+            tcPriFilter={tcPriFilter}
+            setTcPriFilter={setTcPriFilter}
 
-                  <button
-                    onClick={() => {
-                      setTcSearch("");
-                      setTcCatFilter("All");
-                      setTcPriFilter("All");
-                      setSelectedProjectId("");
-                      setSelectedTestPlanId("");
-                    }}
-                    style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
-                  >
-                    Reset
-                  </button>
-                  {filteredTC.length > 0 && (
-                    <button
-                      onClick={() => {
-                        if (selectedTcIds.length === filteredTC.length) {
-                          setSelectedTcIds([]);
-                        } else {
-                          setSelectedTcIds(filteredTC.map(tc => tc.id));
-                        }
-                      }}
-                      style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
-                    >
-                      {selectedTcIds.length === filteredTC.length ? "Clear Selection" : "Select All"}
-                    </button>
-                  )}
-                </div>
+            tcSortCol={tcSortCol}
+            setTcSortCol={setTcSortCol}
+            tcSortDir={tcSortDir}
+            setTcSortDir={setTcSortDir}
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40 }}>
-                    {canWrite && <button onClick={() => setShowAddTC(true)} style={btnP}>+ Add Test Case</button>}
-                    {selectedTcIds.length > 0 && canDelete && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedTcIds.length} selected</span>
-                        <button onClick={() => { if (window.confirm(`Delete ${selectedTcIds.length} test case(s)?`)) deleteTestCases(selectedTcIds); }}
-                          style={{ background: "#fff1f2", color: "#be123c", border: "1.5px solid #fecdd3", borderRadius: 8, padding: "8px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                          🗑 Delete Selected
-                        </button>
-                      </div>
-                    )}
-                  </div>
+            selectedProjectId={selectedProjectId}
+            setSelectedProjectId={setSelectedProjectId}
+            selectedTestPlanId={selectedTestPlanId}
+            setSelectedTestPlanId={setSelectedTestPlanId}
+            selectedProjectPlans={selectedProjectPlans}
+            projects={projects}
 
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }} onClick={e => e.stopPropagation()}>
-                    <button onClick={exportTestCases} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredTC.length === 0}>Export Excel</button>
-                    {canWrite && (
-                      <>
-                        <button
-                          onClick={() => setShowImportMenu(v => !v)}
-                          style={{ ...btnS, padding: "9px 14px", fontSize: 14, minWidth: 120, display: "inline-flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
-                        >
-                          <span>Import</span>
-                          <span style={{ fontSize: 12 }}>▾</span>
-                        </button>
-                        {showImportMenu && (
-                          <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 190, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 12px 28px rgba(15,23,42,0.15)", zIndex: 20, padding: 8 }}>
-                            <button
-                              onClick={() => {
-                                setShowImportMenu(false);
-                                downloadTestCaseImportTemplate();
-                              }}
-                              style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "10px 12px", cursor: "pointer", color: "#334155", fontSize: 14, fontWeight: 600 }}
-                            >
-                              Download Template
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowImportMenu(false);
-                                importTestCaseInputRef.current?.click();
-                              }}
-                              style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "10px 12px", cursor: importingTestCases ? "not-allowed" : "pointer", color: importingTestCases ? "#94a3b8" : "#334155", fontSize: 14, fontWeight: 600 }}
-                              disabled={importingTestCases}
-                              title="Upload an Excel file with columns like Name, Test Plan, Description, Steps, Expected Result, Priority, Category, Remarks, and optional Test Scope"
-                            >
-                              {importingTestCases ? "Importing..." : "Import Excel"}
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
+            filteredTC={filteredTC}
+            selectedTcIds={selectedTcIds}
+            setSelectedTcIds={setSelectedTcIds}
 
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
-                Required: <strong>Name</strong> and <strong>Test Plan</strong>. Optional columns: Description, Steps, Expected Result, Priority, Category, Remarks, Test Scope.
-              </div>
+            sortedFilteredTC={sortedFilteredTC}
 
-              <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                  <thead>
-                    <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
-                      <th style={{ padding: "12px 16px", width: 40 }}>
-                        <input type="checkbox"
-                          checked={selectedTcIds.length === filteredTC.length && filteredTC.length > 0}
-                          onChange={e => setSelectedTcIds(e.target.checked ? filteredTC.map(tc => tc.id) : [])}
-                          style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                        />
-                      </th>
-                      {[{ label: "Actions", col: "" }, { label: "ID", col: "tcNumber" }, { label: "Project", col: "" }, { label: "Test Plan", col: "" }, { label: "Test Name", col: "name" }, { label: "Category", col: "category" }, { label: "Coverage", col: "" }, { label: "Priority", col: "priority" }].map(({ label, col }) => (
-                        <th key={label} onClick={col ? () => { if (tcSortCol === col) setTcSortDir(d => d === "asc" ? "desc" : "asc"); else { setTcSortCol(col); setTcSortDir("asc"); } } : undefined}
-                          style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && tcSortCol === col ? "#d4dff0" : undefined }}>
-                          {label}{col && tcSortCol === col ? (tcSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedFilteredTC.length === 0 && <tr><td colSpan={9} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No test cases found</td></tr>}
-                    {sortedFilteredTC.map((tc, i) => {
-                      const isSelected = selectedTcIds.includes(tc.id);
-                      const planMeta = tc.testPlanId ? testPlanMetaById[tc.testPlanId] : null;
-                      const coveredRuns = runs.filter(run =>
-                        (run.entries || []).some(
-                          e => e.testCaseId === tc.id
-                        )
-                      );
-                      return (
-                        <tr key={tc.id}
-                          onContextMenu={e => { if (canWrite) { e.preventDefault(); setContextMenu({ type: "tc", item: tc, x: e.clientX, y: e.clientY }); } }}
-                          style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
-                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f0f4ff"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa"; }}>
-                          <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={e => setSelectedTcIds(p => e.target.checked ? [...p, tc.id] : p.filter(x => x !== tc.id))}
-                              style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                            />
-                          </td>
-                          <td style={{ padding: "13px 16px", width: 180, minWidth: 180 }}>
-                            <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                              <button onClick={() => setViewTC(tc)} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>View</button>
-                              {canWrite && <button
-                                onClick={() => setEditTC({
-                                  ...tc,
-                                  expected: tc.expectedResult,
-                                  testScopeId: tc.testScopeId ? String(tc.testScopeId) : ""
-                                })}
-                                style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
-                              >
-                                Edit
-                              </button>}
-                              {canDelete && <button
-                                onClick={() => {
-                                  if (window.confirm(`Delete ${tc.tcNumber}?`)) deleteTestCases([tc.id]);
-                                }}
-                                style={xBtn}
-                                title="Delete"
-                              >
-                                ✕
-                              </button>}
-                            </div>
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
-                            <span style={{ fontWeight: 800, color: "#6366f1", fontSize: 14, fontFamily: "monospace", background: "#eff6ff", padding: "2px 7px", borderRadius: 5 }}>{tc.tcNumber}</span>
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
-                            <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{planMeta?.projectName || "-"}</span>
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
-                            <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{planMeta?.testPlanName || "-"}</span>
-                          </td>
-                          <td style={{ padding: "13px 16px", maxWidth: 340 }} onClick={() => setViewTC(tc)}>
-                            <div style={{ fontWeight: 700, color: "#1e293b", lineHeight: 1.4 }}>{tc.name}</div>
-                            {tc.testScopeId && testScopeNameById[tc.testScopeId] && (
-                              <div style={{ marginTop: 5 }}>
-                                <span style={{ fontSize: 12, color: "#4338ca", background: "#eef2ff", border: "1px solid #c7d2fe", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>
-                                  Scope: {testScopeNameById[tc.testScopeId]}
-                                </span>
-                              </div>
-                            )}
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
-                            <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{tc.category || "-"}</span>
-                          </td>
-                          <td
-                            style={{ padding: "13px 16px", whiteSpace: "nowrap" }}
-                            onClick={() => setViewTC(tc)}
-                          >
-                            {coveredRuns.length > 0 ? (
-                              <span
-                                style={{
-                                  background: "#f0fdf4",
-                                  color: "#15803d",
-                                  padding: "4px 10px",
-                                  borderRadius: 20,
-                                  fontSize: 12,
-                                  fontWeight: 700
-                                }}
-                              >
-                                {coveredRuns.length} Run{coveredRuns.length > 1 ? "s" : ""}
-                              </span>
-                            ) : (
-                              <span
-                                style={{
-                                  background: "#fff1f2",
-                                  color: "#be123c",
-                                  padding: "4px 10px",
-                                  borderRadius: 20,
-                                  fontSize: 12,
-                                  fontWeight: 700
-                                }}
-                              >
-                                Not Covered
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}><PriBadge label={tc.priority} /></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            runs={runs}
+
+            testPlanMetaById={testPlanMetaById}
+            testScopeNameById={testScopeNameById}
+
+            setViewTC={setViewTC}
+            setEditTC={setEditTC}
+            setContextMenu={setContextMenu}
+            setNewTC={setNewTC}
+
+            categories={categories}
+
+            canWrite={canWrite}
+            canDelete={canDelete}
+
+            btnP={btnP}
+            btnS={btnS}
+            btnD={btnD}
+            xBtn={xBtn}
+            inp={inp}
+
+            handleImportTestCases={handleImportTestCases}
+            setShowAddTC={setShowAddTC}
+            deleteTestCases={deleteTestCases}
+            exportTestCases={exportTestCases}
+            showImportMenu={showImportMenu}
+            setShowImportMenu={setShowImportMenu}
+            downloadTestCaseImportTemplate={downloadTestCaseImportTemplate}
+            importingTestCases={importingTestCases}
+
+            toInputDate={toInputDate}
+  
+  />
           )}
 
           {/* ══════════════════════════════════
           TAB: TEST RUNS
       ══════════════════════════════════ */}
           {activeTab === "runs" && (
-            <div style={{ padding: "20px 2.5%" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-                <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
-                  <Search
-                    size={16}
-                    style={{
-                      position: "absolute",
-                      left: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#94a3b8",
-                      pointerEvents: "none",
-                    }}
-                  />
-
-                  <input
-                    value={runSearch}
-                    onChange={e => setRunSearch(e.target.value)}
-                    placeholder="Search runs..."
-                    style={{
-                      flex: 1,
-                      width: "100%",
-                      background: "#f8fafc",
-                      border: "1.5px solid #e2e8f0",
-                      borderRadius: 8,
-                      padding: "8px 36px 8px 38px",
-                      fontSize: 14,
-                      color: "#0f172a",
-                      outline: "none",
-                      boxSizing: "border-box",
-                    }}
-                  />
-
-                  {runSearch && (
-                    <button
-                      onClick={() => setRunSearch("")}
-                      title="Clear search"
-                      style={{
-                        position: "absolute",
-                        right: 10,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        padding: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        color: "#94a3b8",
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", position: "relative" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>Date</span>
-                  <button
-                    onClick={toggleRunDateFilterPanel}
-                    title="Filter by date"
-                    style={{ border: "1px solid #cbd5e1", background: runDateFilterPanel || runDateRule !== "Any" ? "#eff6ff" : "#fff", color: runDateFilterPanel || runDateRule !== "Any" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                  >
-                    ⏷
-                  </button>
-                  {runDateRule !== "Any" && runDateValue && (
-                    <button onClick={() => { setRunDateRule("Any"); setRunDateValue(""); }}
-                      style={{ border: "1px solid #fca5a5", background: "#fff1f2", color: "#dc2626", borderRadius: 6, width: 22, height: 22, fontSize: 11, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0, fontWeight: 700 }}>✕</button>
-                  )}
-                </div>
-                <div style={{ flex: "0 0 auto", display: "flex", gap: 10, alignItems: "center" }}>
-                  {sortedRuns.length > 0 && (
-                    <button
-                      onClick={() => {
-                        if (selectedRunIds.length === filteredRuns.length) {
-                          setSelectedRunIds([]);
-                        } else {
-                          setSelectedRunIds(filteredRuns.map(r => r.id));
-                        }
-                      }}
-                      style={{ ...btnS, padding: "8px 14px", fontSize: 14 }}
-                    >
-                      {selectedRunIds.length === filteredRuns.length ? "Clear Selection" : "Select All"}
-                    </button>
-                  )}
-                  {selectedRunIds.length > 0 && canDelete && (
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`Delete ${selectedRunIds.length} test run(s)?`)) {
-                          deleteRuns(selectedRunIds);
-                        }
-                      }}
-                      style={{ ...btnD, padding: "8px 14px", fontSize: 14 }}
-                    >
-                      🗑 Delete Selected
-                    </button>
-                  )}
-                  <button onClick={exportRuns} style={{ ...btnS, padding: "8px 14px", fontSize: 14 }} disabled={filteredRuns.length === 0}>Export Excel</button>
-                  {canWrite && <button onClick={() => setShowAddRun(true)} style={btnP}>+ New Test Run</button>}
-                </div>
-              </div>
-              {sortedRuns.length === 0 && <div style={{ textAlign: "center", padding: 60, color: "#cbd5e1" }}>No test runs yet. Create your first one!</div>}
-              {sortedRuns.length > 0 && filteredRuns.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#cbd5e1" }}>No runs match current filters.</div>}
-              <div style={{ display: "grid", gap: 14 }}>
-                {filteredRuns.map(run => {
-                  const st = runStats(run);
-                  const byStatusPriority = runStatusPriorityStats(run);
-                  const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0;
-                  const isRunSelected = selectedRunIds.includes(run.id);
-                  const showRunCheckbox = hoveredRunId === run.id || isRunSelected;
-                  return (
-                    <div key={run.id} style={{ background: "#f0f4f9", border: "1.5px solid #f1f5f9", borderRadius: 14, padding: "20px 24px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", cursor: "pointer", transition: "box-shadow 0.15s" }}
-                      onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 24px rgba(99,102,241,0.1)"; setHoveredRunId(run.id); }}
-                      onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.05)"; setHoveredRunId(null); }}
-                      onClick={() => setViewRun(run)}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                            <span
-                              onClick={e => e.stopPropagation()}
-                              style={{ width: 18, display: "inline-flex", justifyContent: "center", opacity: showRunCheckbox ? 1 : 0, transition: "opacity 0.15s" }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isRunSelected}
-                                onChange={e => setSelectedRunIds(p => e.target.checked ? [...p, run.id] : p.filter(x => x !== run.id))}
-                                style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                              />
-                            </span>
-                            <span style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 5 }}>{run.runNumber}</span>
-                            <span style={{ fontSize: 14, color: "#94a3b8" }}>{run.createdAt?.slice(0, 10)}</span>
-                          </div>
-                          <div style={{ fontSize: 20, fontWeight: 700, color: "#0f172a" }}>{run.name}</div>
-                          <div style={{ fontSize: 14, color: "#64748b", marginTop: 3 }}>👤 {run.tester}</div>
-                        </div>
-                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                          {canWrite && (
-                            <button
-                              onClick={e => {
-                                e.stopPropagation();
-                                setEditRun({
-                                  id: run.id,
-                                  name: run.name,
-                                  tester: run.tester,
-                                  selectedTesters: (run.tester || "").split(",").map(t => t.trim()).filter(Boolean),
-                                });
-                                setEditRunTesterSearch("");
-                              }}
-                              style={{ ...btnS, padding: "5px 12px", fontSize: 13 }}
-                            >
-                              Edit
-                            </button>
-                          )}
-                          <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
-                          <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
-                          <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
-                          <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
-                        </div>
-                      </div>
-                      <div style={{ marginTop: 14 }}>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                          {Object.keys(EXEC_STATUS).map(status => {
-                            const s = byStatusPriority[status];
-                            if (!s || s.total === 0) return null;
-                            return (
-                              <span key={status} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 999, padding: "3px 9px", fontSize: 11, color: "#475569", fontWeight: 700 }}>
-                                {status}: H{s.High} M{s.Medium} L{s.Low}
-                              </span>
-                            );
-                          })}
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#94a3b8", marginBottom: 5 }}>
-                          <span>Progress</span><span style={{ fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
-                        </div>
-                        <div style={{ height: 6, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#22c55e" : "linear-gradient(90deg,#6366f1,#06b6d4)", borderRadius: 99, transition: "width 0.4s" }} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <TestRuns
+              runSearch={runSearch}
+              setRunSearch={setRunSearch}
+              runDateRule={runDateRule}
+              setRunDateRule={setRunDateRule}
+              runDateValue={runDateValue}
+              setRunDateValue={setRunDateValue}
+              runDateFilterPanel={runDateFilterPanel}
+              toggleRunDateFilterPanel={toggleRunDateFilterPanel}
+              sortedRuns={sortedRuns}
+              filteredRuns={filteredRuns}
+              selectedRunIds={selectedRunIds}
+              setSelectedRunIds={setSelectedRunIds}
+              canDelete={canDelete}
+              canWrite={canWrite}
+              deleteRuns={deleteRuns}
+              exportRuns={exportRuns}
+              setShowAddRun={setShowAddRun}
+              runStats={runStats}
+              runStatusPriorityStats={runStatusPriorityStats}
+              hoveredRunId={hoveredRunId}
+              setHoveredRunId={setHoveredRunId}
+              setViewRun={setViewRun}
+              setEditRun={setEditRun}
+              setEditRunTesterSearch={setEditRunTesterSearch}
+              btnS={btnS}
+              btnD={btnD}
+              btnP={btnP}
+            />
           )}
 
           {/* ══════════════════════════════════
           TAB: DEFECT LOG
       ══════════════════════════════════ */}
           {activeTab === "defects" && (
-            <div style={{ padding: "20px 2.5%" }}>
-              <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                  <div style={{ position: "relative", width: 320 }}>
-                    <Search
-                      size={16}
-                      style={{
-                        position: "absolute",
-                        left: 12,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        color: "#94a3b8",
-                        pointerEvents: "none",
-                      }}
-                    />
-
-                    <input
-                      placeholder="Search defect / run / TC / assignee..."
-                      value={defSearch}
-                      onChange={e => setDefSearch(e.target.value)}
-                      style={{
-                        ...inp,
-                        width: "100%",
-                        paddingLeft: 38,
-                        paddingRight: 36,
-                        boxSizing: "border-box",
-                      }}
-                    />
-
-                    {defSearch && (
-                      <button
-                        onClick={() => setDefSearch("")}
-                        title="Clear search"
-                        style={{
-                          position: "absolute",
-                          right: 10,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          border: "none",
-                          background: "transparent",
-                          cursor: "pointer",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          color: "#94a3b8",
-                        }}
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                  <select value={defStatusFilter} onChange={e => setDefStatusFilter(e.target.value)} style={{ ...inp, width: 180 }}>
-                    <option>All</option>
-                    {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
-                  </select>
-                  <select value={defPriFilter} onChange={e => setDefPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
-                    <option>All</option>
-                    {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-                  </select>
-                  <select value={defMarketFilter} onChange={e => setDefMarketFilter(e.target.value)} style={{ ...inp, width: 120 }}>
-                    <option>All</option>
-                    {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m => <option key={m}>{m}</option>)}
-                  </select>
-                  <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 450 }}>
-                    <option value="All">All Test Plans</option>
-                    {projects.flatMap(p => (p.testPlans || []).map(tp => (
-                      <option key={tp.id} value={String(tp.id)}>{p.name} — {tp.name}</option>
-                    )))}
-                  </select>
-
-                  <button
-                    onClick={() => {
-                      setDefSearch("");
-                      setDefStatusFilter("All");
-                      setDefPriFilter("All");
-                      setDefMarketFilter("All");
-                      setDefPlanFilter("All");
-                      setDefOpenRule("Any");
-                      setDefOpenDate("");
-                      setDefCloseRule("Any");
-                      setDefCloseDate("");
-                    }}
-                    style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
-                  >
-                    Reset
-                  </button>
-                  {filteredDefects.length > 0 && (
-                    <button
-                      onClick={() => {
-                        if (selectedDefectIds.length === filteredDefects.length) {
-                          setSelectedDefectIds([]);
-                        } else {
-                          setSelectedDefectIds(filteredDefects.map(def => def.id));
-                        }
-                      }}
-                      style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
-                    >
-                      {selectedDefectIds.length === filteredDefects.length ? "Clear Selection" : "Select All"}
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40 }}>
-                    {canWrite && <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>}
-                    {selectedDefectIds.length > 0 && canDelete && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedDefectIds.length} selected</span>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
-                              deleteDefects(selectedDefectIds);
-                            }
-                          }}
-                          style={{ ...btnD, padding: "9px 14px", fontSize: 14 }}
-                        >
-                          🗑 Delete Selected
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <button onClick={exportDefects} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredDefects.length === 0}>Export Excel</button>
-                  </div>
-                </div>
-              </div>
-              <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflowX: "auto", overflowY: "visible" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                  <thead>
-                    <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
-                      <th style={{ padding: "12px 16px", width: 40 }}>
-                        <input
-                          type="checkbox"
-                          checked={filteredDefects.length > 0 && selectedDefectIds.length === filteredDefects.length}
-                          onChange={e => setSelectedDefectIds(e.target.checked ? filteredDefects.map(def => def.id) : [])}
-                          style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                        />
-                      </th>
-                      {[{ label: "Actions", col: "" }, { label: "ID", col: "defectNumber" }, { label: "Market", col: "market" }, { label: "Actual Result", col: "actualResult" }, { label: "Priority", col: "priority" }, { label: "Raised By", col: "raisedBy" }, { label: "Assigned To", col: "assignedTo" }, { label: "Status", col: "status" }].map(({ label, col }) => (
-                        <th key={label} onClick={col ? () => { if (defSortCol === col) setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol(col); setDefSortDir("asc"); } } : undefined}
-                          style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && defSortCol === col ? "#d4dff0" : undefined }}>
-                          {label}{col && defSortCol === col ? (defSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
-                        </th>
-                      ))}
-                      <th
-                        onClick={() => { if (defSortCol === "openDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("openDateTime"); setDefSortDir("asc"); } }}
-                        style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "openDateTime" ? "#d4dff0" : undefined }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Open Datetime{defSortCol === "openDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
-                          <button
-                            onClick={e => toggleDefDateFilterPanel(e, "open")}
-                            title="Filter open datetime"
-                            style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "open" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "open" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                          >
-                            ⌕
-                          </button>
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => { if (defSortCol === "closeDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("closeDateTime"); setDefSortDir("asc"); } }}
-                        style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "closeDateTime" ? "#d4dff0" : undefined }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Close Datetime{defSortCol === "closeDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
-                          <button
-                            onClick={e => toggleDefDateFilterPanel(e, "close")}
-                            title="Filter close datetime"
-                            style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "close" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "close" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                          >
-                            ⌕
-                          </button>
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => { if (defSortCol === "aged") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("aged"); setDefSortDir("asc"); } }}
-                        style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: defSortCol === "aged" ? "#d4dff0" : undefined }}
-                      >
-                        Aged{defSortCol === "aged" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {defects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects logged</td></tr>}
-                    {defects.length > 0 && filteredDefects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects match current filters</td></tr>}
-                    {sortedFilteredDefects.map((def, i) => {
-                      const aged = agedDays(def.dateRaised);
-                      const isSelected = selectedDefectIds.includes(def.id);
-                      return (
-                        <tr key={def.id}
-                          onContextMenu={e => { if (canWrite) { e.preventDefault(); setContextMenu({ type: "defect", item: def, x: e.clientX, y: e.clientY }); } }}
-                          style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
-                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f0f4ff"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa"; }}>
-                          <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={e => setSelectedDefectIds(p => e.target.checked ? [...p, def.id] : p.filter(x => x !== def.id))}
-                              style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
-                            />
-                          </td>
-                          <td style={{ padding: "13px 16px", width: 220, minWidth: 220 }}>
-                            <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                              <button onClick={() => setViewDef(def)} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>View</button>
-                              {canWrite && <button
-                                onClick={() => setEditDef({
-                                  ...def,
-                                  dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
-                                  targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
-                                  linkedRunId: runs.find(r => r.runNumber === def.runNumber)?.id || "",
-                                  linkedTestCaseId: allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || "",
-                                })}
-                                style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
-                              >
-                                Edit
-                              </button>}
-                              {canDelete && <button
-                                onClick={() => {
-                                  if (window.confirm(`Delete ${def.defectNumber}?`)) {
-                                    deleteDefects([def.id]);
-                                  }
-                                }}
-                                style={xBtn}
-                                title="Delete"
-                              >
-                                ✕
-                              </button>}
-                            </div>
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                            <span style={{ fontWeight: 800, color: "#ef4444", fontSize: 14, fontFamily: "monospace", background: "#fff1f2", padding: "2px 7px", borderRadius: 5, display: "inline-block", whiteSpace: "nowrap" }}>{def.defectNumber}</span>
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                            <span style={{ fontSize: 14, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{def.market}</span>
-                          </td>
-                          <td style={{ padding: "13px 16px", maxWidth: 240 }} onClick={() => setViewDef(def)}>
-                            <div style={{ color: "#1e293b", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                              {def.actualResult}
-                            </div>
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                            <PriBadge label={def.priority} /></td>
-                          <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>
-                            {def.raisedBy || "—"}</td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
-                            <select
-                              value={def.assignedTo || ""}
-                              onChange={e => updateDefAssignedTo(def, e.target.value)}
-                              disabled={!canAssignDefect}
-                              style={{ ...inp, minWidth: 170, fontSize: 13, padding: "6px 8px", color: "#334155" }}
-                            >
-                              <option value="">Unassigned</option>
-                              {def.assignedTo && !assignableUserDisplayNames.includes(def.assignedTo) && (
-                                <option value={def.assignedTo}>{def.assignedTo} (current)</option>
-                              )}
-                              {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
-                            </select>
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
-                            <select value={def.status} onChange={e => updateDefStatus(def.id, e.target.value)} onClick={e => e.stopPropagation()} disabled={!canUpdateDefectStatus}
-                              style={{ background: DEFECT_STATUS[def.status]?.bg, color: DEFECT_STATUS[def.status]?.text, border: `1.5px solid ${DEFECT_STATUS[def.status]?.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 14, fontWeight: 700, cursor: "pointer", outline: "none" }}>
-                              {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
-                            </select>
-                          </td>
-                          <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
-                            {def.openDateTime ? new Date(def.openDateTime).toLocaleString() : "-"}
-                          </td>
-                          <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
-                            {def.closeDateTime ? new Date(def.closeDateTime).toLocaleString() : "-"}
-                          </td>
-                          <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                            <span style={{ fontWeight: 700, fontSize: 14, color: aged > 7 ? "#ef4444" : aged > 3 ? "#f97316" : "#22c55e" }}>{aged}d</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <Defects
+              defSearch={defSearch}
+              setDefSearch={setDefSearch}
+              inp={inp}
+              defStatusFilter={defStatusFilter}
+              setDefStatusFilter={setDefStatusFilter}
+              defPriFilter={defPriFilter}
+              setDefPriFilter={setDefPriFilter}
+              defMarketFilter={defMarketFilter}
+              setDefMarketFilter={setDefMarketFilter}
+              defPlanFilter={defPlanFilter}
+              setDefPlanFilter={setDefPlanFilter}
+              defects={defects}
+              projects={projects}
+              setDefOpenRule={setDefOpenRule}
+              setDefOpenDate={setDefOpenDate}
+              setDefCloseRule={setDefCloseRule}
+              setDefCloseDate={setDefCloseDate}
+              filteredDefects={filteredDefects}
+              selectedDefectIds={selectedDefectIds}
+              setSelectedDefectIds={setSelectedDefectIds}
+              canWrite={canWrite}
+              createStandaloneDefect={createStandaloneDefect}
+              canDelete={canDelete}
+              deleteDefects={deleteDefects}
+              btnP={btnP}
+              btnD={btnD}
+              btnS={btnS}
+              exportDefects={exportDefects}
+              sortedFilteredDefects={sortedFilteredDefects}
+              defSortCol={defSortCol}
+              setDefSortCol={setDefSortCol}
+              defSortDir={defSortDir}
+              setDefSortDir={setDefSortDir}
+              toggleDefDateFilterPanel={toggleDefDateFilterPanel}
+              defDateFilterPanel={defDateFilterPanel}
+              agedDays={agedDays}
+              setContextMenu={setContextMenu}
+              setViewDef={setViewDef}
+              setEditDef={setEditDef}
+              runs={runs}
+              allTestCases={allTestCases}
+              xBtn={xBtn}
+              updateDefAssignedTo={updateDefAssignedTo}
+              canAssignDefect={canAssignDefect}
+              assignableUserDisplayNames={assignableUserDisplayNames}
+              updateDefStatus={updateDefStatus}
+              canUpdateDefectStatus={canUpdateDefectStatus}
+            />
           )}
 
           {/* ══════════════════════════════════
           TAB: DASHBOARD
       ══════════════════════════════════ */}
-          {activeTab === "dashboard" && (() => {
-            const DonutChart = ({ segments, size = 130, strokeWidth = 18, label, subLabel }) => {
-              const r = (size - strokeWidth) / 2;
-              const C = 2 * Math.PI * r;
-              const cx = size / 2, cy = size / 2;
-              const total = segments.reduce((s, g) => s + g.value, 0);
-              let acc = 0;
-              return (
-                <svg width={size} height={size} style={{ display: "block" }}>
-                  <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} />
-                  {total === 0
-                    ? <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth={strokeWidth} />
-                    : segments.filter(s => s.value > 0).map((seg, i) => {
-                      const dash = (seg.value / total) * C;
-                      const rot = -90 + (acc / total) * 360;
-                      acc += seg.value;
-                      return <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={seg.color} strokeWidth={strokeWidth} strokeDasharray={`${dash} ${C - dash}`} transform={`rotate(${rot} ${cx} ${cy})`} />;
-                    })}
-                  {label != null && (
-                    <text x={cx} y={subLabel ? cy + 1 : cy + 8} textAnchor="middle" style={{ fontSize: size < 100 ? 14 : 20, fontWeight: 800, fill: "#0f172a" }}>{label}</text>
-                  )}
-                  {subLabel && <text x={cx} y={cy + (size < 100 ? 14 : 20)} textAnchor="middle" style={{ fontSize: 10, fill: "#94a3b8" }}>{subLabel}</text>}
-                </svg>
-              );
-            };
-            const buildNiceAxis = (maxValue, targetTickCount = 5) => {
-              const safeMax = Math.max(Number(maxValue) || 0, 1);
-              const rawStep = safeMax / Math.max(1, targetTickCount - 1);
-              const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
-              const normalized = rawStep / magnitude;
-              const niceNormalized = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-              const step = niceNormalized * magnitude;
-              const maxScale = Math.ceil(safeMax / step) * step;
-
-              const ticks = [];
-              for (let v = 0; v <= maxScale + step / 2; v += step) {
-                ticks.push(Number(v.toFixed(6)));
-              }
-
-              return {
-                maxScale,
-                ticks,
-              };
-            };
-
-            const formatAxisTick = (value) => {
-              if (Number.isInteger(value)) return String(value);
-              if (Math.abs(value) < 1) return value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
-              return value.toFixed(1).replace(/\.0$/, "");
-            };
-
-            const BarChart = ({ data, height = 170 }) => {
-              if (!data || data.length === 0) return null;
-              const barW = 22, gapW = 10;
-              const totalW = data.length * (barW + gapW) - gapW;
-              const chartH = height;
-              const maxVal = Math.max(...data.map(d => d.passed + d.failed + d.blocked), 1);
-              const { maxScale, ticks } = buildNiceAxis(maxVal);
-              const yLabels = [...ticks].reverse();
-              return (
-                <div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {/* Y-axis labels */}
-                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, flexShrink: 0 }}>
-                      {yLabels.map((v, i) => (
-                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 24 }}>{formatAxisTick(v)}</span>
-                      ))}
-                    </div>
-                    <div style={{ flex: 1, position: "relative" }}>
-                      <svg width="100%" height={chartH} viewBox={`0 0 ${totalW} ${chartH}`} preserveAspectRatio="none">
-                        {ticks.slice(1).map(v => (
-                          <line key={v} x1={0} y1={chartH - (v / maxScale) * chartH} x2={totalW} y2={chartH - (v / maxScale) * chartH} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-                        ))}
-                        {data.map((d, i) => {
-                          const x = i * (barW + gapW);
-                          const pH = (d.passed / maxScale) * chartH;
-                          const fH = (d.failed / maxScale) * chartH;
-                          const bH = (d.blocked / maxScale) * chartH;
-                          return (
-                            <g key={i}>
-                              <title>{`${d.label} • Passed: ${d.passed} • Failed: ${d.failed} • Blocked: ${d.blocked}`}</title>
-                              {pH > 0 && <rect x={x} y={chartH - pH - fH - bH} width={barW} height={pH} fill="#22c55e" rx={2} />}
-                              {fH > 0 && <rect x={x} y={chartH - fH - bH} width={barW} height={fH} fill="#f43f5e" />}
-                              {bH > 0 && <rect x={x} y={chartH - bH} width={barW} height={bH} fill="#f97316" />}
-                              {pH === 0 && fH === 0 && bH === 0 && <rect x={x} y={chartH - 2} width={barW} height={2} fill="#e2e8f0" rx={2} />}
-                              <rect x={x} y={0} width={barW} height={chartH} fill="transparent" />
-                            </g>
-                          );
-                        })}
-                      </svg>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, paddingLeft: 28 }}>
-                    {data.map((d, i) => (
-                      <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
-                    ))}
-                  </div>
-                </div>
-              );
-            };
-            const LineChart = ({ data, height = 170 }) => {
-              if (!data || data.length < 2) return null;
-              const chartW = 600, chartH = height;
-              const maxVal = Math.max(...data.flatMap(d => [d.newCount, d.closedCount]), 1);
-              const { maxScale, ticks } = buildNiceAxis(maxVal);
-              const yLabels = [...ticks].reverse();
-              const px = i => (i / (data.length - 1)) * chartW;
-              const py = v => chartH - (v / maxScale) * chartH;
-              const newPts = data.map((d, i) => `${px(i)},${py(d.newCount)}`).join(" ");
-              const clPts = data.map((d, i) => `${px(i)},${py(d.closedCount)}`).join(" ");
-              return (
-                <div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {/* Y-axis labels */}
-                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, flexShrink: 0 }}>
-                      {yLabels.map((v, i) => (
-                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 24 }}>{formatAxisTick(v)}</span>
-                      ))}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <svg width="100%" height={chartH} viewBox={`0 -5 ${chartW} ${chartH + 5}`} preserveAspectRatio="none">
-                        {ticks.slice(1).map(v => (
-                          <line key={v} x1={0} y1={chartH - (v / maxScale) * chartH} x2={chartW} y2={chartH - (v / maxScale) * chartH} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-                        ))}
-                        <polyline points={newPts} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                        <polyline points={clPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-                        {data.map((d, i) => {
-                          const x = px(i);
-                          return (
-                            <g key={i}>
-                              <title>{`${d.label} • New: ${d.newCount} • Closed: ${d.closedCount}`}</title>
-                              <rect x={x - 8} y={0} width={16} height={chartH} fill="transparent" />
-                              <circle cx={x} cy={py(d.newCount)} r={4} fill="#3b82f6" vectorEffect="non-scaling-stroke" />
-                              <circle cx={x} cy={py(d.closedCount)} r={3.5} fill="#94a3b8" vectorEffect="non-scaling-stroke" />
-                              <circle cx={x} cy={py(d.newCount)} r={9} fill="transparent" />
-                              <circle cx={x} cy={py(d.closedCount)} r={9} fill="transparent" />
-                            </g>
-                          );
-                        })}
-                      </svg>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, paddingLeft: 28 }}>
-                    {data.map((d, i) => (
-                      <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
-                    ))}
-                  </div>
-                </div>
-              );
-            };
-            const BurndownChart = ({ data, height = 170 }) => {
-              if (!data || data.length === 0) return null;
-              if (data.length === 1) {
-                const value = data[0].remaining ?? 0;
-                return <div style={{ fontSize: 12, color: "#64748b" }}>Remaining: {value}</div>;
-              }
-
-              const chartW = 600;
-              const chartH = height;
-              const maxVal = Math.max(...data.flatMap(d => [d.remaining, d.ideal]), 1);
-              const { maxScale, ticks } = buildNiceAxis(maxVal);
-              const yLabels = [...ticks].reverse();
-              const px = i => (i / (data.length - 1)) * chartW;
-              const py = v => chartH - (v / maxScale) * chartH;
-              const remainingPts = data.map((d, i) => `${px(i)},${py(d.remaining)}`).join(" ");
-              const idealPts = data.map((d, i) => `${px(i)},${py(d.ideal)}`).join(" ");
-
-              return (
-                <div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, flexShrink: 0 }}>
-                      {yLabels.map((v, i) => (
-                        <span key={i} style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1, textAlign: "right", minWidth: 24 }}>{formatAxisTick(v)}</span>
-                      ))}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <svg width="100%" height={chartH} viewBox={`0 -5 ${chartW} ${chartH + 5}`} preserveAspectRatio="none">
-                        {ticks.slice(1).map(v => (
-                          <line key={v} x1={0} y1={chartH - (v / maxScale) * chartH} x2={chartW} y2={chartH - (v / maxScale) * chartH} stroke="#f1f5f9" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-                        ))}
-                        <polyline points={idealPts} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" vectorEffect="non-scaling-stroke" />
-                        <polyline points={remainingPts} fill="none" stroke="#6366f1" strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                        {data.map((d, i) => {
-                          const x = px(i);
-                          const y = py(d.remaining);
-                          return (
-                            <g key={i}>
-                              <title>{`${d.label} • Remaining: ${d.remaining} • Ideal: ${d.ideal}`}</title>
-                              <circle cx={x} cy={y} r={3.5} fill="#6366f1" vectorEffect="non-scaling-stroke" />
-                              <circle cx={x} cy={y} r={10} fill="transparent" />
-                            </g>
-                          );
-                        })}
-                      </svg>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, paddingLeft: 28 }}>
-                    {data.map((d, i) => (
-                      <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
-                    ))}
-                  </div>
-                </div>
-              );
-            };
-            const { tcCount, entryCount, passedTotal, failedTotal, defTotal, openDefs, passRate, availableRuns,
-              execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays } = dashboardStats;
-            const blockedTotal = execByStatus["Blocked"] || 0;
-            const execSegs = [
-              { value: passedTotal, color: "#22c55e" },
-              { value: failedTotal, color: "#f43f5e" },
-              { value: blockedTotal, color: "#f97316" },
-              { value: Math.max(0, entryCount - passedTotal - failedTotal - blockedTotal), color: "#e2e8f0" },
-            ];
-            return (
-              <div ref={dashboardRef} style={{ background: "#fff", minHeight: "calc(100vh - 60px)", padding: "24px 28px 40px" }}>
-                {/* Filters row */}
-                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <select value={dashProjectId} onChange={e => { setDashProjectId(e.target.value); setDashPlanId(""); setDashRunId(""); }}
-                      style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
-                      <option value="">All Projects</option>
-                      {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-                    </select>
-                    <select value={dashPlanId} onChange={e => { setDashPlanId(e.target.value); setDashRunId(""); }}
-                      style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
-                      <option value="">All Test Plans</option>
-                      {(projects.find(p => String(p.id) === dashProjectId)?.testPlans || []).map(tp => (
-                        <option key={tp.id} value={String(tp.id)}>{tp.name}</option>
-                      ))}
-                    </select>
-                    <select value={dashRunId} onChange={e => setDashRunId(e.target.value)}
-                      style={{ ...inp, width: "auto", minWidth: 180, fontSize: 13 }}>
-                      <option value="">All Test Runs</option>
-                      {availableRuns.map(r => (
-                        <option key={r.id} value={String(r.id)}>{r.name}</option>
-                      ))}
-                    </select>
-                    <button onClick={() => { if (!dashboardRef.current) return; html2canvas(dashboardRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "uat-dashboard.png"; a.click(); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>Export Report</button>
-                  </div>
-                </div>
-                {/* Top 5 summary cards */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5,1fr)",
-                    gap: 16,
-                    marginBottom: 20,
-                  }}
-                >
-                  {[
-                    {
-                      icon: <Files size={24} strokeWidth={2.2} />,
-                      iconBg: "rgba(99,102,241,0.10)",
-
-                      iconColor: "#6366F1",
-                      label: "Total Test Cases",
-                      value: tcCount,
-                      sub: "Linked to active plans",
-                      color: "#6366F1",
-                    },
-
-                    {
-                      icon: <CheckCircle2 size={24} strokeWidth={2.2} />,
-                      iconBg: "rgba(34,197,94,0.10)",
-                      iconColor: "#22C55E",
-                      label: "Passed",
-                      value: passedTotal,
-                      sub: `of ${entryCount.toLocaleString()} executed`,
-                      color: "#16A34A",
-                    },
-
-                    {
-                      icon: <XCircle size={24} strokeWidth={2.2} />,
-                      iconBg: "rgba(239,68,68,0.10)",
-                      iconColor: "#EF4444",
-                      label: "Failed",
-                      value: failedTotal,
-                      sub: `of ${entryCount.toLocaleString()} executed`,
-                      color: "#DC2626",
-                    },
-
-                    {
-                      icon: <Ban size={24} strokeWidth={2.2} />,
-                      iconBg: "rgba(245,158,11,0.10)",
-                      iconColor: "#F59E0B",
-                      label: "Blocked",
-                      value: blockedTotal,
-                      sub: `of ${entryCount.toLocaleString()} executed`,
-                      color: "#EA580C",
-                    },
-                  ].map(
-                    ({
-                      icon,
-                      iconBg,
-                      iconColor,
-                      label,
-                      value,
-                      sub,
-                      color,
-                    }) => (
-                      <div
-                        key={label}
-                        style={{
-                          background: "rgba(255,255,255,0.75)",
-
-                          backdropFilter: "blur(14px)",
-
-                          border: "1px solid rgba(255,255,255,0.65)",
-
-                          borderRadius: 20,
-
-                          padding: "20px",
-
-                          boxShadow:
-                            "0 10px 30px rgba(15,23,42,0.05)",
-
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 16,
-
-                          transition: "all 0.2s ease",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 56,
-                            height: 56,
-
-                            borderRadius: 18,
-
-                            background: iconBg,
-
-                            border: `1px solid ${iconColor}20`,
-
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-
-                            color: iconColor,
-
-                            flexShrink: 0,
-                          }}
-                        >
-                          {icon}
-                        </div>
-
-                        <div>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              color,
-                              fontWeight: 700,
-                              marginBottom: 6,
-                            }}
-                          >
-                            {label}
-                          </div>
-
-                          <div
-                            style={{
-                              fontSize: 30,
-                              fontWeight: 800,
-                              color: "#0F172A",
-                              lineHeight: 1,
-                            }}
-                          >
-                            {value.toLocaleString()}
-                          </div>
-
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: "#94A3B8",
-                              marginTop: 6,
-                            }}
-                          >
-                            {sub}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  )}
-
-                  {/* Progress Card */}
-                  <div
-                    style={{
-                      background: "rgba(255,255,255,0.75)",
-
-                      backdropFilter: "blur(14px)",
-
-                      border: "1px solid rgba(255,255,255,0.65)",
-
-                      borderRadius: 20,
-
-                      padding: "20px",
-
-                      boxShadow:
-                        "0 10px 30px rgba(15,23,42,0.05)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 16,
-                        marginBottom: 5,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 56,
-                          height: 56,
-
-                          borderRadius: 18,
-
-                          background:
-                            "rgba(99,102,241,0.10)",
-
-                          border:
-                            "1px solid rgba(99,102,241,0.18)",
-
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-
-                          color: "#6366F1",
-
-                          flexShrink: 0,
-
-                          transform: "translateY(10px)",
-                        }}
-                      >
-                        <Activity size={24} strokeWidth={2.2} />
-                      </div>
-
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "#6366F1",
-                            fontWeight: 700,
-                            marginBottom: 6,
-                          }}
-                        >
-                          Execution Progress
-                        </div>
-
-                        <div
-                          style={{
-                            fontSize: 30,
-                            fontWeight: 800,
-                            color: "#0F172A",
-                            lineHeight: 1,
-                          }}
-                        >
-                          {passRate}%
-                        </div>
-
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "#94A3B8",
-                            marginTop: 6,
-                          }}
-                        >
-                          {passedTotal.toLocaleString()} passed /{" "}
-                          {tcCount.toLocaleString()} total
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        marginLeft: 72,
-
-                        height: 10,
-
-                        background: "#EEF2FF",
-
-                        borderRadius: 999,
-
-                        overflow: "hidden",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${passRate}%`,
-                          height: "100%",
-
-                          background:
-                            "linear-gradient(90deg,#6366F1,#8B5CF6)",
-
-                          borderRadius: 999,
-
-                          transition: "width 0.4s ease",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                {/* Middle two columns */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
-                  <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 30 }}>Test Execution Breakdown</div>
-                    {Object.entries(execByStatus).map(([status, count]) => {
-                      const meta = EXEC_STATUS[status];
-                      const pct = entryCount > 0 ? Math.round((count / entryCount) * 100) : 0;
-                      return (
-                        <div key={status} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
-                          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, width: 88, flexShrink: 0 }}>
-                            <span style={{ width: 10, height: 10, borderRadius: "50%", background: meta?.dot || "#94a3b8", display: "inline-block", flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{status}</span>
-                          </div>
-                          <div style={{ flex: 1, height: 7, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                            <div style={{ width: `${pct}%`, height: "100%", background: meta?.dot || "#94a3b8", borderRadius: 99 }} />
-                          </div>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: "#334155", width: 28, textAlign: "right", flexShrink: 0 }}>{count}</span>
-                          <span style={{ fontSize: 12, color: "#94a3b8", width: 32, textAlign: "right", flexShrink: 0 }}>{pct}%</span>
-                        </div>
-                      );
-                    })}
-                    <div style={{ marginTop: 28, paddingTop: 16, borderTop: "1.5px solid #f1f5f9", display: "flex", alignItems: "center", gap: 16 }}>
-                      <DonutChart size={100} strokeWidth={16} label={`${passRate}%`} segments={execSegs} />
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: "#334155" }}>Overall Execution Progress</div>
-                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{passedTotal.toLocaleString()} / {tcCount.toLocaleString()} Test Cases Executed</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 34 }}>Defect Status Breakdown</div>
-                    <div style={{ display: "flex", gap: 36, alignItems: "flex-start", marginBottom: 18 }}>
-                      <div style={{ flexShrink: 0 }}>
-                        <DonutChart size={165} strokeWidth={35} label={defTotal} subLabel="Total"
-                          segments={Object.entries(defByStatus).map(([s, c]) => ({ value: c, color: DEFECT_STATUS[s]?.dot || "#94a3b8" }))}
-                        />
-                      </div>
-                      <div style={{ flex: 1, paddingLeft: 8 }}>
-                        {Object.entries(defByStatus).map(([status, count]) => {
-                          const meta = DEFECT_STATUS[status];
-                          const pct = defTotal > 0 ? Math.round((count / defTotal) * 100) : 0;
-                          return (
-                            <div key={status} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 9 }}>
-                              <span style={{ width: 8, height: 8, borderRadius: "50%", background: meta?.dot || "#94a3b8", flexShrink: 0 }} />
-                              <span style={{ fontSize: 13, color: "#64748b", width: 92, flexShrink: 0 }}>{status}</span>
-                              <div style={{ flex: 1, minWidth: 0, height: 5, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                                <div style={{ width: `${pct}%`, height: "100%", background: meta?.dot || "#94a3b8", borderRadius: 99 }} />
-                              </div>
-                              <span style={{ fontSize: 13, fontWeight: 700, color: "#334155", width: 18, textAlign: "right", flexShrink: 0 }}>{count}</span>
-                              <span style={{ fontSize: 12, color: "#94a3b8", width: 30, textAlign: "right", flexShrink: 0 }}>{pct}%</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div style={{ borderTop: "1.5px solid #f1f5f9", paddingTop: 14 }}>
-                      <div style={{ fontWeight: 800, fontSize: 14, color: "#0f172a", marginBottom: 12 }}>⚠ Defect Priority</div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
-                        {Object.entries(PRIORITY_META).map(([pri, meta]) => {
-                          const count = defByPriority[pri] || 0;
-                          return (
-                            <div key={pri} style={{ background: meta.bg + "18", border: `1.5px solid ${meta.bg}44`, borderRadius: 12, padding: "10px 6px", textAlign: "center" }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: meta.bg, marginBottom: 4, textTransform: "uppercase" }}>{pri}</div>
-                              <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{count}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Trends */}
-                <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 18 }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 20 }}>📈 Trends (Last 7 Days)</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 28 }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Daily Test Execution Trend</div>
-                      <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
-                        {[["Passed", "#22c55e"], ["Failed", "#f43f5e"], ["Blocked", "#f97316"]].map(([l, c]) => (
-                          <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
-                          </span>
-                        ))}
-                      </div>
-                      <BarChart data={trendDays} height={170} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Defect Trend</div>
-                      <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
-                        {[["New", "#3b82f6"], ["Closed", "#94a3b8"]].map(([l, c]) => (
-                          <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
-                          </span>
-                        ))}
-                      </div>
-                      <LineChart data={defectTrendDays} height={170} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 14 }}>Defects by Priority</div>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, paddingTop: 50 }}>
-                        <div style={{ flexShrink: 0 }}>
-                          <DonutChart size={130} strokeWidth={20} label={defTotal} subLabel="Total"
-                            segments={Object.entries(PRIORITY_META).map(([pri, meta]) => ({ value: defByPriority[pri] || 0, color: meta.bg }))}
-                          />
-                        </div>
-                        <div>
-                          {Object.entries(PRIORITY_META).map(([pri, meta]) => {
-                            const count = defByPriority[pri] || 0;
-                            const pct = defTotal > 0 ? Math.round((count / defTotal) * 100) : 0;
-                            return (
-                              <div key={pri} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13 }}>
-                                <span style={{ width: 9, height: 9, borderRadius: "50%", background: meta.bg, flexShrink: 0 }} />
-                                <span style={{ color: "#64748b", width: 90 }}>{pri}</span>
-                                <span style={{ fontWeight: 700, color: "#334155", minWidth: 20, textAlign: "right" }}>{count}</span>
-                                <span style={{ color: "#94a3b8", minWidth: 38, textAlign: "right" }}>{pct}%</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 18 }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 20 }}>📉 Burndown (Last 7 Days)</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Remaining Test Cases</div>
-                      <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
-                        {[["Remaining", "#6366f1"], ["Ideal", "#94a3b8"]].map(([l, c]) => (
-                          <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
-                          </span>
-                        ))}
-                      </div>
-                      <BurndownChart data={tcBurndownDays} height={170} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Remaining Defects</div>
-                      <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
-                        {[["Remaining", "#6366f1"], ["Ideal", "#94a3b8"]].map(([l, c]) => (
-                          <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
-                          </span>
-                        ))}
-                      </div>
-                      <BurndownChart data={defectBurndownDays} height={170} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Per-plan summary table */}
-                {!dashPlanId && perPlanStats.length > 0 && (
-                  <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                    <div style={{ padding: "16px 24px", borderBottom: "1.5px solid #f1f5f9", fontWeight: 800, fontSize: 15, color: "#0f172a" }}>Test Plan Summary</div>
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                        <thead>
-                          <tr style={{ background: "#f8fafc" }}>
-                            {["Project", "Test Plan", "Test Cases", "Executions", "Passed", "Failed", "Total Defects", "Open Defects"].map(h => (
-                              <th key={h} style={{ padding: "10px 16px", textAlign: h === "Project" || h === "Test Plan" ? "left" : "center", fontWeight: 700, color: "#64748b", textTransform: "uppercase", fontSize: 11, whiteSpace: "nowrap" }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {perPlanStats.map(({ tp, projectName, tcCount: ptc, defCount, openDefs: pOpen, passed, failed, totalEntries }) => (
-                            <tr key={tp.id} style={{ borderTop: "1px solid #f8fafc" }}>
-                              <td style={{ padding: "11px 16px", color: "#64748b" }}>{projectName}</td>
-                              <td style={{ padding: "11px 16px", fontWeight: 700, color: "#334155" }}>{tp.name}</td>
-                              <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: "#6366f1" }}>{ptc}</td>
-                              <td style={{ padding: "11px 16px", textAlign: "center", color: "#64748b" }}>{totalEntries}</td>
-                              <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: "#22c55e" }}>{passed}</td>
-                              <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: failed > 0 ? "#ef4444" : "#94a3b8" }}>{failed}</td>
-                              <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: defCount > 0 ? "#f97316" : "#94a3b8" }}>{defCount}</td>
-                              <td style={{ padding: "11px 16px", textAlign: "center" }}>
-                                {pOpen > 0
-                                  ? <span style={{ background: "#fee2e2", color: "#b91c1c", borderRadius: 999, padding: "3px 12px", fontWeight: 700, fontSize: 12 }}>{pOpen}</span>
-                                  : <span style={{ color: "#22c55e", fontWeight: 700 }}>0</span>}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            );
-          })()}
-
-          {/* ── MODAL: VIEW TC ── */}
-          {viewTC && (
-            <Modal onClose={() => setViewTC(null)} zIndex={1300} onPaste={canWrite ? e => onTestCasePasteUpload(e, viewTC.id) : undefined}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                <div>
-                  <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 10px", borderRadius: 6, border: "1px solid #c7d2fe" }}>{viewTC.tcNumber}</span>
-                  <div style={{ color: "#0f172a", fontSize: 16, fontWeight: 700, marginTop: 8, lineHeight: 1.4 }}>{viewTC.name}</div>
-                </div>
-                <button onClick={() => setViewTC(null)} style={xBtn}>✕</button>
-              </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
-                <PriBadge label={viewTC.priority} />
-                <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{viewTC.category.split("(")[0].trim()}</span>
-              </div>
-              <div style={{ display: "grid", gap: 14 }}>
-                {viewTC.description && <DetailBlock label="Description" value={viewTC.description} />}
-                <DetailBlock label="Test Steps" value={viewTC.steps} pre />
-                <DetailBlock label="Expected Result" value={viewTC.expectedResult} accent />
-                {viewTC.testScopeId && testScopeNameById[viewTC.testScopeId] && (
-                  <DetailBlock label="Testing Scope" value={testScopeNameById[viewTC.testScopeId]} />
-                )}
-                {viewTC.remarks && <DetailBlock label="Remarks" value={viewTC.remarks} />}
-              </div>
-              <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1.5px solid #f1f5f9" }}>
-                <div style={{ ...lbl, marginBottom: 10 }}>Attachments</div>
-                {canWrite && <div
-                  style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-                >
-                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                    Paste screenshot with Ctrl+V or attach file(s)
-                  </div>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
-                    onChange={e => {
-                      uploadTestCaseFiles(viewTC.id, e.target.files);
-                      e.target.value = "";
-                    }}
-                    style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                  />
-                </div>}
-                <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                  {(testCaseAttachments[viewTC.id] || []).length === 0 && (
-                    <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments yet.</div>
-                  )}
-
-                  {(testCaseAttachments[viewTC.id] || []).map(a => (
-                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                      <button
-                        type="button"
-                        onClick={() => openAttachment(a.url, a.fileName)}
-                        style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                        title="Open attachment"
-                      >
-                        {a.fileName}
-                      </button>
-                      <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
-                      <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
-                      <button onClick={() => deleteTestCaseAttachment(viewTC.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                    </div>
-                  ))}
-
-                  {uploadingTestCaseId === viewTC.id && (
-                    <div style={{ color: "#64748b", fontSize: 12 }}>Uploading...</div>
-                  )}
-                </div>
-              </div>
-            </Modal>
+          {activeTab === "dashboard" && (
+            <Dashboard
+              dashboardStats={dashboardStats}
+              projects={projects}
+              dashProjectId={dashProjectId}
+              setDashProjectId={setDashProjectId}
+              dashPlanId={dashPlanId}
+              setDashPlanId={setDashPlanId}
+              dashRunId={dashRunId}
+              setDashRunId={setDashRunId}
+              dashboardRef={dashboardRef}
+              inp={inp}
+            />
           )}
 
           {/* ── MODAL: RUN DETAIL ── */}
@@ -5529,562 +3668,83 @@ linear-gradient(
             </Modal>
           )}
 
-          {/* ── MODAL: DEFECT DETAIL ── */}
-          {viewDef && (
-            <Modal onClose={() => setViewDef(null)}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <div style={{ fontSize: 17, fontWeight: 800 }}>Defect Details</div>
-                  <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 800, color: "#6366f1", background: "#eff6ff", padding: "2px 8px", borderRadius: 6, border: "1px solid #c7d2fe" }}>
-                    {viewDef.defectNumber || `#${viewDef.id}`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => copyDefectLink(viewDef.id)}
-                    style={{ ...btnS, padding: "4px 10px", fontSize: 12, lineHeight: 1.2 }}
-                    title="Copy shareable defect link"
-                  >
-                    Copy Link
-                  </button>
-                </div>
-                <button onClick={() => setViewDef(null)} style={xBtn}>✕</button>
-              </div>
-              <div style={{ display: "grid", gap: 14 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <label style={lbl}>Market</label>
-                    <input
-                      value={viewDef.market || ""}
-                      style={{ ...inp, background: "#f8fafc" }}
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <label style={lbl}>Run</label>
-                    <input
-                      value={viewDef.runNumber || "Standalone"}
-                      style={{ ...inp, background: "#f8fafc" }}
-                      readOnly
-                    />
-                  </div>
-                  {viewDef.tcNumber && (
-                    <div>
-                      <label style={lbl}>Test Case</label>
-                      <input
-                        value={viewDef.tcNumber}
-                        style={{ ...inp, background: "#f8fafc" }}
-                        readOnly
-                      />
-                    </div>
-                  )}
-                  {viewDef.testPlanId && (
-                    <div>
-                      <label style={lbl}>Test Plan</label>
-                      <input
-                        value={testPlanMetaById[viewDef.testPlanId]
-                          ? `${testPlanMetaById[viewDef.testPlanId].projectName} — ${testPlanMetaById[viewDef.testPlanId].testPlanName}`
-                          : `Plan #${viewDef.testPlanId}`}
-                        style={{ ...inp, background: "#f8fafc" }}
-                        readOnly
-                      />
-                    </div>
-                  )}
-                </div>
+          <TestCaseModals
+            viewTC={viewTC}
+            setViewTC={setViewTC}
+            showAddTC={showAddTC}
+            setShowAddTC={setShowAddTC}
+            editTC={editTC}
+            setEditTC={setEditTC}
+            xBtn={xBtn}
+            lbl={lbl}
+            inp={inp}
+            btnP={btnP}
+            btnS={btnS}
+            testScopeNameById={testScopeNameById}
+            testCaseAttachments={testCaseAttachments}
+            canWrite={canWrite}
+            onTestCasePasteUpload={onTestCasePasteUpload}
+            uploadTestCaseFiles={uploadTestCaseFiles}
+            openAttachment={openAttachment}
+            deleteTestCaseAttachment={deleteTestCaseAttachment}
+            uploadingTestCaseId={uploadingTestCaseId}
+            newTC={newTC}
+            setNewTC={setNewTC}
+            categories={categories}
+            testScopesByPlanId={testScopesByPlanId}
+            selectedTestPlanId={selectedTestPlanId}
+            queueNewTestCaseFiles={queueNewTestCaseFiles}
+            newTCAttachments={newTCAttachments}
+            removeQueuedNewTestCaseFile={removeQueuedNewTestCaseFile}
+            addTC={addTC}
+            onNewTestCasePasteUpload={onNewTestCasePasteUpload}
+            updateTC={updateTC}
+          />
 
-                <div>
-                  <label style={lbl}>Issue Type</label>
-                  <input
-                    value={viewDef.issueType || ""}
-                    style={{ ...inp, background: "#f8fafc" }}
-                    readOnly
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Description</label>
-                  <textarea
-                    value={viewDef.description || ""}
-                    readOnly
-                    style={{ ...inp, minHeight: 80, resize: "vertical", background: "#f8fafc" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Expected Result</label>
-                  <textarea
-                    value={viewDef.expectedResult || ""}
-                    readOnly
-                    style={{ ...inp, minHeight: 70, resize: "vertical", background: "#f8fafc" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Actual Result</label>
-                  <textarea
-                    value={viewDef.actualResult || ""}
-                    readOnly
-                    style={{ ...inp, minHeight: 70, resize: "vertical", background: "#f8fafc" }}
-                  />
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <label style={lbl}>Priority</label>
-                    <input
-                      value={viewDef.priority || ""}
-                      style={{ ...inp, background: "#f8fafc" }}
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <label style={lbl}>Raised By</label>
-                    <input
-                      value={viewDef.raisedBy || ""}
-                      style={{ ...inp, background: "#f8fafc" }}
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <label style={lbl}>Assigned To</label>
-                    <input
-                      value={viewDef.assignedTo || "Unassigned"}
-                      style={{ ...inp, background: "#f8fafc" }}
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <label style={lbl}>Target Fix Date</label>
-                    <input
-                      type="date"
-                      value={viewDef.targetFixDate ? String(viewDef.targetFixDate).slice(0, 10) : ""}
-                      style={{ ...inp, background: "#f8fafc" }}
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={lbl}>Remarks</label>
-                  <textarea
-                    value={viewDef.remarks || ""}
-                    readOnly
-                    style={{ ...inp, minHeight: 60, resize: "vertical", background: "#f8fafc" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Attachments</label>
-                  <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
-                    {(defectAttachments[viewDef.id] || []).length === 0 && (
-                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments.</div>
-                    )}
-                    {(defectAttachments[viewDef.id] || []).map(a => (
-                      <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                        <button
-                          type="button"
-                          onClick={() => openAttachment(a.url, a.fileName)}
-                          style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                          title="Open attachment"
-                        >
-                          {a.fileName}
-                        </button>
-                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
-                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label style={lbl}>Comments</label>
-                  <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
-                    {(viewDef.comments || []).length === 0 && (
-                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No comments yet.</div>
-                    )}
-                    {(viewDef.comments || []).map(c => (
-                      <div
-                        key={c.id}
-                        onClick={() => {
-                          if (!canComment) return;
-                          const key = `defect-${viewDef.id}`;
-                          const current = defectCommentDrafts[viewDef.id] || "";
-                          replyToComment(
-                            key,
-                            current,
-                            next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next })),
-                            c.tester
-                          );
-                        }}
-                        style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", cursor: canComment ? "pointer" : "default" }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontWeight: 700, color: "#475569", fontSize: 12 }}>{c.tester}</span>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(c.createdAt).toLocaleString()}</span>
-                            {canDelete && (
-                              <button
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  deleteDefectComment(viewDef.id, c.id);
-                                }}
-                                style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
-                              >✕</button>
-                            )}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 13, color: "#334155" }}>{c.message}</div>
-                      </div>
-                    ))}
-                    {canComment && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <input
-                            placeholder="Add a comment... (use @Display Name to tag)"
-                            value={defectCommentDrafts[viewDef.id] || ""}
-                            ref={node => registerMentionInputRef(`defect-${viewDef.id}`, node)}
-                            onChange={e => {
-                              const value = e.target.value;
-                              handleMentionInputChange(
-                                "defect",
-                                `defect-${viewDef.id}`,
-                                value,
-                                next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next }))
-                              );
-                            }}
-                            onKeyDown={e => {
-                              handleMentionKeyDown(
-                                e,
-                                "defect",
-                                `defect-${viewDef.id}`,
-                                defectCommentDrafts[viewDef.id] || "",
-                                next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next }))
-                              );
-                              if (e.key === "Enter" && !e.shiftKey && !(mentionPicker?.type === "defect" && mentionPicker?.key === `defect-${viewDef.id}` && mentionPicker?.list?.length)) {
-                                e.preventDefault();
-                                addDefectComment(viewDef.id);
-                              }
-                            }}
-                            style={{ ...inp, fontSize: 13, flex: 1 }}
-                          />
-                          <button
-                            onClick={() => addDefectComment(viewDef.id)}
-                            disabled={!defectCommentDrafts[viewDef.id]?.trim()}
-                            style={{ ...btnP, opacity: defectCommentDrafts[viewDef.id]?.trim() ? 1 : 0.5 }}
-                          >Add</button>
-                        </div>
-                        {mentionPicker?.type === "defect" && mentionPicker?.key === `defect-${viewDef.id}` && (
-                          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
-                            {mentionPicker.list.map((u, idx) => (
-                              <button
-                                key={`defect-mention-${viewDef.id}-${u.id}`}
-                                type="button"
-                                onMouseDown={e => e.preventDefault()}
-                                onClick={() => {
-                                  const current = defectCommentDrafts[viewDef.id] || "";
-                                  selectMention(
-                                    "defect",
-                                    `defect-${viewDef.id}`,
-                                    current,
-                                    next => setDefectCommentDrafts(p => ({ ...p, [viewDef.id]: next })),
-                                    u.displayName
-                                  );
-                                }}
-                                style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: mentionPicker.activeIndex === idx ? "#eff6ff" : "#fff", color: "#0f172a", padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
-                              >
-                                {u.displayName}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-                <button onClick={() => setViewDef(null)} style={btnS}>Close</button>
-              </div>
-            </Modal>
-          )}
-
-          {/* ── MODAL: EDIT DEFECT ── */}
-          {editDef && (
-            <Modal onClose={() => setEditDef(null)} onPaste={e => onDefectPasteUpload(e, editDef.id)}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
-                <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Defect</div>
-                <button onClick={() => setEditDef(null)} style={xBtn}>✕</button>
-              </div>
-              <div style={{ display: "grid", gap: 14 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <label style={lbl}>Market</label>
-                    <select
-                      value={editDef.market || "SG"}
-                      onChange={e => setEditDef(p => ({ ...p, market: e.target.value }))}
-                      style={inp}
-                    >
-                      {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={lbl}>Run</label>
-                    <select
-                      value={editDef.linkedRunId || ""}
-                      onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value || "" }))}
-                      style={inp}
-                    >
-                      <option value="">Standalone defect</option>
-                      {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
-                    </select>
-                  </div>
-                  {editDef.linkedRunId && (
-                    <div>
-                      <label style={lbl}>Test Case</label>
-                      <select
-                        value={editDef.linkedTestCaseId || ""}
-                        onChange={e => setEditDef(p => ({ ...p, linkedTestCaseId: e.target.value || "" }))}
-                        style={inp}
-                      >
-                        <option value="">No specific test case (run-level defect)</option>
-                        {(() => {
-                          const run = runs.find(r => String(r.id) === String(editDef.linkedRunId));
-                          const options = (run?.entries || [])
-                            .map(en => allTestCaseById[en.testCaseId])
-                            .filter(Boolean);
-                          return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
-                        })()}
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label style={lbl}>Issue Type</label>
-                  <select
-                    value={editDef.issueType || "Functional Issue"}
-                    onChange={e => setEditDef(p => ({ ...p, issueType: e.target.value }))}
-                    style={inp}
-                  >
-                    {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={lbl}>Description</label>
-                  <textarea
-                    value={editDef.description || ""}
-                    onChange={e => setEditDef(p => ({ ...p, description: e.target.value }))}
-                    style={{ ...inp, minHeight: 80, resize: "vertical" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Expected Result</label>
-                  <textarea
-                    value={editDef.expectedResult || ""}
-                    onChange={e => setEditDef(p => ({ ...p, expectedResult: e.target.value }))}
-                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Actual Result</label>
-                  <textarea
-                    value={editDef.actualResult || ""}
-                    onChange={e => setEditDef(p => ({ ...p, actualResult: e.target.value }))}
-                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
-                  />
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <label style={lbl}>Priority</label>
-                    <select
-                      value={editDef.priority} onChange={e => setEditDef(p => ({ ...p, priority: e.target.value }))}
-                      style={inp}
-                    >
-                      {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={lbl}>Raised By</label>
-                    <input
-                      value={editDef.raisedBy || ""}
-                      style={{ ...inp, background: "#f8fafc" }}
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <label style={lbl}>Assigned To</label>
-                    <select
-                      value={editDef.assignedTo || ""}
-                      onChange={e => setEditDef(p => ({ ...p, assignedTo: e.target.value }))}
-                      style={inp}
-                    >
-                      <option value="">Unassigned</option>
-                      {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={lbl}>Target Fix Date</label>
-                    <input
-                      type="date"
-                      value={editDef.targetFixDate ? String(editDef.targetFixDate).slice(0, 10) : ""}
-                      onChange={e => setEditDef(p => ({ ...p, targetFixDate: e.target.value }))}
-                      style={inp}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={lbl}>Remarks</label>
-                  <textarea
-                    value={editDef.remarks || ""}
-                    onChange={e => setEditDef(p => ({ ...p, remarks: e.target.value }))}
-                    style={{ ...inp, minHeight: 60, resize: "vertical" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Attachments</label>
-
-                  {/* Existing uploaded attachments */}
-                  <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
-                    {(defectAttachments[editDef.id] || []).map(a => (
-                      <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                        <button
-                          type="button"
-                          onClick={() => openAttachment(a.url, a.fileName)}
-                          style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                          title="Open attachment"
-                        >
-                          {a.fileName}
-                        </button>
-                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
-                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
-                        {canDelete && (
-                          <button onClick={() => deleteDefectAttachment(editDef.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div
-                    style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-                  >
-                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                      Paste screenshot with Ctrl+V or attach file(s)
-                    </div>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
-                      onChange={e => {
-                        queueNewDefectFiles(e.target.files);
-                        e.target.value = "";
-                      }}
-                      style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                    {newDefAttachments.length === 0 && (
-                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No new attachments queued.</div>
-                    )}
-
-                    {newDefAttachments.map((f, i) => (
-                      <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                        <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
-                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after saving</span>
-                        <button onClick={() => removeQueuedNewDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-                <button onClick={() => { setEditDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
-                <button onClick={saveDefectEdits} style={{ ...btnP, opacity: !editDef?.description ? 0.5 : 1 }} disabled={!editDef?.description}>Save Changes</button>
-              </div>
-            </Modal>
-          )}
-
-          {/* ── MODAL: ADD TC ── */}
-          {showAddTC && (
-            <Modal onClose={() => setShowAddTC(false)} onPaste={onNewTestCasePasteUpload}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
-                <div style={{ fontSize: 17, fontWeight: 800 }}>Add Test Case</div>
-                <button onClick={() => setShowAddTC(false)} style={xBtn}>✕</button>
-              </div>
-              <div style={{ display: "grid", gap: 14 }}>
-                <div><label style={lbl}>Test Name *</label><input value={newTC.name} onChange={e => setNewTC(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="[Market] - [Module] - [Feature] - [Expected]" /></div>
-                <div><label style={lbl}>Description</label><textarea value={newTC.description} onChange={e => setNewTC(p => ({ ...p, description: e.target.value }))} style={{ ...inp, minHeight: 70, resize: "vertical" }} /></div>
-                <div><label style={lbl}>Test Steps</label><textarea value={newTC.steps} onChange={e => setNewTC(p => ({ ...p, steps: e.target.value }))} style={{ ...inp, minHeight: 90, resize: "vertical" }} placeholder="Step 1: …&#10;Step 2: …" /></div>
-                <div><label style={lbl}>Expected Result</label><textarea value={newTC.expected} onChange={e => setNewTC(p => ({ ...p, expected: e.target.value }))} style={{ ...inp, minHeight: 70, resize: "vertical" }} /></div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div><label style={lbl}>Priority</label>
-                    <select value={newTC.priority} onChange={e => setNewTC(p => ({ ...p, priority: e.target.value }))} style={inp}>
-                      {TEST_CASE_PRIORITIES.map(p => <option key={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div><label style={lbl}>Category</label>
-                    <select value={newTC.category} onChange={e => setNewTC(p => ({ ...p, category: e.target.value }))} style={inp}>
-                      {categories.map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div><label style={lbl}>Testing Scope</label>
-                  <select value={newTC.testScopeId} onChange={e => setNewTC(p => ({ ...p, testScopeId: e.target.value }))} style={inp}>
-                    <option value="">No scope</option>
-                    {(testScopesByPlanId[selectedTestPlanId] || []).map(scope => (
-                      <option key={scope.id} value={scope.id}>{scope.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div><label style={lbl}>Remarks</label><input value={newTC.remarks} onChange={e => setNewTC(p => ({ ...p, remarks: e.target.value }))} style={inp} /></div>
-                <div style={{ marginTop: 2 }}>
-                  <label style={lbl}>Attachments</label>
-                  <div
-                    style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-                  >
-                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                      Paste screenshot with Ctrl+V or attach file(s)
-                    </div>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
-                      onChange={e => {
-                        queueNewTestCaseFiles(e.target.files);
-                        e.target.value = "";
-                      }}
-                      style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                    {newTCAttachments.length === 0 && (
-                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
-                    )}
-
-                    {newTCAttachments.map((f, i) => (
-                      <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                        <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
-                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after test case is created</span>
-                        <button onClick={() => removeQueuedNewTestCaseFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-                <button onClick={() => setShowAddTC(false)} style={btnS}>Cancel</button>
-                <button onClick={addTC} style={{ ...btnP, opacity: (!newTC.name || !selectedTestPlanId) ? 0.5 : 1 }} disabled={!newTC.name || !selectedTestPlanId}>Add Test Case</button>
-              </div>
-            </Modal>
-          )}
+          <DefectModals
+            viewDef={viewDef}
+            setViewDef={setViewDef}
+            copyDefectLink={copyDefectLink}
+            btnS={btnS}
+            xBtn={xBtn}
+            lbl={lbl}
+            inp={inp}
+            testPlanMetaById={testPlanMetaById}
+            defectAttachments={defectAttachments}
+            openAttachment={openAttachment}
+            canComment={canComment}
+            defectCommentDrafts={defectCommentDrafts}
+            setDefectCommentDrafts={setDefectCommentDrafts}
+            replyToComment={replyToComment}
+            canDelete={canDelete}
+            deleteDefectComment={deleteDefectComment}
+            registerMentionInputRef={registerMentionInputRef}
+            handleMentionInputChange={handleMentionInputChange}
+            handleMentionKeyDown={handleMentionKeyDown}
+            mentionPicker={mentionPicker}
+            addDefectComment={addDefectComment}
+            selectMention={selectMention}
+            btnP={btnP}
+            editDef={editDef}
+            setEditDef={setEditDef}
+            onDefectPasteUpload={onDefectPasteUpload}
+            runs={runs}
+            allTestCaseById={allTestCaseById}
+            assignableUserDisplayNames={assignableUserDisplayNames}
+            deleteDefectAttachment={deleteDefectAttachment}
+            queueNewDefectFiles={queueNewDefectFiles}
+            newDefAttachments={newDefAttachments}
+            removeQueuedNewDefectFile={removeQueuedNewDefectFile}
+            saveDefectEdits={saveDefectEdits}
+            showAddDef={showAddDef}
+            setShowAddDef={setShowAddDef}
+            setNewDefAttachments={setNewDefAttachments}
+            onNewDefectPasteUpload={onNewDefectPasteUpload}
+            newDef={newDef}
+            setNewDef={setNewDef}
+            getCurrentUserDisplayName={getCurrentUserDisplayName}
+            submitDefect={submitDefect}
+          />
 
           {showAddProject && canManageProjects && (
             <Modal onClose={() => setShowAddProject(false)}>
@@ -6292,249 +3952,6 @@ linear-gradient(
               <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
                 <button onClick={() => setShowEditPlan(false)} style={btnS}>Cancel</button>
                 <button onClick={updateTestPlanName} style={{ ...btnP, opacity: (!editPlanName.trim() || !isValidDateRange(editPlanStartDate, editPlanEndDate)) ? 0.5 : 1 }} disabled={!editPlanName.trim() || !isValidDateRange(editPlanStartDate, editPlanEndDate)}>Save Changes</button>
-              </div>
-            </Modal>
-          )}
-
-          {/* ── MODAL: Edit TC ── */}
-          {editTC && (
-            <Modal onClose={() => setEditTC(null)} onPaste={e => onTestCasePasteUpload(e, editTC.id)}>
-              <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 22
-              }}>
-                <div style={{
-                  fontSize: 17,
-                  fontWeight: 800
-                }}>
-                  Edit Test Case
-                </div>
-
-                <button
-                  onClick={() => setEditTC(null)}
-                  style={xBtn}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={{ display: "grid", gap: 14 }}>
-
-                <div>
-                  <label style={lbl}>Test Name *</label>
-
-                  <input
-                    value={editTC.name}
-                    onChange={e =>
-                      setEditTC(p => ({
-                        ...p,
-                        name: e.target.value
-                      }))
-                    }
-                    style={inp}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Description</label>
-
-                  <textarea
-                    value={editTC.description}
-                    onChange={e =>
-                      setEditTC(p => ({
-                        ...p,
-                        description: e.target.value
-                      }))
-                    }
-                    style={{
-                      ...inp,
-                      minHeight: 70,
-                      resize: "vertical"
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Test Steps</label>
-
-                  <textarea
-                    value={editTC.steps}
-                    onChange={e =>
-                      setEditTC(p => ({
-                        ...p,
-                        steps: e.target.value
-                      }))
-                    }
-                    style={{
-                      ...inp,
-                      minHeight: 90,
-                      resize: "vertical"
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Expected Result</label>
-
-                  <textarea
-                    value={editTC.expected}
-                    onChange={e =>
-                      setEditTC(p => ({
-                        ...p,
-                        expected: e.target.value
-                      }))
-                    }
-                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
-                  />
-                </div>
-
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12
-                }}>
-
-                  <div>
-                    <label style={lbl}>Priority</label>
-
-                    <select
-                      value={editTC.priority}
-                      onChange={e =>
-                        setEditTC(p => ({
-                          ...p,
-                          priority: e.target.value
-                        }))
-                      }
-                      style={inp}
-                    >
-                      {TEST_CASE_PRIORITIES.map(p =>
-                        <option key={p}>{p}</option>
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={lbl}>Category</label>
-
-                    <select
-                      value={editTC.category}
-                      onChange={e =>
-                        setEditTC(p => ({
-                          ...p,
-                          category: e.target.value
-                        }))
-                      }
-                      style={inp}
-                    >
-                      {categories.map(c =>
-                        <option key={c}>{c}</option>
-                      )}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label style={lbl}>Remarks</label>
-
-                  <input
-                    value={editTC.remarks}
-                    onChange={e =>
-                      setEditTC(p => ({
-                        ...p,
-                        remarks: e.target.value
-                      }))
-                    }
-                    style={inp}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Testing Scope</label>
-                  <select
-                    value={editTC.testScopeId || ""}
-                    onChange={e =>
-                      setEditTC(p => ({
-                        ...p,
-                        testScopeId: e.target.value
-                      }))
-                    }
-                    style={inp}
-                  >
-                    <option value="">No scope</option>
-                    {(testScopesByPlanId[editTC.testPlanId] || []).map(scope => (
-                      <option key={scope.id} value={scope.id}>{scope.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ marginTop: 2 }}>
-                  <label style={lbl}>Attachments</label>
-                  <div
-                    style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-                  >
-                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                      Paste screenshot with Ctrl+V or attach file(s)
-                    </div>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
-                      onChange={e => {
-                        uploadTestCaseFiles(editTC.id, e.target.files);
-                        e.target.value = "";
-                      }}
-                      style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                    {(testCaseAttachments[editTC.id] || []).length === 0 && (
-                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments yet.</div>
-                    )}
-
-                    {(testCaseAttachments[editTC.id] || []).map(a => (
-                      <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                        <button
-                          type="button"
-                          onClick={() => openAttachment(a.url, a.fileName)}
-                          style={{ color: "#1d4ed8", fontSize: 13, fontWeight: 700, textDecoration: "none", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                          title="Open attachment"
-                        >
-                          {a.fileName}
-                        </button>
-                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((a.size || 0) / 1024))} KB</span>
-                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>{a.uploadedBy} · {new Date(a.uploadedAt).toLocaleString()}</span>
-                        <button onClick={() => deleteTestCaseAttachment(editTC.id, a.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                      </div>
-                    ))}
-
-                    {uploadingTestCaseId === editTC.id && (
-                      <div style={{ color: "#64748b", fontSize: 12 }}>Uploading...</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{
-                display: "flex",
-                gap: 10,
-                marginTop: 22,
-                justifyContent: "flex-end"
-              }}>
-                <button
-                  onClick={() => setEditTC(null)}
-                  style={btnS}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={updateTC}
-                  style={btnP}
-                >
-                  Save Changes
-                </button>
               </div>
             </Modal>
           )}
@@ -6797,186 +4214,6 @@ linear-gradient(
             </Modal>
           )}
 
-          {/* ── MODAL: CREATE DEFECT ── */}
-          {showAddDef && (
-            <Modal onClose={() => { setShowAddDef(null); setNewDefAttachments([]); }} onPaste={onNewDefectPasteUpload}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                <div style={{ fontSize: 17, fontWeight: 800 }}>Create Defect</div>
-                <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={xBtn}>✕</button>
-              </div>
-              <div style={{ display: "grid", gap: 14 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <label style={lbl}>Market</label>
-                    <select
-                      value={newDef.market || "SG"}
-                      onChange={e => setNewDef(p => ({ ...p, market: e.target.value }))}
-                      style={inp}
-                    >
-                      {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={lbl}>Run</label>
-                    <select
-                      value={showAddDef.runId || ""}
-                      onChange={e => setShowAddDef(p => ({ ...p, runId: e.target.value || null }))}
-                      style={inp}
-                    >
-                      <option value="">Standalone defect</option>
-                      {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
-                    </select>
-                  </div>
-                  {showAddDef.runId && (
-                    <div>
-                      <label style={lbl}>Test Case</label>
-                      <select
-                        value={showAddDef.tcId || ""}
-                        onChange={e => setShowAddDef(p => ({ ...p, tcId: e.target.value || null }))}
-                        style={inp}
-                      >
-                        <option value="">No specific test case (run-level defect)</option>
-                        {(() => {
-                          const run = runs.find(r => String(r.id) === String(showAddDef.runId));
-                          const options = (run?.entries || [])
-                            .map(en => allTestCaseById[en.testCaseId])
-                            .filter(Boolean);
-                          return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
-                        })()}
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label style={lbl}>Issue Type</label>
-                  <select
-                    value={newDef.issueType || "Functional Issue"}
-                    onChange={e => setNewDef(p => ({ ...p, issueType: e.target.value }))}
-                    style={inp}
-                  >
-                    {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={lbl}>Description *</label>
-                  <textarea
-                    value={newDef.description || ""}
-                    onChange={e => setNewDef(p => ({ ...p, description: e.target.value }))}
-                    style={{ ...inp, minHeight: 80, resize: "vertical" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Expected Result</label>
-                  <textarea
-                    value={newDef.expected || ""}
-                    onChange={e => setNewDef(p => ({ ...p, expected: e.target.value }))}
-                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Actual Result</label>
-                  <textarea
-                    value={newDef.actual || ""}
-                    onChange={e => setNewDef(p => ({ ...p, actual: e.target.value }))}
-                    style={{ ...inp, minHeight: 70, resize: "vertical" }}
-                  />
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <label style={lbl}>Priority</label>
-                    <select
-                      value={newDef.priority} onChange={e => setNewDef(p => ({ ...p, priority: e.target.value }))}
-                      style={inp}
-                    >
-                      {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={lbl}>Raised By</label>
-                    <input
-                      value={getCurrentUserDisplayName()}
-                      style={{ ...inp, background: "#f8fafc" }}
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <label style={lbl}>Assigned To</label>
-                    <select
-                      value={newDef.assignedTo || ""}
-                      onChange={e => setNewDef(p => ({ ...p, assignedTo: e.target.value }))}
-                      style={inp}
-                    >
-                      <option value="">Unassigned</option>
-                      {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={lbl}>Target Fix Date</label>
-                    <input
-                      type="date"
-                      value={newDef.targetFix || ""}
-                      onChange={e => setNewDef(p => ({ ...p, targetFix: e.target.value }))}
-                      style={inp}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={lbl}>Remarks</label>
-                  <textarea
-                    value={newDef.remarks || ""}
-                    onChange={e => setNewDef(p => ({ ...p, remarks: e.target.value }))}
-                    style={{ ...inp, minHeight: 60, resize: "vertical" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={lbl}>Attachments</label>
-                  <div
-                    style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 10, padding: "10px 12px" }}
-                  >
-                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                      Paste screenshot with Ctrl+V or attach file(s)
-                    </div>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
-                      onChange={e => {
-                        queueNewDefectFiles(e.target.files);
-                        e.target.value = "";
-                      }}
-                      style={{ ...inp, fontSize: 12, padding: "8px 10px" }}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                    {newDefAttachments.length === 0 && (
-                      <div style={{ color: "#94a3b8", fontSize: 13 }}>No attachments selected yet.</div>
-                    )}
-
-                    {newDefAttachments.map((f, i) => (
-                      <div key={`${f.name}-${f.size}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                        <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                        <span style={{ color: "#64748b", fontSize: 12 }}>{Math.max(1, Math.round((f.size || 0) / 1024))} KB</span>
-                        <span style={{ color: "#94a3b8", fontSize: 11, marginLeft: "auto" }}>Will upload after defect is created</span>
-                        <button onClick={() => removeQueuedNewDefectFile(i)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-                <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
-                <button onClick={submitDefect} style={{ ...btnP, opacity: !newDef.description ? 0.5 : 1 }} disabled={!newDef.description}>Log Defect</button>
-              </div>
-            </Modal>
-          )}
           {showCategorySettings && isAdmin && (
             <Modal onClose={() => { setShowCategorySettings(false); setNewCategoryName(""); }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>

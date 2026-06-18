@@ -1,0 +1,339 @@
+import { Search, X } from "lucide-react";
+import { DEFECT_STATUS, PRIORITY_META } from "../constants";
+import { PriBadge } from "./ui/Badge";
+
+export default function Defects({
+  defSearch,
+  setDefSearch,
+  inp,
+  defStatusFilter,
+  setDefStatusFilter,
+  defPriFilter,
+  setDefPriFilter,
+  defMarketFilter,
+  setDefMarketFilter,
+  defPlanFilter,
+  setDefPlanFilter,
+  defects,
+  projects,
+  setDefOpenRule,
+  setDefOpenDate,
+  setDefCloseRule,
+  setDefCloseDate,
+  filteredDefects,
+  selectedDefectIds,
+  setSelectedDefectIds,
+  canWrite,
+  createStandaloneDefect,
+  canDelete,
+  deleteDefects,
+  btnP,
+  btnD,
+  btnS,
+  exportDefects,
+  sortedFilteredDefects,
+  defSortCol,
+  setDefSortCol,
+  defSortDir,
+  setDefSortDir,
+  toggleDefDateFilterPanel,
+  defDateFilterPanel,
+  agedDays,
+  setContextMenu,
+  setViewDef,
+  setEditDef,
+  runs,
+  allTestCases,
+  xBtn,
+  updateDefAssignedTo,
+  canAssignDefect,
+  assignableUserDisplayNames,
+  updateDefStatus,
+  canUpdateDefectStatus,
+}) {
+  return (
+    <div style={{ padding: "20px 2.5%" }}>
+      <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ position: "relative", width: 320 }}>
+            <Search
+              size={16}
+              style={{
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#94a3b8",
+                pointerEvents: "none",
+              }}
+            />
+
+            <input
+              placeholder="Search defect / run / TC / assignee..."
+              value={defSearch}
+              onChange={e => setDefSearch(e.target.value)}
+              style={{
+                ...inp,
+                width: "100%",
+                paddingLeft: 38,
+                paddingRight: 36,
+                boxSizing: "border-box",
+              }}
+            />
+
+            {defSearch && (
+              <button
+                onClick={() => setDefSearch("")}
+                title="Clear search"
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  color: "#94a3b8",
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <select value={defStatusFilter} onChange={e => setDefStatusFilter(e.target.value)} style={{ ...inp, width: 180 }}>
+            <option>All</option>
+            {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
+          </select>
+          <select value={defPriFilter} onChange={e => setDefPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
+            <option>All</option>
+            {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
+          </select>
+          <select value={defMarketFilter} onChange={e => setDefMarketFilter(e.target.value)} style={{ ...inp, width: 120 }}>
+            <option>All</option>
+            {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m => <option key={m}>{m}</option>)}
+          </select>
+          <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 450 }}>
+            <option value="All">All Test Plans</option>
+            {projects.flatMap(p => (p.testPlans || []).map(tp => (
+              <option key={tp.id} value={String(tp.id)}>{p.name} - {tp.name}</option>
+            )))}
+          </select>
+
+          <button
+            onClick={() => {
+              setDefSearch("");
+              setDefStatusFilter("All");
+              setDefPriFilter("All");
+              setDefMarketFilter("All");
+              setDefPlanFilter("All");
+              setDefOpenRule("Any");
+              setDefOpenDate("");
+              setDefCloseRule("Any");
+              setDefCloseDate("");
+            }}
+            style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
+          >
+            Reset
+          </button>
+          {filteredDefects.length > 0 && (
+            <button
+              onClick={() => {
+                if (selectedDefectIds.length === filteredDefects.length) {
+                  setSelectedDefectIds([]);
+                } else {
+                  setSelectedDefectIds(filteredDefects.map(def => def.id));
+                }
+              }}
+              style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
+            >
+              {selectedDefectIds.length === filteredDefects.length ? "Clear Selection" : "Select All"}
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40 }}>
+            {canWrite && <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>}
+            {selectedDefectIds.length > 0 && canDelete && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedDefectIds.length} selected</span>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
+                      deleteDefects(selectedDefectIds);
+                    }
+                  }}
+                  style={{ ...btnD, padding: "9px 14px", fontSize: 14 }}
+                >
+                  🗑 Delete Selected
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={exportDefects} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredDefects.length === 0}>Export Excel</button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflowX: "auto", overflowY: "visible" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <thead>
+            <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
+              <th style={{ padding: "12px 16px", width: 40 }}>
+                <input
+                  type="checkbox"
+                  checked={filteredDefects.length > 0 && selectedDefectIds.length === filteredDefects.length}
+                  onChange={e => setSelectedDefectIds(e.target.checked ? filteredDefects.map(def => def.id) : [])}
+                  style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
+                />
+              </th>
+              {[{ label: "Actions", col: "" }, { label: "ID", col: "defectNumber" }, { label: "Market", col: "market" }, { label: "Actual Result", col: "actualResult" }, { label: "Priority", col: "priority" }, { label: "Raised By", col: "raisedBy" }, { label: "Assigned To", col: "assignedTo" }, { label: "Status", col: "status" }].map(({ label, col }) => (
+                <th key={label} onClick={col ? () => { if (defSortCol === col) setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol(col); setDefSortDir("asc"); } } : undefined}
+                  style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && defSortCol === col ? "#d4dff0" : undefined }}>
+                  {label}{col && defSortCol === col ? (defSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
+                </th>
+              ))}
+              <th
+                onClick={() => { if (defSortCol === "openDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("openDateTime"); setDefSortDir("asc"); } }}
+                style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "openDateTime" ? "#d4dff0" : undefined }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Open Datetime{defSortCol === "openDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
+                  <button
+                    onClick={e => toggleDefDateFilterPanel(e, "open")}
+                    title="Filter open datetime"
+                    style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "open" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "open" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                  >
+                    ⌕
+                  </button>
+                </div>
+              </th>
+              <th
+                onClick={() => { if (defSortCol === "closeDateTime") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("closeDateTime"); setDefSortDir("asc"); } }}
+                style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "closeDateTime" ? "#d4dff0" : undefined }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Close Datetime{defSortCol === "closeDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
+                  <button
+                    onClick={e => toggleDefDateFilterPanel(e, "close")}
+                    title="Filter close datetime"
+                    style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "close" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "close" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                  >
+                    ⌕
+                  </button>
+                </div>
+              </th>
+              <th
+                onClick={() => { if (defSortCol === "aged") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("aged"); setDefSortDir("asc"); } }}
+                style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: defSortCol === "aged" ? "#d4dff0" : undefined }}
+              >
+                Aged{defSortCol === "aged" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {defects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects logged</td></tr>}
+            {defects.length > 0 && filteredDefects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects match current filters</td></tr>}
+            {sortedFilteredDefects.map((def, i) => {
+              const aged = agedDays(def.dateRaised);
+              const isSelected = selectedDefectIds.includes(def.id);
+              return (
+                <tr key={def.id}
+                  onContextMenu={e => { if (canWrite) { e.preventDefault(); setContextMenu({ type: "defect", item: def, x: e.clientX, y: e.clientY }); } }}
+                  style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
+                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f0f4ff"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa"; }}>
+                  <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={e => setSelectedDefectIds(p => e.target.checked ? [...p, def.id] : p.filter(x => x !== def.id))}
+                      style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
+                    />
+                  </td>
+                  <td style={{ padding: "13px 16px", width: 220, minWidth: 220 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
+                      <button onClick={() => setViewDef(def)} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>View</button>
+                      {canWrite && <button
+                        onClick={() => setEditDef({
+                          ...def,
+                          dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
+                          targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
+                          linkedRunId: runs.find(r => r.runNumber === def.runNumber)?.id || "",
+                          linkedTestCaseId: allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || "",
+                        })}
+                        style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
+                      >
+                        Edit
+                      </button>}
+                      {canDelete && <button
+                        onClick={() => {
+                          if (window.confirm(`Delete ${def.defectNumber}?`)) {
+                            deleteDefects([def.id]);
+                          }
+                        }}
+                        style={xBtn}
+                        title="Delete"
+                      >
+                        ✕
+                      </button>}
+                    </div>
+                  </td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                    <span style={{ fontWeight: 800, color: "#ef4444", fontSize: 14, fontFamily: "monospace", background: "#fff1f2", padding: "2px 7px", borderRadius: 5, display: "inline-block", whiteSpace: "nowrap" }}>{def.defectNumber}</span>
+                  </td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                    <span style={{ fontSize: 14, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{def.market}</span>
+                  </td>
+                  <td style={{ padding: "13px 16px", maxWidth: 240 }} onClick={() => setViewDef(def)}>
+                    <div style={{ color: "#1e293b", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {def.actualResult}
+                    </div>
+                  </td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                    <PriBadge label={def.priority} /></td>
+                  <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>
+                    {def.raisedBy || "-"}</td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
+                    <select
+                      value={def.assignedTo || ""}
+                      onChange={e => updateDefAssignedTo(def, e.target.value)}
+                      disabled={!canAssignDefect}
+                      style={{ ...inp, minWidth: 170, fontSize: 13, padding: "6px 8px", color: "#334155" }}
+                    >
+                      <option value="">Unassigned</option>
+                      {def.assignedTo && !assignableUserDisplayNames.includes(def.assignedTo) && (
+                        <option value={def.assignedTo}>{def.assignedTo} (current)</option>
+                      )}
+                      {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
+                    <select value={def.status} onChange={e => updateDefStatus(def.id, e.target.value)} onClick={e => e.stopPropagation()} disabled={!canUpdateDefectStatus}
+                      style={{ background: DEFECT_STATUS[def.status]?.bg, color: DEFECT_STATUS[def.status]?.text, border: `1.5px solid ${DEFECT_STATUS[def.status]?.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 14, fontWeight: 700, cursor: "pointer", outline: "none" }}>
+                      {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
+                    {def.openDateTime ? new Date(def.openDateTime).toLocaleString() : "-"}
+                  </td>
+                  <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
+                    {def.closeDateTime ? new Date(def.closeDateTime).toLocaleString() : "-"}
+                  </td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: aged > 7 ? "#ef4444" : aged > 3 ? "#f97316" : "#22c55e" }}>{aged}d</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

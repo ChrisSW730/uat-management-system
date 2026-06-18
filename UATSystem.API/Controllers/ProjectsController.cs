@@ -111,6 +111,31 @@ public class ProjectsController : ControllerBase
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
         if (project is null) return NotFound();
 
+        var planIds = await _db.TestPlans
+            .Where(tp => tp.ProjectId == projectId)
+            .Select(tp => tp.Id)
+            .ToListAsync();
+
+        if (planIds.Count > 0)
+        {
+            var scopeIds = await _db.TestScopes
+                .Where(ts => planIds.Contains(ts.TestPlanId))
+                .Select(ts => ts.Id)
+                .ToListAsync();
+
+            if (scopeIds.Count > 0)
+            {
+                var linkedCases = await _db.TestCases
+                    .Where(tc => tc.TestScopeId.HasValue && scopeIds.Contains(tc.TestScopeId.Value))
+                    .ToListAsync();
+
+                foreach (var testCase in linkedCases)
+                {
+                    testCase.TestScopeId = null;
+                }
+            }
+        }
+
         _db.Projects.Remove(project);
         await _db.SaveChangesAsync();
         return NoContent();
@@ -252,6 +277,23 @@ public class ProjectsController : ControllerBase
     {
         var testPlan = await _db.TestPlans.FirstOrDefaultAsync(tp => tp.Id == testPlanId);
         if (testPlan is null) return NotFound();
+
+        var scopeIds = await _db.TestScopes
+            .Where(ts => ts.TestPlanId == testPlanId)
+            .Select(ts => ts.Id)
+            .ToListAsync();
+
+        if (scopeIds.Count > 0)
+        {
+            var linkedCases = await _db.TestCases
+                .Where(tc => tc.TestScopeId.HasValue && scopeIds.Contains(tc.TestScopeId.Value))
+                .ToListAsync();
+
+            foreach (var testCase in linkedCases)
+            {
+                testCase.TestScopeId = null;
+            }
+        }
 
         _db.TestPlans.Remove(testPlan);
         await _db.SaveChangesAsync();
