@@ -30,6 +30,13 @@ export default function TestRuns(props) {
 		btnS,
 		btnD,
 		btnP,
+		projects,
+		runProjectId,
+		setRunProjectId,
+		runPlanId,
+		setRunPlanId,
+		runProjectPlans,
+		runFilteredTestCases,
 	} = props;
 
 	return (
@@ -89,6 +96,26 @@ export default function TestRuns(props) {
 					)}
 				</div>
 				<div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", position: "relative" }}>
+					<select
+						value={runProjectId}
+						onChange={e => { setRunProjectId(e.target.value); setRunPlanId(""); }}
+						style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#0f172a", padding: "9px 12px", fontSize: 14, outline: "none", boxSizing: "border-box", maxWidth: 220, height: 38 }}
+					>
+						<option value="">All Projects</option>
+						{projects.map(project => (
+							<option key={project.id} value={project.id}>{project.name}</option>
+						))}
+					</select>
+					<select
+						value={runPlanId}
+						onChange={e => setRunPlanId(e.target.value)}
+						style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, color: "#0f172a", padding: "9px 12px", fontSize: 14, outline: "none", boxSizing: "border-box", maxWidth: 220, height: 38 }}
+					>
+						<option value="">All Test Plans</option>
+						{runProjectPlans.map(plan => (
+							<option key={plan.id} value={plan.id}>{plan.name}</option>
+						))}
+					</select>
 					<span style={{ fontSize: 13, fontWeight: 700, color: "#64748b", letterSpacing: "0.05em", textTransform: "uppercase" }}>Date</span>
 					<button
 						onClick={toggleRunDateFilterPanel}

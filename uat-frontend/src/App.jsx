@@ -120,6 +120,8 @@ export default function App() {
   const [dashProjectId, setDashProjectId] = useState("");
   const [dashPlanId, setDashPlanId] = useState("");
   const [dashRunId, setDashRunId] = useState("");
+  const [runProjectId, setRunProjectId] = useState("");
+  const [runPlanId, setRunPlanId] = useState("");
   const [defOpenDate, setDefOpenDate] = useState("");
   const [defCloseRule, setDefCloseRule] = useState("Any");
   const [defCloseDate, setDefCloseDate] = useState("");
@@ -792,7 +794,8 @@ export default function App() {
     const availableRuns = runs.filter(r => (r.entries || []).some(e => tcIdSet.has(e.testCaseId)));
     const allEntries = scopedRuns.flatMap(r => r.entries || []);
     const filteredEntries = allEntries.filter(e => tcIdSet.has(e.testCaseId));
-    const runTcCount = dashRunId ? new Set(filteredEntries.map(e => e.testCaseId)).size : filteredTCs.length;
+    const assignedTcIds = new Set(filteredEntries.map(e => e.testCaseId));
+    const runTcCount = assignedTcIds.size;
     const execByStatus = Object.fromEntries(Object.keys(EXEC_STATUS).map(s => [s, 0]));
     filteredEntries.forEach(e => { const s = e.execStatus || "Not Run"; if (s in execByStatus) execByStatus[s]++; });
     const filteredDefects = dashProjectId
@@ -867,18 +870,44 @@ export default function App() {
       return map;
     }, {});
 
-    const burndownTcIds = dashRunId
-      ? Array.from(new Set(filteredEntries.map(entry => entry.testCaseId)))
-      : Array.from(tcIdSet);
+    const burndownTcIds = Array.from(assignedTcIds);
     const tcBurnStart = burndownTcIds.length;
-    const tcBurndownDays = last7.map((dateStr, index) => {
+    const timelinePlans = dashPlanId
+      ? allDashPlans.filter(p => p.id === Number(dashPlanId))
+      : allDashPlans;
+    const planStartDates = timelinePlans
+      .map(p => p.startDate)
+      .filter(Boolean)
+      .map(d => new Date(d));
+    const planEndDates = timelinePlans
+      .map(p => p.endDate)
+      .filter(Boolean)
+      .map(d => new Date(d));
+    const planStart = planStartDates.length > 0 ? new Date(Math.min(...planStartDates.map(d => d.getTime()))) : null;
+    const planEnd = planEndDates.length > 0 ? new Date(Math.max(...planEndDates.map(d => d.getTime()))) : null;
+    const tcBurndownDays = tcBurnStart === 0 ? [] : last7.map((dateStr, index) => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const completed = burndownTcIds.filter(tcId => {
         const events = eventEntriesByTc[tcId] || [];
         return events.some(event => event.eventDate && event.eventDate <= dateStr && executedStatuses.has(event.execStatus));
       }).length;
       const remaining = Math.max(0, tcBurnStart - completed);
-      const ideal = Math.max(0, Math.round(tcBurnStart * (1 - (index / Math.max(1, last7.length - 1)))));
+      let ideal;
+      if (planStart && planEnd && planEnd >= planStart) {
+        const current = new Date(dateStr + "T12:00:00");
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const totalDays = Math.max(1, Math.round((planEnd.getTime() - planStart.getTime()) / msPerDay) + 1);
+        if (current < planStart) {
+          ideal = tcBurnStart;
+        } else if (current >= planEnd) {
+          ideal = 0;
+        } else {
+          const daysSinceStart = Math.round((current.getTime() - planStart.getTime()) / msPerDay);
+          ideal = Math.max(0, Math.round(tcBurnStart * (1 - (daysSinceStart / Math.max(1, totalDays - 1)))));
+        }
+      } else {
+        ideal = Math.max(0, Math.round(tcBurnStart * (1 - (index / Math.max(1, last7.length - 1)))));
+      }
       return { label, remaining, ideal };
     });
 
@@ -908,8 +937,9 @@ export default function App() {
       return { label, remaining, ideal };
     });
 
+    const activeTcCount = runTcCount > 0 ? runTcCount : filteredTCs.length;
     return {
-      allDashPlans, tcCount: dashRunId ? runTcCount : filteredTCs.length, entryCount: filteredEntries.length,
+      allDashPlans, tcCount: activeTcCount, entryCount: filteredEntries.length,
       passedTotal, failedTotal,
       passRate: runTcCount > 0 ? Math.round((new Set(filteredEntries.filter(e => e.execStatus !== "Not Run").map(e => e.testCaseId)).size / runTcCount) * 100) : 0,
       defTotal: filteredDefects.length, openDefs,
@@ -957,8 +987,37 @@ export default function App() {
     });
   }
 
+  const selectedRunProject = useMemo(
+    () => projects.find(p => String(p.id) === String(runProjectId)) || null,
+    [projects, runProjectId]
+  );
+
+  const runProjectPlans = useMemo(
+    () => selectedRunProject ? (selectedRunProject.testPlans || []) : projects.flatMap(p => p.testPlans || []),
+    [projects, selectedRunProject]
+  );
+
+  useEffect(() => {
+    if (runPlanId && !runProjectPlans.some(tp => String(tp.id) === String(runPlanId))) {
+      setRunPlanId("");
+    }
+  }, [runPlanId, runProjectPlans]);
+
+  const filteredRunTestCases = useMemo(() => {
+    let filtered = allTestCases || [];
+    if (runProjectId) {
+      const projectPlanIds = new Set((selectedRunProject?.testPlans || []).map(tp => tp.id));
+      filtered = filtered.filter(tc => projectPlanIds.has(tc.testPlanId));
+    }
+    if (runPlanId) {
+      filtered = filtered.filter(tc => String(tc.testPlanId) === String(runPlanId));
+    }
+    return filtered;
+  }, [allTestCases, runProjectId, runPlanId, selectedRunProject]);
+
   const filteredRuns = useMemo(() => {
     const q = runSearch.trim().toLowerCase();
+    const relevantTcIds = new Set((runProjectId || runPlanId) ? filteredRunTestCases.map(tc => tc.id) : []);
     return sortedRuns.filter(run => {
       const matchesSearch = !q
         || run.runNumber?.toLowerCase().includes(q)
@@ -979,9 +1038,13 @@ export default function App() {
         }
       }
 
-      return matchesSearch && matchesDate;
+      const matchesProjectPlan = (runProjectId || runPlanId)
+        ? (run.entries || []).some(e => relevantTcIds.has(e.testCaseId))
+        : true;
+
+      return matchesSearch && matchesDate && matchesProjectPlan;
     });
-  }, [sortedRuns, runSearch, runDateRule, runDateValue]);
+  }, [sortedRuns, runSearch, runDateRule, runDateValue, runProjectId, runPlanId, filteredRunTestCases]);
 
   const filteredSortedUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
@@ -2781,8 +2844,7 @@ linear-gradient(
   #312e81 100%
 )
 `,
-            boxShadow:
-              "0 0 40px rgba(99,102,241,.18)",
+            boxShadow: "0 0 40px rgba(99,102,241,.18), 0 10px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)",
 
             // Layout
             display: "flex",
@@ -2799,12 +2861,6 @@ linear-gradient(
             // Floating sidebar feel
             margin: 12,
             borderRadius: 24,
-
-            // Depth
-            boxShadow: `
-      0 10px 30px rgba(0,0,0,0.28),
-      inset 0 1px 0 rgba(255,255,255,0.04)
-    `,
 
             // Glass border
             border: "1px solid rgba(255,255,255,0.06)",
@@ -3296,6 +3352,13 @@ linear-gradient(
               btnS={btnS}
               btnD={btnD}
               btnP={btnP}
+              projects={projects}
+              runProjectId={runProjectId}
+              setRunProjectId={setRunProjectId}
+              runPlanId={runPlanId}
+              setRunPlanId={setRunPlanId}
+              runProjectPlans={runProjectPlans}
+              runFilteredTestCases={filteredRunTestCases}
             />
           )}
 
@@ -4134,7 +4197,7 @@ linear-gradient(
                   <input
                     type="checkbox"
                     checked={(() => {
-                      const filtered = testCases.filter(tc => {
+                      const filtered = filteredRunTestCases.filter(tc => {
                         const q = (newRun.tcSearch || "").toLowerCase();
                         return (
                           tc.tcNumber.toLowerCase().includes(q) ||
@@ -4144,7 +4207,7 @@ linear-gradient(
                       return filtered.length > 0 && filtered.every(tc => newRun.selectedTcIds.includes(tc.id));
                     })()}
                     indeterminate={(() => {
-                      const filtered = testCases.filter(tc => {
+                      const filtered = filteredRunTestCases.filter(tc => {
                         const q = (newRun.tcSearch || "").toLowerCase();
                         return (
                           tc.tcNumber.toLowerCase().includes(q) ||
@@ -4155,7 +4218,7 @@ linear-gradient(
                       return checkedCount > 0 && checkedCount < filtered.length;
                     })()}
                     onChange={e => {
-                      const filtered = testCases.filter(tc => {
+                      const filtered = filteredRunTestCases.filter(tc => {
                         const q = (newRun.tcSearch || "").toLowerCase();
                         return (
                           tc.tcNumber.toLowerCase().includes(q) ||
@@ -4181,7 +4244,7 @@ linear-gradient(
                 <span style={{ fontSize: 12, color: "#94a3b8" }}>{newRun.selectedTcIds.length} selected</span>
               </div>
               <div style={{ border: "1.5px solid #f1f5f9", borderRadius: 10, overflow: "hidden", maxHeight: 340, overflowY: "auto" }}>
-                {testCases
+                {filteredRunTestCases
                   .filter(tc => {
                     const q = (newRun.tcSearch || "").toLowerCase();
                     return (

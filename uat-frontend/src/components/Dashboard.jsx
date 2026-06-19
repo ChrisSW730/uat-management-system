@@ -659,7 +659,13 @@ export default function Dashboard({
                                 </span>
                             ))}
                         </div>
-                        <BurndownChart data={tcBurndownDays} height={170} />
+                        {tcBurndownDays && tcBurndownDays.length > 0 ? (
+                            <BurndownChart data={tcBurndownDays} height={170} />
+                        ) : (
+                            <div style={{ minHeight: 170, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: 13, textAlign: "center", padding: "12px 14px", background: "#f8fafc", borderRadius: 12 }}>
+                                No test run data available. Select or create a run to view the remaining test case burndown.
+                            </div>
+                        )}
                     </div>
                     <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Remaining Defects</div>
