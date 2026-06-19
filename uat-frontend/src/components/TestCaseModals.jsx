@@ -55,7 +55,7 @@ export default function TestCaseModals({
           <div style={{ display: "grid", gap: 14 }}>
             {viewTC.description && <DetailBlock label="Description" value={viewTC.description} />}
             <DetailBlock label="Test Steps" value={viewTC.steps} pre />
-            <DetailBlock label="Expected Result" value={viewTC.expectedResult} accent />
+            <DetailBlock label="Expected Result" value={viewTC.expectedResult} accent pre />
             {viewTC.testScopeId && testScopeNameById?.[viewTC.testScopeId] && (
               <DetailBlock label="Testing Scope" value={testScopeNameById[viewTC.testScopeId]} />
             )}
