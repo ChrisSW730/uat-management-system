@@ -49,7 +49,7 @@ public class UATDbContext : DbContext
             .OnDelete(DeleteBehavior.NoAction);
 
         modelBuilder.Entity<TestCase>()
-            .HasIndex(tc => tc.TcNumber)
+            .HasIndex(tc => new { tc.TestPlanId, tc.TcNumber })
             .IsUnique();
 
         modelBuilder.Entity<TestRunEntry>()

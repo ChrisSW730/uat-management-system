@@ -85,6 +85,7 @@ public class TestCasesController : ControllerBase
         }
 
         var existingNumbers = await _db.TestCases
+            .Where(t => t.TestPlanId == tc.TestPlanId.Value)
             .Select(t => t.TcNumber)
             .ToListAsync();
 
