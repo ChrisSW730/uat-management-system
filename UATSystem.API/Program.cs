@@ -36,6 +36,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Test Management System API",
+        Version = "v1"
+    });
+});
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -83,6 +93,13 @@ using (var scope = app.Services.CreateScope())
         db.SaveChanges();
     }
 }
+
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Test Management System API v1");
+    options.RoutePrefix = "swagger";
+});
 
 app.UseCors("ReactApp");
 app.UseStaticFiles();

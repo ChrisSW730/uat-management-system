@@ -1466,9 +1466,25 @@ export default function App() {
 
     try {
       await api.changeUserPassword(authUser.id, currentPasswordForChange, newPasswordForChange);
-      const updatedAuth = JSON.parse(localStorage.getItem("uatAuth"));
+      const authJson = sessionStorage.getItem("uatAuth") || localStorage.getItem("uatAuth");
+      if (!authJson) {
+        setPasswordChangeError("Unable to update stored login state. Please login again.");
+        return;
+      }
+
+      const updatedAuth = JSON.parse(authJson);
+      if (!updatedAuth?.user) {
+        setPasswordChangeError("Unable to update stored login state. Please login again.");
+        return;
+      }
+
       updatedAuth.user.mustChangePassword = false;
-      localStorage.setItem("uatAuth", JSON.stringify(updatedAuth));
+      if (sessionStorage.getItem("uatAuth")) {
+        sessionStorage.setItem("uatAuth", JSON.stringify(updatedAuth));
+      } else {
+        localStorage.setItem("uatAuth", JSON.stringify(updatedAuth));
+      }
+
       setCurrentPasswordForChange("");
       setNewPasswordForChange("");
       setConfirmPasswordForChange("");
