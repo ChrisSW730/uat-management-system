@@ -498,7 +498,9 @@ export default function App() {
 
     const encodedSubject = encodeURIComponent(subject);
     const encodedBody = encodeURIComponent(body);
-    window.location.href = `mailto:${recipient}?subject=${encodedSubject}&body=${encodedBody}`;
+    const link = document.createElement("a");
+    link.href = `mailto:${recipient}?subject=${encodedSubject}&body=${encodedBody}`;
+    link.click();
   }
 
   async function handleForgotPassword() {
@@ -532,7 +534,9 @@ export default function App() {
 
     const encodedSubject = encodeURIComponent(subject);
     const encodedBody = encodeURIComponent(body);
-    window.location.href = `mailto:${recipient}?subject=${encodedSubject}&body=${encodedBody}`;
+    const link = document.createElement("a");
+    link.href = `mailto:${recipient}?subject=${encodedSubject}&body=${encodedBody}`;
+    link.click();
   }
 
   function handleLogout() {
@@ -1435,7 +1439,9 @@ export default function App() {
       ].join("\n");
 
       const mailto = `mailto:${encodeURIComponent(newUserName.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.location.href = mailto;
+      const link = document.createElement("a");
+      link.href = mailto;
+      link.click();
     } catch (error) {
       alert(`Failed to create user: ${error.message}`);
     }
@@ -1569,7 +1575,9 @@ export default function App() {
       ].join("\n");
 
       const mailto = `mailto:${encodeURIComponent(user.username)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.location.href = mailto;
+      const link = document.createElement("a");
+      link.href = mailto;
+      link.click();
     } catch (error) {
       // Parse 429 remaining seconds if available
       try {

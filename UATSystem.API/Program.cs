@@ -77,10 +77,11 @@ using (var scope = app.Services.CreateScope())
         var hasher = new PasswordHasher<UserAccount>();
         var seedUsers = new[]
         {
-            new UserAccount { Username = "admin", DisplayName = "System Admin", Role = "Admin", IsActive = true },
-            new UserAccount { Username = "lead", DisplayName = "Test Lead", Role = "Test Lead", IsActive = true },
-            new UserAccount { Username = "tester", DisplayName = "Tester", Role = "Tester", IsActive = true },
-            new UserAccount { Username = "viewer", DisplayName = "Viewer", Role = "Viewer", IsActive = true },
+            new UserAccount { Username = "admin@nomail.com", DisplayName = "System Admin", Role = "Admin", IsActive = true },
+            new UserAccount { Username = "lead@nomail.com", DisplayName = "Test Lead", Role = "Test Lead", IsActive = true },
+            new UserAccount { Username = "tester@nomail.com", DisplayName = "Tester", Role = "Tester", IsActive = true },
+            new UserAccount { Username = "viewer@nomail.com", DisplayName = "Viewer", Role = "Viewer", IsActive = true },
+            new UserAccount { Username = "developer@nomail.com", DisplayName = "Developer", Role = "Developer", IsActive = true },
         };
 
         foreach (var user in seedUsers)
