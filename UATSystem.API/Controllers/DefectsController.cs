@@ -8,7 +8,7 @@ using UATSystem.API.Models;
 namespace UATSystem.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [Authorize]
 public class DefectsController : ControllerBase
 {
@@ -38,8 +38,8 @@ public class DefectsController : ControllerBase
 
     private DefectAttachmentDto ToAttachmentDto(DefectAttachment a)
     {
-        var fileUrl = $"{Request.Scheme}://{Request.Host}/api/defects/{a.DefectId}/attachments/{a.Id}/file";
-        return new DefectAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl);
+        var fileUrl = Url.Action(nameof(GetAttachmentFile), null, new { id = a.DefectId, attachmentId = a.Id }, Request.Scheme, Request.Host.Value);
+        return new DefectAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl ?? string.Empty);
     }
 
     private string GetChangedBy()

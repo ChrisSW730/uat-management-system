@@ -1,6 +1,9 @@
 import { readStoredAuth } from "./utils/auth";
 
-const BASE = "/api";
+const BASE = import.meta.env.DEV
+  ? ""
+  : "/api";
+
 const rawFetch = window.fetch.bind(window);
 
 function readAuth() {
@@ -74,6 +77,45 @@ export const api = {
       throw new Error(text || "Failed to load mention users");
     }
     return await response.json();
+  },
+
+  getCategories: async () => {
+    const response = await fetch(`${BASE}/categories`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to load categories");
+    }
+    return await response.json();
+  },
+
+  createCategory: async (name) => {
+    const response = await fetch(`${BASE}/categories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name })
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to create category");
+    }
+    const text = await response.text();
+    try {
+      const payload = JSON.parse(text);
+      if (typeof payload === "string") return payload;
+      return payload?.name || text;
+    } catch {
+      return text;
+    }
+  },
+
+  deleteCategory: async (name) => {
+    const response = await fetch(`${BASE}/categories?name=${encodeURIComponent(name)}`, {
+      method: "DELETE"
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to delete category");
+    }
   },
 
   getUsers: () => fetch(`${BASE}/users`).then(r => r.json()),

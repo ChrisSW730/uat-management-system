@@ -7,7 +7,7 @@ using UATSystem.API.Models;
 namespace UATSystem.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [Authorize]
 public class TestCasesController : ControllerBase
 {
@@ -37,8 +37,8 @@ public class TestCasesController : ControllerBase
 
     private TestCaseAttachmentDto ToAttachmentDto(TestCaseAttachment a)
     {
-        var fileUrl = $"{Request.Scheme}://{Request.Host}/api/testcases/{a.TestCaseId}/attachments/{a.Id}/file";
-        return new TestCaseAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl);
+        var fileUrl = Url.Action(nameof(GetAttachmentFile), null, new { id = a.TestCaseId, attachmentId = a.Id }, Request.Scheme, Request.Host.Value);
+        return new TestCaseAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl ?? string.Empty);
     }
 
     [HttpGet]

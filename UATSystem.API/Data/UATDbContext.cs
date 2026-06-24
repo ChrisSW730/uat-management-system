@@ -21,6 +21,7 @@ public class UATDbContext : DbContext
     public DbSet<TestCaseAttachment> TestCaseAttachments => Set<TestCaseAttachment>();
     public DbSet<UserAccount> Users => Set<UserAccount>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<Category> Categories => Set<Category>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -112,5 +113,9 @@ public class UATDbContext : DbContext
 
         modelBuilder.Entity<UserNotification>()
             .HasIndex(n => new { n.RecipientUserId, n.IsRead, n.CreatedAt });
+
+        modelBuilder.Entity<Category>()
+            .HasIndex(c => c.Name)
+            .IsUnique();
     }
 }

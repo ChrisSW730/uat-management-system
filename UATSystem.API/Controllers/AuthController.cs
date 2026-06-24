@@ -12,7 +12,7 @@ using UATSystem.API.Models;
 namespace UATSystem.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly UATDbContext _db;

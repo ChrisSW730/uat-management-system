@@ -7,7 +7,7 @@ using UATSystem.API.Data;
 namespace UATSystem.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [Authorize]
 public class NotificationsController : ControllerBase
 {

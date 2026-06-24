@@ -8,7 +8,7 @@ using UATSystem.API.Models;
 namespace UATSystem.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [Authorize]
 public class TestRunsController : ControllerBase
 {

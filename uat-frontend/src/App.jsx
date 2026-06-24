@@ -179,17 +179,26 @@ export default function App() {
   const [newScopeName, setNewScopeName] = useState("");
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showCategorySettings, setShowCategorySettings] = useState(false);
-  const [categories, setCategories] = useState(() => {
+  const categoryStorageKey = "uat_categories";
+  const readStoredCategories = () => {
     try {
-      const stored = localStorage.getItem("uat_categories");
+      const stored = localStorage.getItem(categoryStorageKey);
       if (stored) return JSON.parse(stored);
     } catch { }
-    return [
-      "User Authentication", "User Management",
-      "Payout & Clawback Creation (Charity Live Campaign)",
-      "Payout & Clawback Creation (Commercial Live Campaign)",
-      "Payout Approval", "BMM", "PAF", "Data Insight",
-    ];
+    return [];
+  };
+  const clearStoredCategories = () => {
+    try {
+      localStorage.removeItem(categoryStorageKey);
+    } catch { }
+  };
+  const mergeCategories = (base, extra) => Array.from(new Set([...(base || []), ...(extra || [])])).sort((a, b) => a.localeCompare(b));
+  const [categories, setCategories] = useState(() => {
+    try {
+      const stored = localStorage.getItem(categoryStorageKey);
+      if (stored) return JSON.parse(stored);
+    } catch { }
+    return [];
   });
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showEditProject, setShowEditProject] = useState(false);
@@ -232,7 +241,7 @@ export default function App() {
   const [confirmPasswordForChange, setConfirmPasswordForChange] = useState("");
   const [passwordChangeError, setPasswordChangeError] = useState("");
 
-  const blankTC = { name: "", description: "", steps: "", expected: "", priority: "Medium", category: "User Authentication", remarks: "", testScopeId: "" };
+  const blankTC = { name: "", description: "", steps: "", expected: "", priority: "Medium", category: categories[0] || "User Authentication", remarks: "", testScopeId: "" };
   const blankRun = { name: "", selectedTcIds: [], selectedTesters: [], testerSearch: "" };
   const defaultDefectTemplate = [
     "Marketing Company: ",
@@ -246,6 +255,53 @@ export default function App() {
   const [newTC, setNewTC] = useState(blankTC);
   const [newRun, setNewRun] = useState(blankRun);
   const [newDef, setNewDef] = useState(blankDef);
+
+  const addCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    try {
+      const name = await api.createCategory(newCategoryName.trim());
+      setCategories(prev => mergeCategories(prev, [name]));
+      clearStoredCategories();
+      setNewCategoryName("");
+    } catch (err) {
+      alert(err?.message || "Failed to create category");
+    }
+  };
+
+  const deleteCategory = async (name) => {
+    const localCategories = readStoredCategories();
+    try {
+      await api.deleteCategory(name);
+    } catch (err) {
+      if (localCategories.includes(name)) {
+        // Fallback remove local categories while DB sync completes.
+        const updatedLocal = localCategories.filter(c => c !== name);
+        if (updatedLocal.length > 0) {
+          try {
+            localStorage.setItem(categoryStorageKey, JSON.stringify(updatedLocal));
+          } catch { }
+        } else {
+          clearStoredCategories();
+        }
+      } else {
+        alert(err?.message || "Failed to delete category");
+        return;
+      }
+    }
+
+    setCategories(prev => prev.filter(c => c !== name));
+  };
+
+  useEffect(() => {
+    if (!categories.length) return;
+    setNewTC(old => {
+      if (!old.category || !categories.includes(old.category)) {
+        return { ...old, category: categories[0] };
+      }
+      return old;
+    });
+  }, [categories]);
 
   const TABS = [
     ["dashboard", <LayoutDashboard size={18} />, "Dashboard"],
@@ -671,6 +727,28 @@ export default function App() {
       api.getMentionUsers().then(setMentionUsers).catch(err => console.error("Mention users error:", err)),
       isAdmin ? api.getUsers().then(setUsers).catch(err => console.error("Users Error:", err)) : Promise.resolve([]),
       api.getNotifications(false).then(setNotifications).catch(err => console.error("Notifications Error:", err)),
+      api.getCategories().then(async cats => {
+        const localCategories = readStoredCategories();
+        if (cats && cats.length > 0) {
+          if (localCategories.length > 0) {
+            const merged = mergeCategories(cats, localCategories);
+            const newNames = merged.filter(name => !cats.includes(name));
+            await Promise.all(newNames.map(name => api.createCategory(name).catch(() => {})));
+            setCategories(merged);
+            clearStoredCategories();
+          } else {
+            setCategories(cats);
+          }
+        } else if (localCategories.length > 0) {
+          setCategories(localCategories);
+          if (authUser?.role === "Admin") {
+            await Promise.all(localCategories.map(name => api.createCategory(name).catch(() => {})));
+            clearStoredCategories();
+          }
+        } else {
+          setCategories([]);
+        }
+      }).catch(err => console.error("Categories Error:", err)),
     ])
       .catch(err => console.error("Failed to load data:", err))
       .finally(() => setLoading(false));
@@ -4312,11 +4390,7 @@ linear-gradient(
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
                     <span style={{ flex: 1, fontSize: 14, color: "#1e293b", fontWeight: 600 }}>{cat}</span>
                     <button
-                      onClick={() => {
-                        const updated = categories.filter(c => c !== cat);
-                        setCategories(updated);
-                        localStorage.setItem("uat_categories", JSON.stringify(updated));
-                      }}
+                      onClick={() => deleteCategory(cat)}
                       style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
                       title="Remove category"
                     >✕</button>
@@ -4330,23 +4404,14 @@ linear-gradient(
                   onChange={e => setNewCategoryName(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === "Enter" && newCategoryName.trim()) {
-                      const updated = [...categories, newCategoryName.trim()].sort((a, b) => a.localeCompare(b));
-                      setCategories(updated);
-                      localStorage.setItem("uat_categories", JSON.stringify(updated));
-                      setNewCategoryName("");
+                      addCategory();
                     }
                   }}
                   placeholder="New category name…"
                   style={{ ...inp, flex: 1 }}
                 />
                 <button
-                  onClick={() => {
-                    if (!newCategoryName.trim()) return;
-                    const updated = [...categories, newCategoryName.trim()].sort((a, b) => a.localeCompare(b));
-                    setCategories(updated);
-                    localStorage.setItem("uat_categories", JSON.stringify(updated));
-                    setNewCategoryName("");
-                  }}
+                  onClick={addCategory}
                   disabled={!newCategoryName.trim()}
                   style={{ ...btnP, opacity: !newCategoryName.trim() ? 0.5 : 1 }}
                 >Add</button>

@@ -93,12 +93,25 @@ using (var scope = app.Services.CreateScope())
 
         db.SaveChanges();
     }
+
 }
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Test Management System API v1");
+    if (app.Environment.IsDevelopment())
+    {
+        options.SwaggerEndpoint(
+            "/swagger/v1/swagger.json",
+            "Test Management System API v1");
+    }
+    else
+    {
+        options.SwaggerEndpoint(
+            "/api/swagger/v1/swagger.json",
+            "Test Management System API v1");
+    }
+
     options.RoutePrefix = "swagger";
 });
 
