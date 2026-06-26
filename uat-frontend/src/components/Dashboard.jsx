@@ -11,6 +11,7 @@ import {
     PRIORITY_META
 } from "../constants";
 import html2canvas from "html2canvas";
+import CountUp from "react-countup";
 
 export default function Dashboard({
     dashboardStats,
@@ -325,26 +326,30 @@ export default function Dashboard({
                     }) => (
                         <div
                             key={label}
-                            style={{
-                                background: "rgba(255,255,255,0.75)",
+    onMouseEnter={e=>{
+        e.currentTarget.style.transform="translateY(-6px)";
+        e.currentTarget.style.boxShadow="0 20px 40px rgba(15,23,42,.12)";
+    }}
+    onMouseLeave={e=>{
+        e.currentTarget.style.transform="translateY(0)";
+        e.currentTarget.style.boxShadow="0 10px 30px rgba(15,23,42,.05)";
+    }}
+    style={{
+        background:"#fff",
+        borderRadius:20,
 
-                                backdropFilter: "blur(14px)",
+        borderTop: `3px solid ${iconColor}`, 
+        padding:18,
+        cursor:"pointer",
 
-                                border: "1px solid rgba(255,255,255,0.65)",
+        transition:"all .25s ease",
 
-                                borderRadius: 20,
+        boxShadow:"0 10px 30px rgba(15,23,42,.05)",
 
-                                padding: "20px",
-
-                                boxShadow:
-                                    "0 10px 30px rgba(15,23,42,0.05)",
-
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 16,
-
-                                transition: "all 0.2s ease",
-                            }}
+        display:"flex",
+        gap:16,
+        alignItems:"center"
+    }}
                         >
                             <div
                                 style={{
@@ -389,7 +394,10 @@ export default function Dashboard({
                                         lineHeight: 1,
                                     }}
                                 >
-                                    {value.toLocaleString()}
+                                    <CountUp
+end={value}
+duration={1}
+/>
                                 </div>
 
                                 <div
@@ -408,6 +416,14 @@ export default function Dashboard({
 
                 {/* Progress Card */}
                 <div
+                onMouseEnter={e=>{
+        e.currentTarget.style.transform="translateY(-6px)";
+        e.currentTarget.style.boxShadow="0 20px 40px rgba(15,23,42,.12)";
+    }}
+    onMouseLeave={e=>{
+        e.currentTarget.style.transform="translateY(0)";
+        e.currentTarget.style.boxShadow="0 10px 30px rgba(15,23,42,.05)";
+    }}
                     style={{
                         background: "rgba(255,255,255,0.75)",
 
@@ -415,12 +431,19 @@ export default function Dashboard({
 
                         border: "1px solid rgba(255,255,255,0.65)",
 
+                        borderTop: "3px solid #04cdffc2",
+
                         borderRadius: 20,
 
                         padding: "20px",
 
                         boxShadow:
                             "0 10px 30px rgba(15,23,42,0.05)",
+
+                        transition: "all 0.25s ease",
+
+                        cursor:"pointer",
+
                     }}
                 >
                     <div
@@ -448,7 +471,7 @@ export default function Dashboard({
                                 alignItems: "center",
                                 justifyContent: "center",
 
-                                color: "#6366F1",
+                                color: "#04cdffc2",
 
                                 flexShrink: 0,
 
@@ -462,7 +485,7 @@ export default function Dashboard({
                             <div
                                 style={{
                                     fontSize: 12,
-                                    color: "#6366F1",
+                                    color: "#04cdffc2",
                                     fontWeight: 700,
                                     marginBottom: 6,
                                 }}
@@ -512,12 +535,13 @@ export default function Dashboard({
                                 width: `${passRate}%`,
                                 height: "100%",
 
-                                background:
-                                    "linear-gradient(90deg,#6366F1,#8B5CF6)",
+                                background: "linear-gradient(04cdffc2,#38BDF8,#6366F1,#8B5CF6)",
 
                                 borderRadius: 999,
 
                                 transition: "width 0.4s ease",
+
+                                boxShadow: "0 2px 12px rgba(99,102,241,.35)"
                             }}
                         />
                     </div>
