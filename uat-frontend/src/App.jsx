@@ -122,6 +122,7 @@ export default function App() {
   const [dashRunId, setDashRunId] = useState("");
   const [runProjectId, setRunProjectId] = useState("");
   const [runPlanId, setRunPlanId] = useState("");
+  const [execStatusFilter, setExecStatusFilter] = useState("All");
   const [defOpenDate, setDefOpenDate] = useState("");
   const [defCloseRule, setDefCloseRule] = useState("Any");
   const [defCloseDate, setDefCloseDate] = useState("");
@@ -734,7 +735,7 @@ export default function App() {
           if (localCategories.length > 0) {
             const merged = mergeCategories(cats, localCategories);
             const newNames = merged.filter(name => !cats.includes(name));
-            await Promise.all(newNames.map(name => api.createCategory(name).catch(() => {})));
+            await Promise.all(newNames.map(name => api.createCategory(name).catch(() => { })));
             setCategories(merged);
             clearStoredCategories();
           } else {
@@ -743,7 +744,7 @@ export default function App() {
         } else if (localCategories.length > 0) {
           setCategories(localCategories);
           if (authUser?.role === "Admin") {
-            await Promise.all(localCategories.map(name => api.createCategory(name).catch(() => {})));
+            await Promise.all(localCategories.map(name => api.createCategory(name).catch(() => { })));
             clearStoredCategories();
           }
         } else {
@@ -2534,6 +2535,7 @@ export default function App() {
       total: entries.length,
       pass: entries.filter(e => e.execStatus === "Pass" || e.execStatus === "Passed").length,
       fail: entries.filter(e => e.execStatus === "Fail" || e.execStatus === "Failed").length,
+      blocked: entries.filter(e => e.execStatus === "Blocked").length,
       notRun: entries.filter(e => e.execStatus === "Not Run").length,
     };
   }
@@ -2784,6 +2786,22 @@ export default function App() {
       { name: "Run Entries", rows: entryRows },
       { name: "Comments", rows: commentRows },
     ]);
+  }
+
+  function openRunDetails(execStatus) {
+
+    const run = runs.find(r => String(r.id) === String(dashRunId));
+
+    if (!run) {
+      alert("Selected Test Run not found.");
+      return;
+    }
+
+    setExecStatusFilter(execStatus);
+
+    setViewRun(run);
+
+    setActiveTab("runs");
   }
 
   async function exportDefects() {
@@ -3318,53 +3336,53 @@ linear-gradient(
       ══════════════════════════════════ */}
           {activeTab === "projects" && (
             <Projects
-  projects={projects}
-  defects={defects}
+              projects={projects}
+              defects={defects}
 
-  selectedProject={selectedProject}
-  selectedProjectPlans={selectedProjectPlans}
+              selectedProject={selectedProject}
+              selectedProjectPlans={selectedProjectPlans}
 
-  selectedProjectId={selectedProjectId}
-  setSelectedProjectId={setSelectedProjectId}
+              selectedProjectId={selectedProjectId}
+              setSelectedProjectId={setSelectedProjectId}
 
-  selectedTestPlanId={selectedTestPlanId}
-  setSelectedTestPlanId={setSelectedTestPlanId}
+              selectedTestPlanId={selectedTestPlanId}
+              setSelectedTestPlanId={setSelectedTestPlanId}
 
-  canManageProjects={canManageProjects}
-  canDelete={canDelete}
+              canManageProjects={canManageProjects}
+              canDelete={canDelete}
 
-  btnP={btnP}
-  btnS={btnS}
-  btnD={btnD}
+              btnP={btnP}
+              btnS={btnS}
+              btnD={btnD}
 
-  setShowAddProject={setShowAddProject}
-  setShowAddPlan={setShowAddPlan}
+              setShowAddProject={setShowAddProject}
+              setShowAddPlan={setShowAddPlan}
 
-  getTimelineMeta={getTimelineMeta}
-  timelineBadgeStyle={timelineBadgeStyle}
-  formatTimeline={formatTimeline}
-  toInputDate={toInputDate}
+              getTimelineMeta={getTimelineMeta}
+              timelineBadgeStyle={timelineBadgeStyle}
+              formatTimeline={formatTimeline}
+              toInputDate={toInputDate}
 
-  setEditingProjectId={setEditingProjectId}
-  setEditProjectName={setEditProjectName}
-  setEditProjectStartDate={setEditProjectStartDate}
-  setEditProjectEndDate={setEditProjectEndDate}
-  setShowEditProject={setShowEditProject}
+              setEditingProjectId={setEditingProjectId}
+              setEditProjectName={setEditProjectName}
+              setEditProjectStartDate={setEditProjectStartDate}
+              setEditProjectEndDate={setEditProjectEndDate}
+              setShowEditProject={setShowEditProject}
 
-  setEditingPlanId={setEditingPlanId}
-  setEditPlanName={setEditPlanName}
-  setEditPlanStartDate={setEditPlanStartDate}
-  setEditPlanEndDate={setEditPlanEndDate}
-  setShowEditPlan={setShowEditPlan}
+              setEditingPlanId={setEditingPlanId}
+              setEditPlanName={setEditPlanName}
+              setEditPlanStartDate={setEditPlanStartDate}
+              setEditPlanEndDate={setEditPlanEndDate}
+              setShowEditPlan={setShowEditPlan}
 
-  deleteProject={deleteProject}
-  deleteTestPlan={deleteTestPlan}
+              deleteProject={deleteProject}
+              deleteTestPlan={deleteTestPlan}
 
-  openManageScopes={openManageScopes}
+              openManageScopes={openManageScopes}
 
-  setNewTC={setNewTC}
-  setActiveTab={setActiveTab}
-/>
+              setNewTC={setNewTC}
+              setActiveTab={setActiveTab}
+            />
           )}
 
           {/* ══════════════════════════════════
@@ -3373,66 +3391,66 @@ linear-gradient(
 
           {activeTab === "testcases" && (
             <TestCases
-            tcSearch={tcSearch}
-            setTcSearch={setTcSearch}
+              tcSearch={tcSearch}
+              setTcSearch={setTcSearch}
 
-            tcCatFilter={tcCatFilter}
-            setTcCatFilter={setTcCatFilter}
+              tcCatFilter={tcCatFilter}
+              setTcCatFilter={setTcCatFilter}
 
-            tcPriFilter={tcPriFilter}
-            setTcPriFilter={setTcPriFilter}
+              tcPriFilter={tcPriFilter}
+              setTcPriFilter={setTcPriFilter}
 
-            tcSortCol={tcSortCol}
-            setTcSortCol={setTcSortCol}
-            tcSortDir={tcSortDir}
-            setTcSortDir={setTcSortDir}
+              tcSortCol={tcSortCol}
+              setTcSortCol={setTcSortCol}
+              tcSortDir={tcSortDir}
+              setTcSortDir={setTcSortDir}
 
-            selectedProjectId={selectedProjectId}
-            setSelectedProjectId={setSelectedProjectId}
-            selectedTestPlanId={selectedTestPlanId}
-            setSelectedTestPlanId={setSelectedTestPlanId}
-            selectedProjectPlans={selectedProjectPlans}
-            projects={projects}
+              selectedProjectId={selectedProjectId}
+              setSelectedProjectId={setSelectedProjectId}
+              selectedTestPlanId={selectedTestPlanId}
+              setSelectedTestPlanId={setSelectedTestPlanId}
+              selectedProjectPlans={selectedProjectPlans}
+              projects={projects}
 
-            filteredTC={filteredTC}
-            selectedTcIds={selectedTcIds}
-            setSelectedTcIds={setSelectedTcIds}
+              filteredTC={filteredTC}
+              selectedTcIds={selectedTcIds}
+              setSelectedTcIds={setSelectedTcIds}
 
-            sortedFilteredTC={sortedFilteredTC}
+              sortedFilteredTC={sortedFilteredTC}
 
-            runs={runs}
+              runs={runs}
 
-            testPlanMetaById={testPlanMetaById}
-            testScopeNameById={testScopeNameById}
+              testPlanMetaById={testPlanMetaById}
+              testScopeNameById={testScopeNameById}
 
-            setViewTC={setViewTC}
-            setEditTC={setEditTC}
-            setContextMenu={setContextMenu}
-            setNewTC={setNewTC}
+              setViewTC={setViewTC}
+              setEditTC={setEditTC}
+              setContextMenu={setContextMenu}
+              setNewTC={setNewTC}
 
-            categories={categories}
+              categories={categories}
 
-            canWrite={canWrite}
-            canDelete={canDelete}
+              canWrite={canWrite}
+              canDelete={canDelete}
 
-            btnP={btnP}
-            btnS={btnS}
-            btnD={btnD}
-            xBtn={xBtn}
-            inp={inp}
+              btnP={btnP}
+              btnS={btnS}
+              btnD={btnD}
+              xBtn={xBtn}
+              inp={inp}
 
-            handleImportTestCases={handleImportTestCases}
-            setShowAddTC={setShowAddTC}
-            deleteTestCases={deleteTestCases}
-            exportTestCases={exportTestCases}
-            showImportMenu={showImportMenu}
-            setShowImportMenu={setShowImportMenu}
-            downloadTestCaseImportTemplate={downloadTestCaseImportTemplate}
-            importingTestCases={importingTestCases}
+              handleImportTestCases={handleImportTestCases}
+              setShowAddTC={setShowAddTC}
+              deleteTestCases={deleteTestCases}
+              exportTestCases={exportTestCases}
+              showImportMenu={showImportMenu}
+              setShowImportMenu={setShowImportMenu}
+              downloadTestCaseImportTemplate={downloadTestCaseImportTemplate}
+              importingTestCases={importingTestCases}
 
-            toInputDate={toInputDate}
-  
-  />
+              toInputDate={toInputDate}
+
+            />
           )}
 
           {/* ══════════════════════════════════
@@ -3549,6 +3567,7 @@ linear-gradient(
               setDashRunId={setDashRunId}
               dashboardRef={dashboardRef}
               inp={inp}
+              openRunDetails={openRunDetails}
             />
           )}
 
@@ -3556,7 +3575,22 @@ linear-gradient(
           {viewRun && (
             <Modal onClose={() => setViewRun(null)} wide>
               {(() => {
-                const sortedRunEntries = sortRunEntriesByTestCaseId(viewRun.entries);
+                const filteredRunEntries = (viewRun.entries || []).filter(entry => {
+                  if (execStatusFilter === "All") return true;
+
+                  if (execStatusFilter === "Passed")
+                    return entry.execStatus === "Pass" || entry.execStatus === "Passed";
+
+                  if (execStatusFilter === "Failed")
+                    return entry.execStatus === "Fail" || entry.execStatus === "Failed";
+
+                  if (execStatusFilter === "Blocked")
+                    return entry.execStatus === "Blocked";
+
+                  return entry.execStatus === execStatusFilter;
+                });
+
+                const sortedRunEntries = sortRunEntriesByTestCaseId(filteredRunEntries);
                 return (
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
@@ -3571,11 +3605,84 @@ linear-gradient(
                     {(() => {
                       const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-                          <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
-                          <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
-                          <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
-                          <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
+                          <div onClick={() => setExecStatusFilter("All")} style={{
+                            cursor: "pointer",
+                            transition: "all .2s ease",
+                            borderRadius: 12,
+                            border:
+                              execStatusFilter === "All"
+                                ? "2px solid #7a7ce9"
+                                : "2px solid transparent",
+                            background:
+                              execStatusFilter === "All"
+                                ? "#DCFCE7"
+                                : "transparent",
+                          }}>
+                            <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
+                          </div>
+                          <div onClick={() => setExecStatusFilter("Passed")} style={{
+                            cursor: "pointer",
+                            transition: "all .2s ease",
+                            borderRadius: 12,
+                            border:
+                              execStatusFilter === "Passed"
+                                ? "2px solid #22C55E"
+                                : "2px solid transparent",
+                            background:
+                              execStatusFilter === "Passed"
+                                ? "#DCFCE7"
+                                : "transparent",
+                          }}>
+                            <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
+                          </div>
+                          <div onClick={() => setExecStatusFilter("Failed")} style={{
+                            cursor: "pointer",
+                            transition: "all .2s ease",
+                            borderRadius: 12,
+                            border:
+                              execStatusFilter === "Failed"
+                                ? "2px solid #EF4444"
+                                : "2px solid transparent",
+                            background:
+                              execStatusFilter === "Failed"
+                                ? "#fee2e2"
+                                : "transparent",
+                          }}>
+                            <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
+                          </div>
+                          <div onClick={() => setExecStatusFilter("Blocked")} style={{
+                            cursor: "pointer",
+                            transition: "all .2s ease",
+                            borderRadius: 12,
+                            border:
+                              execStatusFilter === "Blocked"
+                                ? "2px solid #f89c5a"
+                                : "2px solid transparent",
+                            background:
+                              execStatusFilter === "Blocked"
+                                ? "#fde3d0"
+                                : "transparent",
+                          }}>
+                            <StatChip label="Blocked" value={st.blocked} color="#f97316" bg="#fff2e9" />
+                          </div>
+                          <div onClick={() => setExecStatusFilter("Not Run")} style={{
+                            cursor: "pointer",
+                            transition: "all .2s ease",
+                            borderRadius: 12,
+                            border:
+                              execStatusFilter === "Not Run"
+                                ? "2px solid #64748b"
+                                : "2px solid transparent",
+                            background:
+                              execStatusFilter === "Not Run"
+                                ? "#f8fafc"
+                                : "transparent",
+                          }}>
+                            <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
+                          </div>
+
                           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+
                             <div style={{ width: 120, height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
                               <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#22c55e" : "linear-gradient(90deg,#6366f1,#06b6d4)", borderRadius: 99 }} />
                             </div>

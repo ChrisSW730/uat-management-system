@@ -3,7 +3,10 @@ import {
     CheckCircle2,
     XCircle,
     Ban,
-    Activity
+    Activity,
+    BarChart3,
+    TrendingUp,
+    TrendingDown
 } from "lucide-react";
 import {
     EXEC_STATUS,
@@ -23,8 +26,17 @@ export default function Dashboard({
     dashRunId,
     setDashRunId,
     dashboardRef,
-    inp
+    inp,
+    openRunDetails
 }) {
+    const panelStyle = {
+        background: "#fff",
+        border: "1px solid #EEF2F7",
+        borderRadius: 18,
+        boxShadow: "0 8px 24px rgba(15,23,42,.05)",
+        transition: "all .25s ease",
+    };
+
     const DonutChart = ({ segments, size = 130, strokeWidth = 18, label, subLabel }) => {
         const r = (size - strokeWidth) / 2;
         const C = 2 * Math.PI * r;
@@ -283,26 +295,34 @@ export default function Dashboard({
                         value: tcCount,
                         sub: "Linked to active plans",
                         color: "#6366F1",
+                        execStatus: "All"
                     },
 
                     {
                         icon: <CheckCircle2 size={24} strokeWidth={2.2} />,
                         iconBg: "rgba(34,197,94,0.10)",
                         iconColor: "#22C55E",
+
                         label: "Passed",
+
                         value: passedTotal,
+
                         sub: `of ${entryCount.toLocaleString()} executed`,
+
                         color: "#16A34A",
+
+                        execStatus: "Passed"
                     },
 
                     {
-                        icon: <XCircle size={24} strokeWidth={2.2} />,
+                        icon: <CheckCircle2 size={24} strokeWidth={2.2} />,
                         iconBg: "rgba(239,68,68,0.10)",
                         iconColor: "#EF4444",
                         label: "Failed",
                         value: failedTotal,
                         sub: `of ${entryCount.toLocaleString()} executed`,
                         color: "#DC2626",
+                        execStatus: "Failed"
                     },
 
                     {
@@ -313,6 +333,7 @@ export default function Dashboard({
                         value: blockedTotal,
                         sub: `of ${entryCount.toLocaleString()} executed`,
                         color: "#EA580C",
+                        execStatus: "Blocked"
                     },
                 ].map(
                     ({
@@ -323,33 +344,45 @@ export default function Dashboard({
                         value,
                         sub,
                         color,
+                        execStatus
                     }) => (
                         <div
                             key={label}
-    onMouseEnter={e=>{
-        e.currentTarget.style.transform="translateY(-6px)";
-        e.currentTarget.style.boxShadow="0 20px 40px rgba(15,23,42,.12)";
-    }}
-    onMouseLeave={e=>{
-        e.currentTarget.style.transform="translateY(0)";
-        e.currentTarget.style.boxShadow="0 10px 30px rgba(15,23,42,.05)";
-    }}
-    style={{
-        background:"#fff",
-        borderRadius:20,
 
-        borderTop: `3px solid ${iconColor}`, 
-        padding:18,
-        cursor:"pointer",
+                            onClick={() => {
 
-        transition:"all .25s ease",
+                                if (!dashRunId) {
+                                    alert("Please select a Test Run first.");
+                                    return;
+                                }
 
-        boxShadow:"0 10px 30px rgba(15,23,42,.05)",
+                                openRunDetails(execStatus);
 
-        display:"flex",
-        gap:16,
-        alignItems:"center"
-    }}
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.transform = "translateY(-6px)";
+                                e.currentTarget.style.boxShadow = "0 18px 40px rgba(15,23,42,.14)";
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 8px 24px rgba(15,23,42,.06)";
+                            }}
+                            style={{
+                                background: "#fff",
+                                borderRadius: 20,
+
+                                borderTop: `3px solid ${iconColor}`,
+                                padding: 18,
+                                cursor: "pointer",
+
+                                transition: "all .25s ease",
+
+                                boxShadow: "0 10px 30px rgba(15,23,42,.05)",
+
+                                display: "flex",
+                                gap: 16,
+                                alignItems: "center"
+                            }}
                         >
                             <div
                                 style={{
@@ -395,16 +428,23 @@ export default function Dashboard({
                                     }}
                                 >
                                     <CountUp
-end={value}
-duration={1}
-/>
+                                        end={value}
+                                        duration={1}
+                                    />
                                 </div>
 
                                 <div
                                     style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        marginTop: 8,
                                         fontSize: 11,
-                                        color: "#94A3B8",
-                                        marginTop: 6,
+                                        color: "#64748B",
+                                        background: "#F8FAFC",
+                                        padding: "4px 8px",
+                                        borderRadius: 999,
+                                        width: "fit-content",
                                     }}
                                 >
                                     {sub}
@@ -416,14 +456,25 @@ duration={1}
 
                 {/* Progress Card */}
                 <div
-                onMouseEnter={e=>{
-        e.currentTarget.style.transform="translateY(-6px)";
-        e.currentTarget.style.boxShadow="0 20px 40px rgba(15,23,42,.12)";
-    }}
-    onMouseLeave={e=>{
-        e.currentTarget.style.transform="translateY(0)";
-        e.currentTarget.style.boxShadow="0 10px 30px rgba(15,23,42,.05)";
-    }}
+
+                onClick={() => {
+
+    if (!dashRunId) {
+        alert("Please select a Test Run first.");
+        return;
+    }
+
+    openRunDetails("Not Run");
+}}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.transform = "translateY(-6px)";
+                        e.currentTarget.style.boxShadow = "0 20px 40px rgba(15,23,42,.12)";
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "0 10px 30px rgba(15,23,42,.05)";
+                    }}
+
                     style={{
                         background: "rgba(255,255,255,0.75)",
 
@@ -438,11 +489,12 @@ duration={1}
                         padding: "20px",
 
                         boxShadow:
-                            "0 10px 30px rgba(15,23,42,0.05)",
+                            "0 8px 24px rgba(15,23,42,.06)",
 
                         transition: "all 0.25s ease",
 
-                        cursor:"pointer",
+                        cursor: "pointer",
+                        execStatus: "Not Run"
 
                     }}
                 >
@@ -462,10 +514,10 @@ duration={1}
                                 borderRadius: 18,
 
                                 background:
-                                    "rgba(99,102,241,0.10)",
+                                    "rgba(99, 241, 234, 0.1)",
 
                                 border:
-                                    "1px solid rgba(99,102,241,0.18)",
+                                    "1px solid rgba(0, 132, 255, 0.18)",
 
                                 display: "flex",
                                 alignItems: "center",
@@ -503,17 +555,24 @@ duration={1}
                             >
                                 {passRate}%
                             </div>
-
                             <div
                                 style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    marginTop: 8,
                                     fontSize: 11,
-                                    color: "#94A3B8",
-                                    marginTop: 6,
+                                    color: "#64748B",
+                                    background: "#F8FAFC",
+                                    padding: "4px 8px",
+                                    borderRadius: 999,
+                                    width: "fit-content",
                                 }}
                             >
                                 {passedTotal.toLocaleString()} passed /{" "}
                                 {tcCount.toLocaleString()} total
                             </div>
+
                         </div>
                     </div>
 
@@ -535,7 +594,7 @@ duration={1}
                                 width: `${passRate}%`,
                                 height: "100%",
 
-                                background: "linear-gradient(04cdffc2,#38BDF8,#6366F1,#8B5CF6)",
+                                background: "linear-gradient( #04cdffc2, #02a1c9c2)",
 
                                 borderRadius: 999,
 
@@ -549,8 +608,8 @@ duration={1}
             </div>
             {/* Middle two columns */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
-                <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 30 }}>Test Execution Breakdown</div>
+                <div style={{ ...panelStyle, padding: 24 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }} > <BarChart3 size={18} color="#6366f1" /> <span style={{ fontSize: 16, fontWeight: 800 }} > Test Execution Breakdown </span> </div>
                     {Object.entries(execByStatus).map(([status, count]) => {
                         const meta = EXEC_STATUS[status];
                         const pct = entryCount > 0 ? Math.round((count / entryCount) * 100) : 0;
@@ -576,8 +635,8 @@ duration={1}
                         </div>
                     </div>
                 </div>
-                <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 34 }}>Defect Status Breakdown</div>
+                <div style={{ ...panelStyle, padding: 24 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }} > <BarChart3 size={18} color="#6366f1" /> <span style={{ fontSize: 16, fontWeight: 800 }} > Defect Status Breakdown </span> </div>
                     <div style={{ display: "flex", gap: 36, alignItems: "flex-start", marginBottom: 18 }}>
                         <div style={{ flexShrink: 0 }}>
                             <DonutChart size={165} strokeWidth={35} label={defTotal} subLabel="Total"
@@ -619,8 +678,48 @@ duration={1}
                 </div>
             </div>
             {/* Trends */}
-            <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 18 }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 20 }}>📈 Trends (Last 7 Days)</div>
+            <div style={{ ...panelStyle, padding: 24, marginBottom: 18 }}>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 20,
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                        }}
+                    >
+                        <TrendingUp size={18} color="#6366F1" />
+
+                        <span
+                            style={{
+                                fontSize: 16,
+                                fontWeight: 800,
+                                color: "#0F172A",
+                            }}
+                        >
+                            Trends
+                        </span>
+
+                        <span
+                            style={{
+                                fontSize: 12,
+                                color: "#64748B",
+                                background: "#EEF2FF",
+                                padding: "3px 8px",
+                                borderRadius: 999,
+                                fontWeight: 600,
+                            }}
+                        >
+                            Last 7 Days
+                        </span>
+                    </div>
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 28 }}>
                     <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Daily Test Execution Trend</div>
@@ -671,8 +770,48 @@ duration={1}
                 </div>
             </div>
 
-            <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 18 }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 20 }}>📉 Burndown (Last 7 Days)</div>
+            <div style={{ ...panelStyle, padding: 24, marginBottom: 18 }}>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 20,
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                        }}
+                    >
+                        <TrendingDown size={18} color="#6366F1" />
+
+                        <span
+                            style={{
+                                fontSize: 16,
+                                fontWeight: 800,
+                                color: "#0F172A",
+                            }}
+                        >
+                            Burndown Chart
+                        </span>
+
+                        <span
+                            style={{
+                                fontSize: 12,
+                                color: "#64748B",
+                                background: "#EEF2FF",
+                                padding: "3px 8px",
+                                borderRadius: 999,
+                                fontWeight: 600,
+                            }}
+                        >
+                            Last 7 Days
+                        </span>
+                    </div>
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
                     <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Remaining Test Cases</div>
@@ -712,7 +851,7 @@ duration={1}
                     <div style={{ overflowX: "auto" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                             <thead>
-                                <tr style={{ background: "#f8fafc" }}>
+                                <tr style={{ background: "#f8fafc" }} >
                                     {["Project", "Test Plan", "Test Cases", "Executions", "Passed", "Failed", "Total Defects", "Open Defects"].map(h => (
                                         <th key={h} style={{ padding: "10px 16px", textAlign: h === "Project" || h === "Test Plan" ? "left" : "center", fontWeight: 700, color: "#64748b", textTransform: "uppercase", fontSize: 11, whiteSpace: "nowrap" }}>{h}</th>
                                     ))}
@@ -720,7 +859,13 @@ duration={1}
                             </thead>
                             <tbody>
                                 {perPlanStats.map(({ tp, projectName, tcCount: ptc, defCount, openDefs: pOpen, passed, failed, totalEntries }) => (
-                                    <tr key={tp.id} style={{ borderTop: "1px solid #f8fafc" }}>
+                                    <tr key={tp.id} style={{ borderTop: "1px solid #f8fafc" }} onMouseEnter={e => {
+                                        e.currentTarget.style.background = "#fafbff";
+                                    }}
+
+                                        onMouseLeave={e => {
+                                            e.currentTarget.style.background = "transparent";
+                                        }}>
                                         <td style={{ padding: "11px 16px", color: "#64748b" }}>{projectName}</td>
                                         <td style={{ padding: "11px 16px", fontWeight: 700, color: "#334155" }}>{tp.name}</td>
                                         <td style={{ padding: "11px 16px", textAlign: "center", fontWeight: 700, color: "#6366f1" }}>{ptc}</td>
