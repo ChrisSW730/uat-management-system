@@ -50,6 +50,8 @@ export default function Defects({
   assignableUserDisplayNames,
   updateDefStatus,
   canUpdateDefectStatus,
+  updateDefPriority,
+  canUpdateDefectPriority,
 }) {
   return (
     <div style={{ padding: "20px 2.5%" }}>
@@ -295,8 +297,39 @@ export default function Defects({
                       {def.actualResult}
                     </div>
                   </td>
-                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                    <PriBadge label={def.priority} /></td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
+                    {canUpdateDefectPriority ? (
+                      <select
+  value={def.priority || ""}
+  onChange={e => {
+    e.stopPropagation();
+    updateDefPriority(def.id, e.target.value);
+  }}
+  onClick={e => e.stopPropagation()}
+  style={{
+    ...inp,
+    minWidth: 120,
+    fontSize: 13,
+    padding: "6px 8px",
+
+    background: PRIORITY_META[def.priority]?.bg || inp.background,
+    color: PRIORITY_META[def.priority]?.text || inp.color,
+    border: `1.5px solid ${
+      PRIORITY_META[def.priority]?.border || "#e2e8f0"
+    }`,
+    fontWeight: 700,
+  }}
+>
+  {Object.keys(PRIORITY_META).map(priority => (
+    <option key={priority} value={priority}>
+      {priority}
+    </option>
+  ))}
+</select>
+                    ) : (
+                      <div onClick={() => setViewDef(def)}><PriBadge label={def.priority} /></div>
+                    )}
+                  </td>
                   <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 14 }} onClick={() => setViewDef(def)}>
                     {def.raisedBy || "-"}</td>
                   <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>

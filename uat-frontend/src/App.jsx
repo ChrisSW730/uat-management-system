@@ -315,6 +315,7 @@ export default function App() {
   const canComment = !!authUser && authUser.role !== "Viewer";
   const canAssignDefect = !!authUser && authUser.role !== "Viewer";
   const canUpdateDefectStatus = !!authUser && ["Admin", "Test Lead", "Tester", "Developer"].includes(authUser.role);
+  const canUpdateDefectPriority = canUpdateDefectStatus;
   const canManageProjects = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
   const canDelete = !!authUser && (authUser.role === "Admin" || authUser.role === "Test Lead");
   const isAdmin = authUser?.role === "Admin";
@@ -2261,6 +2262,18 @@ export default function App() {
     }
   }
 
+  async function updateDefPriority(id, priority) {
+    if (!canUpdateDefectPriority) return;
+    try {
+      const updated = await api.updateDefectPriority(id, priority);
+      setDefects(p => p.map(d => d.id === id ? updated : d));
+      setViewDef(d => d?.id === id ? updated : d);
+      setEditDef(d => d?.id === id ? updated : d);
+    } catch (e) {
+      console.error("Failed to update defect priority:", e);
+    }
+  }
+
   async function saveDefectEdits() {
     if (!editDef) return;
 
@@ -3516,6 +3529,8 @@ linear-gradient(
               assignableUserDisplayNames={assignableUserDisplayNames}
               updateDefStatus={updateDefStatus}
               canUpdateDefectStatus={canUpdateDefectStatus}
+              updateDefPriority={updateDefPriority}
+              canUpdateDefectPriority={canUpdateDefectPriority}
             />
           )}
 

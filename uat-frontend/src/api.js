@@ -388,6 +388,10 @@ export const api = {
     },
     body: JSON.stringify({ status })
   }).then(r => r.json()),
+  updateDefectPriority: (id, priority) => fetch(`${BASE}/defects/${id}/priority`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ priority })
+  }).then(r => r.json()),
   async updateDefectAssignee(id, assignedTo, changedBy) {
     const response = await fetch(`${BASE}/defects/${id}/assignee`, {
       method: "PATCH",

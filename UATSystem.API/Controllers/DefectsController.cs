@@ -360,6 +360,23 @@ public class DefectsController : ControllerBase
         return Ok(defect);
     }
 
+    [HttpPatch("{id}/priority")]
+    [Authorize(Roles = "Admin,Test Lead,Tester,Developer")]
+    public async Task<IActionResult> UpdatePriority(int id, UpdatePriorityDto dto)
+    {
+        var defect = await _db.Defects.FindAsync(id);
+        if (defect == null) return NotFound();
+
+        var changedBy = GetChangedBy();
+        var newPriority = (dto.Priority ?? string.Empty).Trim();
+
+        AddAudit(defect, "Priority", defect.Priority, newPriority, changedBy);
+        defect.Priority = newPriority;
+
+        await _db.SaveChangesAsync();
+        return Ok(defect);
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> Delete(int id)
@@ -536,6 +553,8 @@ public record CreateDefectDto(
     DateTime? TargetFixDate, string Remarks);
 
 public record UpdateStatusDto(string Status);
+
+public record UpdatePriorityDto(string Priority);
 
 public record UpdateDefectDto(
     int? TestRunId,
