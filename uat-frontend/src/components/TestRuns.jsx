@@ -231,6 +231,7 @@ export default function TestRuns(props) {
 									<StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
 									<StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
 									<StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
+									<StatChip label="Blocked" value={st.blocked} color="#f97316" bg="#fff2e9" />
 									<StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
 								</div>
 							</div>

@@ -3605,79 +3605,179 @@ linear-gradient(
                     {(() => {
                       const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-                          <div onClick={() => setExecStatusFilter("All")} style={{
-                            cursor: "pointer",
-                            transition: "all .2s ease",
-                            borderRadius: 12,
-                            border:
-                              execStatusFilter === "All"
-                                ? "2px solid #7a7ce9"
-                                : "2px solid transparent",
-                            background:
-                              execStatusFilter === "All"
-                                ? "#DCFCE7"
-                                : "transparent",
-                          }}>
+                          <div onClick={() => setExecStatusFilter("All")} onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            e.currentTarget.style.boxShadow =
+                              "0 15px 35px rgba(99,102,241,.25)";
+                          }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform =
+                                execStatusFilter === "All"
+                                  ? "translateY(-3px)"
+                                  : "translateY(0)";
+                              e.currentTarget.style.boxShadow =
+                                execStatusFilter === "All"
+                                  ? "0 10px 25px rgba(99,102,241,.18)"
+                                  : "none";
+                            }}
+                            onMouseDown={(e) => {
+                              e.currentTarget.style.transform = "scale(.97)";
+                            }}
+                            onMouseUp={(e) => {
+                              e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            }} style={{
+                              cursor: "pointer",
+                              transition: "all .2s ease",
+                              borderRadius: 12,
+                              border:
+                                execStatusFilter === "All"
+                                  ? "2px solid #7a7ce9"
+                                  : "2px solid transparent",
+                              background:
+                                execStatusFilter === "All"
+                                  ? "#DCFCE7"
+                                  : "transparent",
+                            }}>
                             <StatChip label="Total" value={st.total} color="#6366f1" bg="#eff6ff" />
                           </div>
-                          <div onClick={() => setExecStatusFilter("Passed")} style={{
-                            cursor: "pointer",
-                            transition: "all .2s ease",
-                            borderRadius: 12,
-                            border:
-                              execStatusFilter === "Passed"
-                                ? "2px solid #22C55E"
-                                : "2px solid transparent",
-                            background:
-                              execStatusFilter === "Passed"
-                                ? "#DCFCE7"
-                                : "transparent",
-                          }}>
+                          <div onClick={() => setExecStatusFilter("Passed")} onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            e.currentTarget.style.boxShadow =
+                              "0 15px 35px rgba(99, 241, 111, 0.25)";
+                          }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform =
+                                execStatusFilter === "Passed"
+                                  ? "translateY(-3px)"
+                                  : "translateY(0)";
+                              e.currentTarget.style.boxShadow =
+                                execStatusFilter === "Passed"
+                                  ? "0 10px 25px rgba(99, 241, 111, 0.18)"
+                                  : "none";
+                            }}
+                            onMouseDown={(e) => {
+                              e.currentTarget.style.transform = "scale(.97)";
+                            }}
+                            onMouseUp={(e) => {
+                              e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            }} style={{
+                              cursor: "pointer",
+                              transition: "all .2s ease",
+                              borderRadius: 12,
+                              border:
+                                execStatusFilter === "Passed"
+                                  ? "2px solid #22C55E"
+                                  : "2px solid transparent",
+                              background:
+                                execStatusFilter === "Passed"
+                                  ? "#DCFCE7"
+                                  : "transparent",
+                            }}>
                             <StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
                           </div>
-                          <div onClick={() => setExecStatusFilter("Failed")} style={{
-                            cursor: "pointer",
-                            transition: "all .2s ease",
-                            borderRadius: 12,
-                            border:
-                              execStatusFilter === "Failed"
-                                ? "2px solid #EF4444"
-                                : "2px solid transparent",
-                            background:
-                              execStatusFilter === "Failed"
-                                ? "#fee2e2"
-                                : "transparent",
-                          }}>
+                          <div onClick={() => setExecStatusFilter("Failed")} onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            e.currentTarget.style.boxShadow =
+                              "0 15px 35px rgba(241, 99, 99, 0.25)";
+                          }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform =
+                                execStatusFilter === "Failed"
+                                  ? "translateY(-3px)"
+                                  : "translateY(0)";
+                              e.currentTarget.style.boxShadow =
+                                execStatusFilter === "Failed"
+                                  ? "0 10px 25px rgba(241, 99, 99, 0.18)"
+                                  : "none";
+                            }}
+                            onMouseDown={(e) => {
+                              e.currentTarget.style.transform = "scale(.97)";
+                            }}
+                            onMouseUp={(e) => {
+                              e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            }} style={{
+                              cursor: "pointer",
+                              transition: "all .2s ease",
+                              borderRadius: 12,
+                              border:
+                                execStatusFilter === "Failed"
+                                  ? "2px solid #EF4444"
+                                  : "2px solid transparent",
+                              background:
+                                execStatusFilter === "Failed"
+                                  ? "#fee2e2"
+                                  : "transparent",
+                            }}>
                             <StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
                           </div>
-                          <div onClick={() => setExecStatusFilter("Blocked")} style={{
-                            cursor: "pointer",
-                            transition: "all .2s ease",
-                            borderRadius: 12,
-                            border:
-                              execStatusFilter === "Blocked"
-                                ? "2px solid #f89c5a"
-                                : "2px solid transparent",
-                            background:
-                              execStatusFilter === "Blocked"
-                                ? "#fde3d0"
-                                : "transparent",
-                          }}>
+                          <div onClick={() => setExecStatusFilter("Blocked")} onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            e.currentTarget.style.boxShadow =
+                              "0 15px 35px rgba(241, 196, 99, 0.25)";
+                          }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform =
+                                execStatusFilter === "Blocked"
+                                  ? "translateY(-3px)"
+                                  : "translateY(0)";
+                              e.currentTarget.style.boxShadow =
+                                execStatusFilter === "Blocked"
+                                  ? "0 10px 25px rgba(241, 196, 99, 0.18)"
+                                  : "none";
+                            }}
+                            onMouseDown={(e) => {
+                              e.currentTarget.style.transform = "scale(.97)";
+                            }}
+                            onMouseUp={(e) => {
+                              e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            }} style={{
+                              cursor: "pointer",
+                              transition: "all .2s ease",
+                              borderRadius: 12,
+                              border:
+                                execStatusFilter === "Blocked"
+                                  ? "2px solid #f89c5a"
+                                  : "2px solid transparent",
+                              background:
+                                execStatusFilter === "Blocked"
+                                  ? "#fde3d0"
+                                  : "transparent",
+                            }}>
                             <StatChip label="Blocked" value={st.blocked} color="#f97316" bg="#fff2e9" />
                           </div>
-                          <div onClick={() => setExecStatusFilter("Not Run")} style={{
-                            cursor: "pointer",
-                            transition: "all .2s ease",
-                            borderRadius: 12,
-                            border:
-                              execStatusFilter === "Not Run"
-                                ? "2px solid #64748b"
-                                : "2px solid transparent",
-                            background:
-                              execStatusFilter === "Not Run"
-                                ? "#f8fafc"
-                                : "transparent",
-                          }}>
+                          <div onClick={() => setExecStatusFilter("Not Run")} onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            e.currentTarget.style.boxShadow =
+                              "0 15px 35px rgba(109, 166, 252, 0.25)";
+                          }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform =
+                                execStatusFilter === "Not Run"
+                                  ? "translateY(-3px)"
+                                  : "translateY(0)";
+                              e.currentTarget.style.boxShadow =
+                                execStatusFilter === "Not Run"
+                                  ? "0 10px 25px rgba(109, 166, 252, 0.18)"
+                                  : "none";
+                            }}
+                            onMouseDown={(e) => {
+                              e.currentTarget.style.transform = "scale(.97)";
+                            }}
+                            onMouseUp={(e) => {
+                              e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            }} style={{
+                              cursor: "pointer",
+                              transition: "all .2s ease",
+                              borderRadius: 12,
+                              border:
+                                execStatusFilter === "Not Run"
+                                  ? "2px solid #64748b"
+                                  : "2px solid transparent",
+                              background:
+                                execStatusFilter === "Not Run"
+                                  ? "#f8fafc"
+                                  : "transparent",
+                            }}>
                             <StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
                           </div>
 
