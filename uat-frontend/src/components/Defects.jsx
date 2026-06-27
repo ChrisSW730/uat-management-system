@@ -1,6 +1,8 @@
-import { Search, X } from "lucide-react";
+import { Search, X, Download, RotateCcw, CheckCheck, Plus, Trash2 as Bin } from "lucide-react";
 import { DEFECT_STATUS, PRIORITY_META } from "../constants";
 import { PriBadge } from "./ui/Badge";
+import "../styles/Projects.css";
+import FilterDropdown from "./ui/FilterDropdown";
 
 export default function Defects({
   defSearch,
@@ -57,30 +59,13 @@ export default function Defects({
     <div style={{ padding: "20px 2.5%" }}>
       <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ position: "relative", width: 320 }}>
-            <Search
-              size={16}
-              style={{
-                position: "absolute",
-                left: 12,
-                top: "50%",
-                transform: "translateY(-50%)",
-                color: "#94a3b8",
-                pointerEvents: "none",
-              }}
-            />
-
+          <div className="search-box">
+						<Search size={18} />
             <input
               placeholder="Search defect / run / TC / assignee..."
               value={defSearch}
               onChange={e => setDefSearch(e.target.value)}
-              style={{
-                ...inp,
-                width: "100%",
-                paddingLeft: 38,
-                paddingRight: 36,
-                boxSizing: "border-box",
-              }}
+              
             />
 
             {defSearch && (
@@ -105,24 +90,76 @@ export default function Defects({
               </button>
             )}
           </div>
-          <select value={defStatusFilter} onChange={e => setDefStatusFilter(e.target.value)} style={{ ...inp, width: 180 }}>
-            <option>All</option>
-            {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
-          </select>
-          <select value={defPriFilter} onChange={e => setDefPriFilter(e.target.value)} style={{ ...inp, width: 150 }}>
-            <option>All</option>
-            {Object.keys(PRIORITY_META).map(p => <option key={p}>{p}</option>)}
-          </select>
-          <select value={defMarketFilter} onChange={e => setDefMarketFilter(e.target.value)} style={{ ...inp, width: 120 }}>
-            <option>All</option>
-            {Array.from(new Set(defects.map(d => d.market).filter(Boolean))).sort().map(m => <option key={m}>{m}</option>)}
-          </select>
-          <select value={defPlanFilter} onChange={e => setDefPlanFilter(e.target.value)} style={{ ...inp, width: 450 }}>
-            <option value="All">All Test Plans</option>
-            {projects.flatMap(p => (p.testPlans || []).map(tp => (
-              <option key={tp.id} value={String(tp.id)}>{p.name} - {tp.name}</option>
-            )))}
-          </select>
+          <div className="filter-wrapper">
+          <FilterDropdown
+    width={180}
+    value={defStatusFilter}
+    placeholder="All"
+    options={[
+        { value: "All", label: "All" },
+        ...Object.keys(DEFECT_STATUS).map(s => ({
+            value: s,
+            label: s,
+        })),
+    ]}
+    onChange={value => setDefStatusFilter(value)}
+/>
+</div>
+<div className="filter-wrapper">
+         <FilterDropdown
+    width={150}
+    value={defPriFilter}
+    placeholder="All"
+    options={[
+        { value: "All", label: "All" },
+        ...Object.keys(PRIORITY_META).map(p => ({
+            value: p,
+            label: p,
+        })),
+    ]}
+    onChange={value => setDefPriFilter(value)}
+/></div>
+<div className="filter-wrapper">
+<FilterDropdown
+    width={120}
+    value={defMarketFilter}
+    placeholder="All"
+    options={[
+        { value: "All", label: "All" },
+        ...Array.from(
+            new Set(
+                defects
+                    .map(d => d.market)
+                    .filter(Boolean)
+            )
+        )
+            .sort()
+            .map(m => ({
+                value: m,
+                label: m,
+            })),
+    ]}
+    onChange={value => setDefMarketFilter(value)}
+/></div>
+<div className="filter-wrapper">
+          <FilterDropdown
+    width={450}
+    value={defPlanFilter}
+    placeholder="All Test Plans"
+    options={[
+        {
+            value: "All",
+            label: "All Test Plans",
+        },
+        ...projects.flatMap(p =>
+            (p.testPlans || []).map(tp => ({
+                value: String(tp.id),
+                label: `${p.name} - ${tp.name}`,
+            }))
+        ),
+    ]}
+    onChange={value => setDefPlanFilter(value)}
+/></div>
 
           <button
             onClick={() => {
@@ -136,8 +173,9 @@ export default function Defects({
               setDefCloseRule("Any");
               setDefCloseDate("");
             }}
-            style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
+            className="reset-btn"
           >
+            <RotateCcw size={15} />
             Reset
           </button>
           {filteredDefects.length > 0 && (
@@ -149,35 +187,71 @@ export default function Defects({
                   setSelectedDefectIds(filteredDefects.map(def => def.id));
                 }
               }}
-              style={{ background: "transparent", border: "none", color: "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "0 4px" }}
+              className="reset-btn"
             >
+              <CheckCheck size={15} />
               {selectedDefectIds.length === filteredDefects.length ? "Clear Selection" : "Select All"}
+              {selectedDefectIds.length > 0 && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    background: "#eef2ff",
+                    color: "#4f46e5",
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {selectedDefectIds.length}
+                </span>
+              )}
             </button>
           )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40 }}>
-            {canWrite && <button onClick={createStandaloneDefect} style={btnP}>+ Add Defect</button>}
             {selectedDefectIds.length > 0 && canDelete && (
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{selectedDefectIds.length} selected</span>
                 <button
                   onClick={() => {
                     if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
                       deleteDefects(selectedDefectIds);
                     }
                   }}
-                  style={{ ...btnD, padding: "9px 14px", fontSize: 14 }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "#fff1f2",
+                    color: "#be123c",
+                    border: "1.5px solid #fecdd3",
+                    borderRadius: 8,
+                    padding: "8px 16px",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all .15s ease",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = "#ffe4e6";
+                    e.currentTarget.style.borderColor = "#fb7185";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = "#fff1f2";
+                    e.currentTarget.style.borderColor = "#fecdd3";
+                  }}
                 >
-                  🗑 Delete Selected
+                  <Bin size={16} /> Delete Selected
                 </button>
               </div>
             )}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={exportDefects} style={{ ...btnS, padding: "9px 14px", fontSize: 14 }} disabled={sortedFilteredDefects.length === 0}>Export Excel</button>
+            {canWrite && <button className="primary-btn" onClick={createStandaloneDefect}><Plus size={16} /> Add Defect</button>}
+            <button className="secondary-btn" onClick={exportDefects} disabled={sortedFilteredDefects.length === 0}><Download size={16} /> Export</button>
           </div>
         </div>
       </div>

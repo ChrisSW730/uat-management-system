@@ -6,7 +6,8 @@ export default function FilterDropdown({
     value,
     options,
     placeholder,
-    onChange
+    onChange,
+    width = 180
 }) {
     const [open, setOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -38,6 +39,7 @@ export default function FilterDropdown({
         <div
             className="dropdown"
             ref={dropdownRef}
+            style={{ width }}
         >
             <button
                 type="button"
