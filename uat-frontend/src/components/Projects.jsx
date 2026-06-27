@@ -1,8 +1,10 @@
-import { Search, Filter, FolderKanban, Briefcase, ClipboardCheck } from "lucide-react";
+import { Search, Filter, FolderKanban, Briefcase, ClipboardCheck, Plus } from "lucide-react";
 import "../styles/Projects.css";
 import ProjectCard from "./ProjectCard";
 import TestPlanCard from "./TestPlanCard";
+import FilterDropdown from "./ui/FilterDropdown";
 import { useState, useEffect } from "react";
+
 
 export default function Projects(props) {
     const {
@@ -43,27 +45,35 @@ export default function Projects(props) {
 
     const [statusFilter, setStatusFilter] = useState("All");
 
+    const statusOptions = [
+        { value: "All", label: "All" },
+        { value: "Not started", label: "Not started" },
+        { value: "In progress", label: "In progress" },
+        { value: "Completed", label: "Completed" }
+    ];
+
     const filteredProjects = projects
-    .filter(project => {
 
-        const tm = getTimelineMeta(
-            project.startDate,
-            project.endDate
-        );
-console.log(project.name, tm.status, statusFilter);
-        const matchSearch =
-            project.name
-                ?.toLowerCase()
-                .includes(searchText.toLowerCase());
+        .filter(project => {
 
-        const matchStatus =
-    statusFilter === "All" ||
-    tm.status === statusFilter;
+            const tm = getTimelineMeta(
+                project.startDate,
+                project.endDate
+            );
 
-        return matchSearch && matchStatus;
+            const matchSearch =
+                project.name
+                    ?.toLowerCase()
+                    .includes(searchText.toLowerCase());
 
-    })
-    .sort((a, b) => b.id - a.id);
+            const matchStatus =
+                statusFilter === "All" ||
+                tm.status === statusFilter;
+
+            return matchSearch && matchStatus;
+
+        })
+        .sort((a, b) => b.id - a.id);
 
     useEffect(() => {
 
@@ -98,31 +108,14 @@ console.log(project.name, tm.status, statusFilter);
 
                 {/* Left Side */}
                 <div className="toolbar-left">
-
-                    {canManageProjects && (
-                        <button
-                            className="primary-btn"
-                            onClick={() => setShowAddProject(true)}
-                        >
-                            + Add Project
-                        </button>
-                    )}
-
-                    {canManageProjects && (
-                        <button
-                            className="secondary-btn"
-                            disabled={!selectedProjectId}
-                            onClick={() => setShowAddPlan(true)}
-                        >
-                            + Add Test Plan
-                        </button>
-                    )}
-
-                </div>
-
-                {/* Right Side */}
-                <div className="toolbar-right">
-
+                    <div className="filter-wrapper">
+                        <FilterDropdown
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            options={statusOptions}
+                            placeholder="All"
+                        />
+                    </div>
                     <div className="search-box">
                         <Search size={18} />
                         <input
@@ -132,24 +125,33 @@ console.log(project.name, tm.status, statusFilter);
                             onChange={(e) => setSearchText(e.target.value)}
                         />
                     </div>
-                    <div className="filter-wrapper">
 
-                        <Filter size={16} />
-                        <select
-                            className="filter-select"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
+
+                </div>
+
+                {/* Right Side */}
+                <div className="toolbar-right">
+
+                    {canManageProjects && (
+                        <button
+                            className="primary-btn"
+                            onClick={() => setShowAddProject(true)}
+                        ><Plus size={16} />
+                            Add Project
+                        </button>
+                    )}
+
+                    {canManageProjects && (
+                        <button
+                            className="secondary-btn"
+                            disabled={!selectedProjectId}
+                            onClick={() => setShowAddPlan(true)}
                         >
-                            <option value="All">All</option>
+                            <Plus size={16} />
+                            Add Test Plan
+                        </button>
+                    )}
 
-                            <option value="Not started">Not started</option>
-
-                            <option value="In progress">In progress</option>
-
-                            <option value="Completed">Completed</option>
-
-                        </select>
-                    </div>
 
                 </div>
 

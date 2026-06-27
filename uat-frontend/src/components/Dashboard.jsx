@@ -6,7 +6,9 @@ import {
     Activity,
     BarChart3,
     TrendingUp,
-    TrendingDown
+    TrendingDown,
+    Filter,
+    Download
 } from "lucide-react";
 import {
     EXEC_STATUS,
@@ -15,6 +17,8 @@ import {
 } from "../constants";
 import html2canvas from "html2canvas";
 import CountUp from "react-countup";
+import "../styles/Projects.css";
+import FilterDropdown from "./ui/FilterDropdown";
 
 export default function Dashboard({
     dashboardStats,
@@ -29,6 +33,21 @@ export default function Dashboard({
     inp,
     openRunDetails
 }) {
+    const handleExport = async () => {
+        if (!dashboardRef.current) return;
+
+        const canvas = await html2canvas(dashboardRef.current, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+        });
+
+        const link = document.createElement("a");
+        link.href = canvas.toDataURL("image/png");
+        link.download = "uat-dashboard.png";
+        link.click();
+    };
+
     const panelStyle = {
         background: "#fff",
         border: "1px solid #EEF2F7",
@@ -253,28 +272,64 @@ export default function Dashboard({
         <div ref={dashboardRef} style={{ background: "#fff", minHeight: "calc(100vh - 60px)", padding: "24px 28px 40px" }}>
             {/* Filters row */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <select value={dashProjectId} onChange={e => { setDashProjectId(e.target.value); setDashPlanId(""); setDashRunId(""); }}
-                        style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
-                        <option value="">All Projects</option>
-                        {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-                    </select>
-                    <select value={dashPlanId} onChange={e => { setDashPlanId(e.target.value); setDashRunId(""); }}
-                        style={{ ...inp, width: "auto", minWidth: 160, fontSize: 13 }}>
-                        <option value="">All Test Plans</option>
-                        {(projects.find(p => String(p.id) === dashProjectId)?.testPlans || []).map(tp => (
-                            <option key={tp.id} value={String(tp.id)}>{tp.name}</option>
-                        ))}
-                    </select>
-                    <select value={dashRunId} onChange={e => setDashRunId(e.target.value)}
-                        style={{ ...inp, width: "auto", minWidth: 180, fontSize: 13 }}>
-                        <option value="">All Test Runs</option>
-                        {availableRuns.map(r => (
-                            <option key={r.id} value={String(r.id)}>{r.name}</option>
-                        ))}
-                    </select>
-                    <button onClick={() => { if (!dashboardRef.current) return; html2canvas(dashboardRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "uat-dashboard.png"; a.click(); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#334155", cursor: "pointer", whiteSpace: "nowrap" }}>Export Report</button>
+                <div className="filter-wrapper">
+                    <FilterDropdown
+    value={dashProjectId}
+    placeholder="All Projects"
+    options={[
+        { value: "", label: "All Projects" },
+        ...projects.map(p => ({
+            value: String(p.id),
+            label: p.name
+        }))
+    ]}
+    onChange={(value) => {
+        setDashProjectId(value);
+        setDashPlanId("");
+        setDashRunId("");
+    }}
+/>
                 </div>
+                <div className="filter-wrapper">
+                    <FilterDropdown
+    value={dashPlanId}
+    placeholder="All Test Plans"
+    options={[
+        { value: "", label: "All Test Plans" },
+        ...(projects.find(
+            p => String(p.id) === dashProjectId
+        )?.testPlans || []).map(tp => ({
+            value: String(tp.id),
+            label: tp.name
+        }))
+    ]}
+    onChange={(value) => {
+        setDashPlanId(value);
+        setDashRunId("");
+    }}
+/>
+                </div>
+                <div className="filter-wrapper">
+                    <FilterDropdown
+    value={dashRunId}
+    placeholder="All Test Runs"
+    options={[
+        { value: "", label: "All Test Runs" },
+        ...availableRuns.map(r => ({
+            value: String(r.id),
+            label: r.name
+        }))
+    ]}
+    onChange={setDashRunId}
+/>
+                </div>
+                <button
+                    className="primary-btn"
+                    onClick={handleExport}
+                >
+                    <Download size={16} />
+                    Export
+                </button>
             </div>
             {/* Top 5 summary cards */}
             <div
@@ -457,15 +512,15 @@ export default function Dashboard({
                 {/* Progress Card */}
                 <div
 
-                onClick={() => {
+                    onClick={() => {
 
-    if (!dashRunId) {
-        alert("Please select a Test Run first.");
-        return;
-    }
+                        if (!dashRunId) {
+                            alert("Please select a Test Run first.");
+                            return;
+                        }
 
-    openRunDetails("Not Run");
-}}
+                        openRunDetails("Not Run");
+                    }}
                     onMouseEnter={e => {
                         e.currentTarget.style.transform = "translateY(-6px)";
                         e.currentTarget.style.boxShadow = "0 20px 40px rgba(15,23,42,.12)";
