@@ -56,26 +56,26 @@ export default function Defects({
   canUpdateDefectStatus,
   updateDefPriority,
   canUpdateDefectPriority,
-}){
-const [currentPage, setCurrentPage] = useState(1);
-const [pageSize, setPageSize] = useState(20);
+}) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-const pagedDefects = sortedFilteredDefects.slice(
-  (currentPage - 1) * pageSize,
-  currentPage * pageSize
-);
+  const pagedDefects = sortedFilteredDefects.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
-useEffect(() => {
-  setCurrentPage(1);
-}, [
-  defSearch,
-  defStatusFilter,
-  defPriFilter,
-  defMarketFilter,
-  defPlanFilter,
-  defSortCol,
-  defSortDir
-]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    defSearch,
+    defStatusFilter,
+    defPriFilter,
+    defMarketFilter,
+    defPlanFilter,
+    defSortCol,
+    defSortDir
+  ]);
   return (
     <div style={{ padding: "20px 2.5%" }}>
       <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
