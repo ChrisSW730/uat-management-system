@@ -1,0 +1,154 @@
+.table-footer{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding:18px 24px;
+
+    background:#fff;
+    border-top:1px solid #edf2f7;
+}
+
+.table-info{
+    font-size:15px;
+    color:#475569;
+    font-weight:500;
+}
+
+.pagination-wrapper{
+    display:flex;
+    align-items:center;
+    gap:28px;
+}
+
+.pagination-center{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.page-size{
+    display:flex;
+    align-items:center;
+    gap:10px;
+
+    padding-left:24px;
+    border-left:1px solid #e5e7eb;
+}
+
+.page-size span{
+    font-size:14px;
+    color:#64748b;
+    white-space:nowrap;
+}
+
+.page-size select{
+    width:72px;
+    height:40px;
+
+    border:1px solid #dbe3ef;
+    border-radius:10px;
+
+    padding:0 12px;
+
+    background:#fff;
+
+    font-size:14px;
+    font-weight:600;
+
+    cursor:pointer;
+}
+
+.page-btn{
+    width:40px;
+    height:40px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    border:1px solid #dbe3ef;
+    border-radius:10px;
+
+    background:#fff;
+
+    color:#334155;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+.page-btn:hover:not(:disabled):not(.active){
+    background:#f8fafc;
+    border-color:#cbd5e1;
+}
+
+.page-btn.active{
+    background:linear-gradient(135deg,#6366f1,#7c3aed);
+    color:#fff;
+    border:none;
+
+    box-shadow:0 8px 18px rgba(99,102,241,.25);
+}
+
+.page-btn.active:hover{
+    color:#fff;
+}
+
+.page-btn:disabled{
+    opacity:.4;
+    cursor:not-allowed;
+}
+
+.page-btn svg {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px;
+    min-height: 20px;
+    display: block;
+}
+
+.page-nav-btn {
+    height: 40px;
+    padding: 0 14px;
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+
+    background: #fff;
+
+    color: #334155;
+    font-size: 14px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: all .2s ease;
+}
+
+.page-nav-btn:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.page-nav-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.page-nav-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.page-dots{
+    width:28px;
+    text-align:center;
+    color:#94a3b8;
+    font-weight:700;
+}

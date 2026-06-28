@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { Search, X, Download, RotateCcw, CheckCheck, Plus, Trash2 as Bin } from "lucide-react";
 import { DEFECT_STATUS, PRIORITY_META } from "../constants";
 import { PriBadge } from "./ui/Badge";
 import "../styles/Projects.css";
 import FilterDropdown from "./ui/FilterDropdown";
+import Pagination from "./ui/Pagination";
 
 export default function Defects({
   defSearch,
@@ -54,18 +56,37 @@ export default function Defects({
   canUpdateDefectStatus,
   updateDefPriority,
   canUpdateDefectPriority,
-}) {
+}){
+const [currentPage, setCurrentPage] = useState(1);
+const [pageSize, setPageSize] = useState(20);
+
+const pagedDefects = sortedFilteredDefects.slice(
+  (currentPage - 1) * pageSize,
+  currentPage * pageSize
+);
+
+useEffect(() => {
+  setCurrentPage(1);
+}, [
+  defSearch,
+  defStatusFilter,
+  defPriFilter,
+  defMarketFilter,
+  defPlanFilter,
+  defSortCol,
+  defSortDir
+]);
   return (
     <div style={{ padding: "20px 2.5%" }}>
       <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <div className="search-box">
-						<Search size={18} />
+            <Search size={18} />
             <input
               placeholder="Search defect / run / TC / assignee..."
               value={defSearch}
               onChange={e => setDefSearch(e.target.value)}
-              
+
             />
 
             {defSearch && (
@@ -91,75 +112,75 @@ export default function Defects({
             )}
           </div>
           <div className="filter-wrapper">
-          <FilterDropdown
-    width={180}
-    value={defStatusFilter}
-    placeholder="All"
-    options={[
-        { value: "All", label: "All Status" },
-        ...Object.keys(DEFECT_STATUS).map(s => ({
-            value: s,
-            label: s,
-        })),
-    ]}
-    onChange={value => setDefStatusFilter(value)}
-/>
-</div>
-<div className="filter-wrapper">
-         <FilterDropdown
-    width={150}
-    value={defPriFilter}
-    placeholder="All"
-    options={[
-        { value: "All", label: "All Priority" },
-        ...Object.keys(PRIORITY_META).map(p => ({
-            value: p,
-            label: p,
-        })),
-    ]}
-    onChange={value => setDefPriFilter(value)}
-/></div>
-<div className="filter-wrapper">
-<FilterDropdown
-    width={120}
-    value={defMarketFilter}
-    placeholder="All"
-    options={[
-        { value: "All", label: "All Market" },
-        ...Array.from(
-            new Set(
-                defects
-                    .map(d => d.market)
-                    .filter(Boolean)
-            )
-        )
-            .sort()
-            .map(m => ({
-                value: m,
-                label: m,
-            })),
-    ]}
-    onChange={value => setDefMarketFilter(value)}
-/></div>
-<div className="filter-wrapper">
-          <FilterDropdown
-    width={450}
-    value={defPlanFilter}
-    placeholder="All Test Plans"
-    options={[
-        {
-            value: "All",
-            label: "All Test Plans",
-        },
-        ...projects.flatMap(p =>
-            (p.testPlans || []).map(tp => ({
-                value: String(tp.id),
-                label: `${p.name} - ${tp.name}`,
-            }))
-        ),
-    ]}
-    onChange={value => setDefPlanFilter(value)}
-/></div>
+            <FilterDropdown
+              width={180}
+              value={defStatusFilter}
+              placeholder="All"
+              options={[
+                { value: "All", label: "All Status" },
+                ...Object.keys(DEFECT_STATUS).map(s => ({
+                  value: s,
+                  label: s,
+                })),
+              ]}
+              onChange={value => setDefStatusFilter(value)}
+            />
+          </div>
+          <div className="filter-wrapper">
+            <FilterDropdown
+              width={150}
+              value={defPriFilter}
+              placeholder="All"
+              options={[
+                { value: "All", label: "All Priority" },
+                ...Object.keys(PRIORITY_META).map(p => ({
+                  value: p,
+                  label: p,
+                })),
+              ]}
+              onChange={value => setDefPriFilter(value)}
+            /></div>
+          <div className="filter-wrapper">
+            <FilterDropdown
+              width={120}
+              value={defMarketFilter}
+              placeholder="All"
+              options={[
+                { value: "All", label: "All Market" },
+                ...Array.from(
+                  new Set(
+                    defects
+                      .map(d => d.market)
+                      .filter(Boolean)
+                  )
+                )
+                  .sort()
+                  .map(m => ({
+                    value: m,
+                    label: m,
+                  })),
+              ]}
+              onChange={value => setDefMarketFilter(value)}
+            /></div>
+          <div className="filter-wrapper">
+            <FilterDropdown
+              width={450}
+              value={defPlanFilter}
+              placeholder="All Test Plans"
+              options={[
+                {
+                  value: "All",
+                  label: "All Test Plans",
+                },
+                ...projects.flatMap(p =>
+                  (p.testPlans || []).map(tp => ({
+                    value: String(tp.id),
+                    label: `${p.name} - ${tp.name}`,
+                  }))
+                ),
+              ]}
+              onChange={value => setDefPlanFilter(value)}
+            /></div>
 
           <button
             onClick={() => {
@@ -181,16 +202,31 @@ export default function Defects({
           {filteredDefects.length > 0 && (
             <button
               onClick={() => {
-                if (selectedDefectIds.length === filteredDefects.length) {
-                  setSelectedDefectIds([]);
+                const pageIds = pagedDefects.map(def => def.id);
+
+                const allSelected = pageIds.every(id =>
+                  selectedDefectIds.includes(id)
+                );
+
+                if (allSelected) {
+                  setSelectedDefectIds(prev =>
+                    prev.filter(id => !pageIds.includes(id))
+                  );
                 } else {
-                  setSelectedDefectIds(filteredDefects.map(def => def.id));
+                  setSelectedDefectIds(prev => [
+                    ...new Set([
+                      ...prev,
+                      ...pageIds
+                    ])
+                  ]);
                 }
               }}
               className="reset-btn"
             >
               <CheckCheck size={15} />
-              {selectedDefectIds.length === filteredDefects.length ? "Clear Selection" : "Select All"}
+              {pagedDefects.every(def => selectedDefectIds.includes(def.id))
+                ? "Clear Selection"
+                : "Select All"}
               {selectedDefectIds.length > 0 && (
                 <span
                   style={{
@@ -263,8 +299,26 @@ export default function Defects({
               <th style={{ padding: "12px 16px", width: 40 }}>
                 <input
                   type="checkbox"
-                  checked={filteredDefects.length > 0 && selectedDefectIds.length === filteredDefects.length}
-                  onChange={e => setSelectedDefectIds(e.target.checked ? filteredDefects.map(def => def.id) : [])}
+                  checked={
+                    pagedDefects.length > 0 &&
+                    pagedDefects.every(def => selectedDefectIds.includes(def.id))
+                  }
+                  onChange={e => {
+                    if (e.target.checked) {
+                      setSelectedDefectIds(prev => [
+                        ...new Set([
+                          ...prev,
+                          ...pagedDefects.map(def => def.id)
+                        ])
+                      ]);
+                    } else {
+                      setSelectedDefectIds(prev =>
+                        prev.filter(id =>
+                          !pagedDefects.some(def => def.id === id)
+                        )
+                      );
+                    }
+                  }}
                   style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
                 />
               </th>
@@ -315,15 +369,17 @@ export default function Defects({
           <tbody>
             {defects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects logged</td></tr>}
             {defects.length > 0 && filteredDefects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects match current filters</td></tr>}
-            {sortedFilteredDefects.map((def, i) => {
+            {pagedDefects.map((def, i) => {
+
+              const rowIndex = (currentPage - 1) * pageSize + i;
               const aged = agedDays(def.dateRaised);
               const isSelected = selectedDefectIds.includes(def.id);
               return (
                 <tr key={def.id}
                   onContextMenu={e => { if (canWrite) { e.preventDefault(); setContextMenu({ type: "defect", item: def, x: e.clientX, y: e.clientY }); } }}
-                  style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
+                  style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : rowIndex % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
                   onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f0f4ff"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa"; }}>
+                  onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : rowIndex % 2 === 0 ? "#fff" : "#fafafa"; }}>
                   <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
                     <input
                       type="checkbox"
@@ -374,32 +430,31 @@ export default function Defects({
                   <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
                     {canUpdateDefectPriority ? (
                       <select
-  value={def.priority || ""}
-  onChange={e => {
-    e.stopPropagation();
-    updateDefPriority(def.id, e.target.value);
-  }}
-  onClick={e => e.stopPropagation()}
-  style={{
-    ...inp,
-    minWidth: 120,
-    fontSize: 13,
-    padding: "6px 8px",
+                        value={def.priority || ""}
+                        onChange={e => {
+                          e.stopPropagation();
+                          updateDefPriority(def.id, e.target.value);
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                          ...inp,
+                          minWidth: 120,
+                          fontSize: 13,
+                          padding: "6px 8px",
 
-    background: PRIORITY_META[def.priority]?.bg || inp.background,
-    color: PRIORITY_META[def.priority]?.text || inp.color,
-    border: `1.5px solid ${
-      PRIORITY_META[def.priority]?.border || "#e2e8f0"
-    }`,
-    fontWeight: 700,
-  }}
->
-  {Object.keys(PRIORITY_META).map(priority => (
-    <option key={priority} value={priority}>
-      {priority}
-    </option>
-  ))}
-</select>
+                          background: PRIORITY_META[def.priority]?.bg || inp.background,
+                          color: PRIORITY_META[def.priority]?.text || inp.color,
+                          border: `1.5px solid ${PRIORITY_META[def.priority]?.border || "#e2e8f0"
+                            }`,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {Object.keys(PRIORITY_META).map(priority => (
+                          <option key={priority} value={priority}>
+                            {priority}
+                          </option>
+                        ))}
+                      </select>
                     ) : (
                       <div onClick={() => setViewDef(def)}><PriBadge label={def.priority} /></div>
                     )}
@@ -440,6 +495,13 @@ export default function Defects({
             })}
           </tbody>
         </table>
+        <Pagination
+          totalItems={sortedFilteredDefects.length}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          setCurrentPage={setCurrentPage}
+          setPageSize={setPageSize}
+        />
       </div>
     </div>
   );

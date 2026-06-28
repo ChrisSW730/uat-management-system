@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Search,
   X,
@@ -8,6 +8,7 @@ import { TEST_CASE_PRIORITIES } from "../constants";
 import { PriBadge } from "./ui/Badge";
 import "../styles/Projects.css";
 import FilterDropdown from "./ui/FilterDropdown";
+import Pagination from "./ui/Pagination";
 
 
 export default function TestCases(props) {
@@ -74,6 +75,24 @@ export default function TestCases(props) {
     setNewTC
   } = props;
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const pagedTestCases = sortedFilteredTC.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    tcSearch,
+    tcCatFilter,
+    tcPriFilter,
+    selectedProjectId,
+    selectedTestPlanId,
+    tcSortCol,
+    tcSortDir
+  ]);
   return (
     <div style={{ padding: "20px 2.5%" }}>
       {/* toolbar */}
@@ -219,15 +238,32 @@ export default function TestCases(props) {
           {filteredTC.length > 0 && (
             <button
               onClick={() => {
-                if (selectedTcIds.length === filteredTC.length) {
-                  setSelectedTcIds([]);
+                const pageIds = pagedTestCases.map(tc => tc.id);
+
+                const allSelected = pageIds.every(id =>
+                  selectedTcIds.includes(id)
+                );
+
+                if (allSelected) {
+                  // Unselect only current page
+                  setSelectedTcIds(prev =>
+                    prev.filter(id => !pageIds.includes(id))
+                  );
                 } else {
-                  setSelectedTcIds(filteredTC.map(tc => tc.id));
+                  // Select only current page
+                  setSelectedTcIds(prev => [
+                    ...new Set([
+                      ...prev,
+                      ...pageIds
+                    ])
+                  ]);
                 }
               }}
               className="reset-btn">
               <CheckCheck size={15} />
-              {selectedTcIds.length === filteredTC.length ? "Clear Selection" : "Select All"}
+              {pagedTestCases.every(tc => selectedTcIds.includes(tc.id))
+                ? "Clear Selection"
+                : "Select All"}
               {selectedTcIds.length > 0 && (
                 <span
                   style={{
@@ -337,8 +373,26 @@ export default function TestCases(props) {
             <tr style={{ background: "#e2ebf3", borderBottom: "2px solid #f1f5f9" }}>
               <th style={{ padding: "12px 16px", width: 40 }}>
                 <input type="checkbox"
-                  checked={selectedTcIds.length === filteredTC.length && filteredTC.length > 0}
-                  onChange={e => setSelectedTcIds(e.target.checked ? filteredTC.map(tc => tc.id) : [])}
+                  checked={
+                    pagedTestCases.length > 0 &&
+                    pagedTestCases.every(tc => selectedTcIds.includes(tc.id))
+                  }
+                  onChange={e => {
+                    if (e.target.checked) {
+                      setSelectedTcIds(prev => [
+                        ...new Set([
+                          ...prev,
+                          ...pagedTestCases.map(tc => tc.id)
+                        ])
+                      ]);
+                    } else {
+                      setSelectedTcIds(prev =>
+                        prev.filter(id =>
+                          !pagedTestCases.some(tc => tc.id === id)
+                        )
+                      );
+                    }
+                  }}
                   style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
                 />
               </th>
@@ -352,7 +406,8 @@ export default function TestCases(props) {
           </thead>
           <tbody>
             {sortedFilteredTC.length === 0 && <tr><td colSpan={9} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No test cases found</td></tr>}
-            {sortedFilteredTC.map((tc, i) => {
+            {pagedTestCases.map((tc, i) => {
+              const rowIndex = (currentPage - 1) * pageSize + i;
               const isSelected = selectedTcIds.includes(tc.id);
               const planMeta = tc.testPlanId ? testPlanMetaById[tc.testPlanId] : null;
               const coveredRuns = runs.filter(run =>
@@ -363,9 +418,9 @@ export default function TestCases(props) {
               return (
                 <tr key={tc.id}
                   onContextMenu={e => { if (canWrite) { e.preventDefault(); setContextMenu({ type: "tc", item: tc, x: e.clientX, y: e.clientY }); } }}
-                  style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
+                  style={{ borderBottom: "1px solid #f8fafc", background: isSelected ? "#eff6ff" : rowIndex % 2 === 0 ? "#fff" : "#fafafa", cursor: "pointer" }}
                   onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f0f4ff"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa"; }}>
+                  onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#eff6ff" : rowIndex % 2 === 0 ? "#fff" : "#fafafa"; }}>
                   <td style={{ padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
                     <input
                       type="checkbox"
@@ -458,6 +513,13 @@ export default function TestCases(props) {
             })}
           </tbody>
         </table>
+        <Pagination
+          totalItems={sortedFilteredTC.length}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          setCurrentPage={setCurrentPage}
+          setPageSize={setPageSize}
+        />
       </div>
     </div>
   );
