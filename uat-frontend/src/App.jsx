@@ -259,6 +259,9 @@ export default function App() {
   const [newRun, setNewRun] = useState(blankRun);
   const [newDef, setNewDef] = useState(blankDef);
 
+  const [userCurrentPage, setUserCurrentPage] = useState(1);
+  const userPageSize = 10;
+
   const addCategory = async () => {
     if (!newCategoryName.trim()) return;
 
@@ -305,6 +308,10 @@ export default function App() {
       return old;
     });
   }, [categories]);
+
+  useEffect(() => {
+    setUserCurrentPage(1);
+  }, [userSearch, userRoleFilter, userActiveFilter]);
 
   const TABS = [
     ["dashboard", <LayoutDashboard size={18} />, "Dashboard"],
@@ -1169,7 +1176,18 @@ export default function App() {
     });
 
     return sorted;
+
   }, [users, userSearch, userRoleFilter, userActiveFilter, userSortCol, userSortDir]);
+
+  const totalUserPages = Math.max(
+    1,
+    Math.ceil(filteredSortedUsers.length / userPageSize)
+  );
+
+  const currentUsers = filteredSortedUsers.slice(
+    (userCurrentPage - 1) * userPageSize,
+    userCurrentPage * userPageSize
+  );
 
   function toggleUserSort(col) {
     if (userSortCol === col) {
@@ -3330,6 +3348,11 @@ linear-gradient(
               deleteUserAccount={deleteUserAccount}
               xBtn={xBtn}
               toInputDate={toInputDate}
+              currentPage={userCurrentPage}
+              pageSize={userPageSize}
+              currentUsers={currentUsers}
+              totalPages={totalUserPages}
+              setCurrentPage={setUserCurrentPage}
             />
           )}
 
@@ -3804,13 +3827,13 @@ linear-gradient(
                     })()}
 
                     {canWrite && <AddTcToRunRow
-    testCases={allTestCases}
-    runs={runs}
-    run={viewRun}
-    onAdd={tcId => addTcToRun(viewRun.id, tcId)}
-    entryStatusFilter={execStatusFilter}
-    setEntryStatusFilter={setExecStatusFilter}
-/>}
+                      testCases={allTestCases}
+                      runs={runs}
+                      run={viewRun}
+                      onAdd={tcId => addTcToRun(viewRun.id, tcId)}
+                      entryStatusFilter={execStatusFilter}
+                      setEntryStatusFilter={setExecStatusFilter}
+                    />}
 
                     <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
                       {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases found with the selected status.</div>}
@@ -4886,9 +4909,9 @@ function AddTcToRunRow({ testCases, runs, run, onAdd, entryStatusFilter, setEntr
   const available = testCases.filter(tc => !existing.includes(tc.id));
   const filtered = available.filter(tc => {
     const matchSearch =
-        !searchTerm.trim() ||
-        tc.tcNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tc.name.toLowerCase().includes(searchTerm.toLowerCase());
+      !searchTerm.trim() ||
+      tc.tcNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tc.name.toLowerCase().includes(searchTerm.toLowerCase());
 
     return matchSearch;
   });
@@ -4914,96 +4937,96 @@ function AddTcToRunRow({ testCases, runs, run, onAdd, entryStatusFilter, setEntr
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap" }}>+ Add TC:</span>
         <div
-  ref={wrapRef}
-  style={{
-    flex: 1,
-    position: "relative"
-  }}
->
-  <input
-    value={searchTerm}
-    onChange={e => {
-      setSearchTerm(e.target.value);
-      setOpen(true);
-    }}
-    onFocus={() => setOpen(true)}
-    placeholder="Search and select a test case..."
-    style={{
-      width: "100%",
-      background: "#fff",
-      border: "1.5px solid #e2e8f0",
-      borderRadius: 7,
-      padding: "6px 10px",
-      fontSize: 12,
-      outline: "none",
-      fontFamily: "inherit"
-    }}
-  />
-
-  {open && filtered.length > 0 && (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        top: "calc(100% + 4px)",
-        background: "#fff",
-        border: "1.5px solid #e2e8f0",
-        borderRadius: 8,
-        boxShadow: "0 4px 16px rgba(0,0,0,.1)",
-        zIndex: 9999,
-        maxHeight: 220,
-        overflowY: "auto"
-      }}
-    >
-      {filtered.map(tc => (
-        <div
-          key={tc.id}
-          onMouseDown={() => handleSelect(tc)}
+          ref={wrapRef}
           style={{
-            padding: "8px 12px",
-            fontSize: 12,
-            cursor: "pointer",
-            borderBottom: "1px solid #f1f5f9"
+            flex: 1,
+            position: "relative"
           }}
         >
-          <span
-            style={{
-              fontWeight: 700,
-              color: "#6366f1",
-              marginRight: 6
+          <input
+            value={searchTerm}
+            onChange={e => {
+              setSearchTerm(e.target.value);
+              setOpen(true);
             }}
-          >
-            {tc.tcNumber}
-          </span>
-          {tc.name.slice(0, 70)}
-        </div>
-      ))}
-    </div>
-  )}
+            onFocus={() => setOpen(true)}
+            placeholder="Search and select a test case..."
+            style={{
+              width: "100%",
+              background: "#fff",
+              border: "1.5px solid #e2e8f0",
+              borderRadius: 7,
+              padding: "6px 10px",
+              fontSize: 12,
+              outline: "none",
+              fontFamily: "inherit"
+            }}
+          />
 
-  {open && filtered.length === 0 && searchTerm.trim() && (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        top: "calc(100% + 4px)",
-        background: "#fff",
-        border: "1.5px solid #e2e8f0",
-        borderRadius: 8,
-        padding: "10px 14px",
-        zIndex: 9999
-      }}
-    >
-      No matching test cases.
-    </div>
-  )}
-</div>
+          {open && filtered.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: "calc(100% + 4px)",
+                background: "#fff",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: 8,
+                boxShadow: "0 4px 16px rgba(0,0,0,.1)",
+                zIndex: 9999,
+                maxHeight: 220,
+                overflowY: "auto"
+              }}
+            >
+              {filtered.map(tc => (
+                <div
+                  key={tc.id}
+                  onMouseDown={() => handleSelect(tc)}
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    borderBottom: "1px solid #f1f5f9"
+                  }}
+                >
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: "#6366f1",
+                      marginRight: 6
+                    }}
+                  >
+                    {tc.tcNumber}
+                  </span>
+                  {tc.name.slice(0, 70)}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {open && filtered.length === 0 && searchTerm.trim() && (
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: "calc(100% + 4px)",
+                background: "#fff",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: 8,
+                padding: "10px 14px",
+                zIndex: 9999
+              }}
+            >
+              No matching test cases.
+            </div>
+          )}
+        </div>
         <select
-        value={entryStatusFilter || "All"}
-        onChange={e => setEntryStatusFilter(e.target.value)}
-        style={{
+          value={entryStatusFilter || "All"}
+          onChange={e => setEntryStatusFilter(e.target.value)}
+          style={{
             width: 150,
             height: 30,
             padding: "8px 12px",
@@ -5013,17 +5036,17 @@ function AddTcToRunRow({ testCases, runs, run, onAdd, entryStatusFilter, setEntr
             fontSize: 12,
             background: "#fff",
             cursor: "pointer"
-        }}
-    >
-        <option value="All">All Status</option>
-        <option value="Passed">Passed</option>
-        <option value="Failed">Failed</option>
-        <option value="Blocked">Blocked</option>
-        <option value="Deferred">Deferred</option>
-        <option value="Skip">Skip</option>
-        <option value="Invalid">Invalid</option>
-        <option value="Not Run">Not Run</option>
-    </select>
+          }}
+        >
+          <option value="All">All Status</option>
+          <option value="Passed">Passed</option>
+          <option value="Failed">Failed</option>
+          <option value="Blocked">Blocked</option>
+          <option value="Deferred">Deferred</option>
+          <option value="Skip">Skip</option>
+          <option value="Invalid">Invalid</option>
+          <option value="Not Run">Not Run</option>
+        </select>
       </div>
     </div>
   );
