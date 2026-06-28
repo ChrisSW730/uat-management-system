@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, CircleUser, Lock } from "lucide-react";
 import DiamondMark from "./ui/DiamondMark";
 import loginBg from "../../public/login.png";
 
@@ -25,7 +25,18 @@ export default function LoginScreen({ username, password, rememberMe, error, bus
             <div>
               <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 700, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase" }}>Username</label>
               <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 16, zIndex: 2, pointerEvents: "none" }}>👤</span>
+                <CircleUser
+  size={16}
+  style={{
+    position: "absolute",
+    left: 16,
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#94a3b8",
+    zIndex: 2,
+    pointerEvents: "none",
+  }}
+/>
                 <input
                   value={username}
                   onChange={e => onUsernameChange(e.target.value)}
@@ -39,7 +50,18 @@ export default function LoginScreen({ username, password, rememberMe, error, bus
             <div>
               <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 700, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase" }}>Password</label>
               <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 16, zIndex: 2, pointerEvents: "none" }}>🔒</span>
+                <Lock
+  size={16}
+  style={{
+    position: "absolute",
+    left: 16,
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#94a3b8",
+    zIndex: 2,
+    pointerEvents: "none",
+  }}
+/>
                 <input
                   type={showPw ? "text" : "password"}
                   value={password}
