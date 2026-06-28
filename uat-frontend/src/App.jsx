@@ -52,6 +52,8 @@ import Defects from "./components/Defects";
 import DefectModals from "./components/DefectModals";
 import TestCaseModals from "./components/TestCaseModals";
 import UsersTab from "./components/Users";
+import "./styles/Projects.css";
+import FilterDropdown from "./components/ui/FilterDropdown";
 
 function getInitialDefectLinkId() {
   try {
@@ -3576,18 +3578,16 @@ linear-gradient(
             <Modal onClose={() => setViewRun(null)} wide>
               {(() => {
                 const filteredRunEntries = (viewRun.entries || []).filter(entry => {
+                  const normalizedEntryStatus = normalizeExecStatus(entry.execStatus);
+                  const normalizedFilter = normalizeExecStatus(execStatusFilter);
+
                   if (execStatusFilter === "All") return true;
 
-                  if (execStatusFilter === "Passed")
-                    return entry.execStatus === "Pass" || entry.execStatus === "Passed";
+                  if (normalizedFilter === "Passed") return normalizedEntryStatus === "Passed";
+                  if (normalizedFilter === "Failed") return normalizedEntryStatus === "Failed";
+                  if (normalizedFilter === "Blocked") return normalizedEntryStatus === "Blocked";
 
-                  if (execStatusFilter === "Failed")
-                    return entry.execStatus === "Fail" || entry.execStatus === "Failed";
-
-                  if (execStatusFilter === "Blocked")
-                    return entry.execStatus === "Blocked";
-
-                  return entry.execStatus === execStatusFilter;
+                  return normalizedEntryStatus === normalizedFilter;
                 });
 
                 const sortedRunEntries = sortRunEntriesByTestCaseId(filteredRunEntries);
@@ -3803,10 +3803,17 @@ linear-gradient(
                       );
                     })()}
 
-                    {canWrite && <AddTcToRunRow testCases={allTestCases} run={viewRun} onAdd={tcId => addTcToRun(viewRun.id, tcId)} />}
+                    {canWrite && <AddTcToRunRow
+    testCases={allTestCases}
+    runs={runs}
+    run={viewRun}
+    onAdd={tcId => addTcToRun(viewRun.id, tcId)}
+    entryStatusFilter={execStatusFilter}
+    setEntryStatusFilter={setExecStatusFilter}
+/>}
 
                     <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-                      {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases in this run yet.</div>}
+                      {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases found with the selected status.</div>}
                       {sortedRunEntries.map(entry => {
                         const tc = allTestCaseById[entry.testCaseId];
                         const ec = EXEC_STATUS[entry.execStatus] || EXEC_STATUS["Not Run"];
@@ -4848,19 +4855,43 @@ function StatChip({ label, value, color, bg }) {
   );
 }
 
-function AddTcToRunRow({ testCases, run, onAdd }) {
+function normalizeExecStatus(value) {
+  if (value === null || value === undefined) return "Not Run";
+
+  const normalized = String(value).trim().toLowerCase();
+  const aliases = {
+    pass: "Passed",
+    passed: "Passed",
+    fail: "Failed",
+    failed: "Failed",
+    blocked: "Blocked",
+    deferred: "Deferred",
+    skip: "Skip",
+    invalid: "Invalid",
+    "not run": "Not Run",
+    "notrun": "Not Run",
+    "n/a": "Not Run",
+    "": "Not Run",
+  };
+
+  return aliases[normalized] || String(value).trim();
+}
+
+function AddTcToRunRow({ testCases, runs, run, onAdd, entryStatusFilter, setEntryStatusFilter }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
 
   const existing = (run.entries || []).map(e => e.testCaseId);
   const available = testCases.filter(tc => !existing.includes(tc.id));
-  const filtered = searchTerm.trim()
-    ? available.filter(tc =>
-      tc.tcNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tc.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    : available;
+  const filtered = available.filter(tc => {
+    const matchSearch =
+        !searchTerm.trim() ||
+        tc.tcNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tc.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchSearch;
+  });
 
   useEffect(() => {
     function handleClick(e) {
@@ -4882,44 +4913,118 @@ function AddTcToRunRow({ testCases, run, onAdd }) {
     <div ref={wrapRef} style={{ position: "relative", background: "#f8fafc", border: "1.5px dashed #e2e8f0", borderRadius: 10, padding: "10px 14px" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap" }}>+ Add TC:</span>
-        <input
-          value={searchTerm}
-          onChange={e => { setSearchTerm(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          placeholder="Search and select a test case…"
-          style={{ flex: 1, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 7, padding: "6px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }}
-        />
+        <div
+  ref={wrapRef}
+  style={{
+    flex: 1,
+    position: "relative"
+  }}
+>
+  <input
+    value={searchTerm}
+    onChange={e => {
+      setSearchTerm(e.target.value);
+      setOpen(true);
+    }}
+    onFocus={() => setOpen(true)}
+    placeholder="Search and select a test case..."
+    style={{
+      width: "100%",
+      background: "#fff",
+      border: "1.5px solid #e2e8f0",
+      borderRadius: 7,
+      padding: "6px 10px",
+      fontSize: 12,
+      outline: "none",
+      fontFamily: "inherit"
+    }}
+  />
+
+  {open && filtered.length > 0 && (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: "calc(100% + 4px)",
+        background: "#fff",
+        border: "1.5px solid #e2e8f0",
+        borderRadius: 8,
+        boxShadow: "0 4px 16px rgba(0,0,0,.1)",
+        zIndex: 9999,
+        maxHeight: 220,
+        overflowY: "auto"
+      }}
+    >
+      {filtered.map(tc => (
+        <div
+          key={tc.id}
+          onMouseDown={() => handleSelect(tc)}
+          style={{
+            padding: "8px 12px",
+            fontSize: 12,
+            cursor: "pointer",
+            borderBottom: "1px solid #f1f5f9"
+          }}
+        >
+          <span
+            style={{
+              fontWeight: 700,
+              color: "#6366f1",
+              marginRight: 6
+            }}
+          >
+            {tc.tcNumber}
+          </span>
+          {tc.name.slice(0, 70)}
+        </div>
+      ))}
+    </div>
+  )}
+
+  {open && filtered.length === 0 && searchTerm.trim() && (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: "calc(100% + 4px)",
+        background: "#fff",
+        border: "1.5px solid #e2e8f0",
+        borderRadius: 8,
+        padding: "10px 14px",
+        zIndex: 9999
+      }}
+    >
+      No matching test cases.
+    </div>
+  )}
+</div>
+        <select
+        value={entryStatusFilter || "All"}
+        onChange={e => setEntryStatusFilter(e.target.value)}
+        style={{
+            width: 150,
+            height: 30,
+            padding: "8px 12px",
+            border: "1px solid #cbd5e1",
+            borderRadius: 7,
+            color: "#94a3b8",
+            fontSize: 12,
+            background: "#fff",
+            cursor: "pointer"
+        }}
+    >
+        <option value="All">All Status</option>
+        <option value="Passed">Passed</option>
+        <option value="Failed">Failed</option>
+        <option value="Blocked">Blocked</option>
+        <option value="Deferred">Deferred</option>
+        <option value="Skip">Skip</option>
+        <option value="Invalid">Invalid</option>
+        <option value="Not Run">Not Run</option>
+    </select>
       </div>
-      {open && filtered.length > 0 && (
-        <div style={{
-          position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)",
-          background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8,
-          boxShadow: "0 4px 16px rgba(0,0,0,0.10)", zIndex: 200,
-          maxHeight: 220, overflowY: "auto",
-        }}>
-          {filtered.map(tc => (
-            <div
-              key={tc.id}
-              onMouseDown={() => handleSelect(tc)}
-              style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", borderBottom: "1px solid #f1f5f9", color: "#0f172a" }}
-              onMouseEnter={e => e.currentTarget.style.background = "#f0f4ff"}
-              onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-            >
-              <span style={{ fontWeight: 700, color: "#6366f1", marginRight: 6 }}>{tc.tcNumber}</span>
-              {tc.name.slice(0, 70)}
-            </div>
-          ))}
-        </div>
-      )}
-      {open && filtered.length === 0 && searchTerm.trim() && (
-        <div style={{
-          position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)",
-          background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8,
-          padding: "10px 14px", fontSize: 12, color: "#94a3b8", zIndex: 200,
-        }}>
-          No matching test cases.
-        </div>
-      )}
     </div>
   );
 }
