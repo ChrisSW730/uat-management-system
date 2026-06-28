@@ -1,4 +1,6 @@
-import { Search, X } from "lucide-react";
+import { Search, X, Plus, RotateCcw } from "lucide-react";
+import "../styles/Projects.css";
+import FilterDropdown from "./ui/FilterDropdown";
 
 export default function UsersTab(props) {
 	const {
@@ -29,77 +31,83 @@ export default function UsersTab(props) {
 
 	return (
 		<div style={{ padding: "20px 2.5%" }}>
-			<div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
-				<button onClick={openAddUser} style={btnP}>+ Add User</button>
-				<div style={{ position: "relative" }}>
-					<Search
-						size={16}
-						style={{
-							position: "absolute",
-							left: 12,
-							top: "50%",
-							transform: "translateY(-50%)",
-							color: "#94a3b8",
-							pointerEvents: "none",
-						}}
-					/>
+			<div className="projects-toolbar">
 
-					<input
-						placeholder="Search username, display name, role..."
-						value={userSearch}
-						onChange={e => setUserSearch(e.target.value)}
-						style={{
-							...inp,
-							width: 300,
-							paddingLeft: 38,
-							paddingRight: 36,
-						}}
-					/>
+    <div className="toolbar-left">
 
-					{userSearch && (
-						<button
-							onClick={() => setUserSearch("")}
-							title="Clear search"
-							style={{
-								position: "absolute",
-								right: 10,
-								top: "50%",
-								transform: "translateY(-50%)",
-								border: "none",
-								background: "transparent",
-								cursor: "pointer",
-								padding: 0,
-								display: "flex",
-								alignItems: "center",
-								color: "#94a3b8",
-							}}
-						>
-							<X size={14} />
-						</button>
-					)}
-				</div>
-				<select value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)} style={{ ...inp, width: 170 }}>
-					<option value="All">All Roles</option>
-					{["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => <option key={role}>{role}</option>)}
-				</select>
-				<select value={userActiveFilter} onChange={e => setUserActiveFilter(e.target.value)} style={{ ...inp, width: 140 }}>
-					<option value="All">All Status</option>
-					<option value="Active">Active</option>
-					<option value="Inactive">Inactive</option>
-				</select>
-				<button
-					onClick={() => {
-						setUserSearch("");
-						setUserRoleFilter("All");
-						setUserActiveFilter("All");
-						setUserSortCol("username");
-						setUserSortDir("asc");
-					}}
-					style={btnS}
-				>
-					Clear
-				</button>
-			</div>
+        <div className="search-box">
+            <Search size={18} />
+
+            <input
+                placeholder="Search username, display name, role..."
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+            />
+
+            {userSearch && (
+                <button
+                    onClick={() => setUserSearch("")}
+                    className="clear-search-btn"
+                >
+                    <X size={14} />
+                </button>
+            )}
+        </div>
+
+        <div className="filter-wrapper">
+            <FilterDropdown
+                width={170}
+                value={userRoleFilter}
+                placeholder="All Roles"
+                options={[
+                    { value: "All", label: "All Roles" },
+                    ...["Admin", "Test Lead", "Tester", "Developer", "Viewer"].map(role => ({
+                        value: role,
+                        label: role,
+                    })),
+                ]}
+                onChange={setUserRoleFilter}
+            />
+        </div>
+
+        <div className="filter-wrapper">
+            <FilterDropdown
+                width={140}
+                value={userActiveFilter}
+                placeholder="All Status"
+                options={[
+                    { value: "All", label: "All Status" },
+                    { value: "Active", label: "Active" },
+                    { value: "Inactive", label: "Inactive" },
+                ]}
+                onChange={setUserActiveFilter}
+            />
+        </div>
+
+        <button
+            className="reset-btn"
+            onClick={() => {
+                setUserSearch("");
+                setUserRoleFilter("All");
+                setUserActiveFilter("All");
+                setUserSortCol("username");
+                setUserSortDir("asc");
+            }}
+        >
+            <RotateCcw size={16} />
+            Reset
+        </button>
+
+    </div>
+
+    <div className="toolbar-right">
+        <button className="primary-btn" onClick={openAddUser}>
+            <Plus size={16} />
+            Add User
+        </button>
+    </div>
+
+</div>
 			<div style={{ marginBottom: 12, color: "#64748b", fontSize: 13, fontWeight: 700 }}>Showing {filteredSortedUsers.length} of {users.length} users</div>
 			<div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
 				<table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>

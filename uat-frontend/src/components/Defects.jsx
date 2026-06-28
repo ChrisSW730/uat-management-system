@@ -96,7 +96,7 @@ export default function Defects({
     value={defStatusFilter}
     placeholder="All"
     options={[
-        { value: "All", label: "All" },
+        { value: "All", label: "All Status" },
         ...Object.keys(DEFECT_STATUS).map(s => ({
             value: s,
             label: s,
@@ -111,7 +111,7 @@ export default function Defects({
     value={defPriFilter}
     placeholder="All"
     options={[
-        { value: "All", label: "All" },
+        { value: "All", label: "All Priority" },
         ...Object.keys(PRIORITY_META).map(p => ({
             value: p,
             label: p,
@@ -125,7 +125,7 @@ export default function Defects({
     value={defMarketFilter}
     placeholder="All"
     options={[
-        { value: "All", label: "All" },
+        { value: "All", label: "All Market" },
         ...Array.from(
             new Set(
                 defects
