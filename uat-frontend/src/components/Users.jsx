@@ -1,4 +1,4 @@
-import { Search, X, Plus, RotateCcw } from "lucide-react";
+import { Search, X, Plus, RotateCcw, Trash2 } from "lucide-react";
 import "../styles/Projects.css";
 import FilterDropdown from "./ui/FilterDropdown";
 import Pagination from "./ui/Pagination";
@@ -152,19 +152,18 @@ export default function UsersTab(props) {
 								<tr key={user.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
 									<td style={{ padding: "13px 16px", width: 190, minWidth: 190 }}>
 										<div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-											<button onClick={() => openEditUser({ ...user, password: "" })} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>Edit</button>
-											<button
+											<button className="primary-action-btn" onClick={() => openEditUser({ ...user, password: "" })}>Edit</button>
+											<button className="secondary-action-btn"
 												onClick={() => resetUserPassword(user)}
 												disabled={resetCooldown > 0}
 												title={resetCooldown > 0 ? `Wait ${resetCooldown}s before resetting again` : undefined}
-												style={{ ...btnS, padding: "5px 10px", fontSize: 12, borderColor: "#c7d2fe", color: resetCooldown > 0 ? "#a5b4fc" : "#4338ca", opacity: resetCooldown > 0 ? 0.65 : 1, cursor: resetCooldown > 0 ? "not-allowed" : "pointer" }}
 											>
 												{resetCooldown > 0 ? `Reset (${resetCooldown}s)` : "Reset Password"}
 											</button>
-											<button onClick={() => { if (window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }} style={xBtn}>✕</button>
+											<button className="third-action-btn" onClick={() => { if (window.confirm(`Delete ${user.username}?`)) deleteUserAccount(user.id); }}><Trash2 size={15} /></button>
 										</div>
 									</td>
-									<td style={{ padding: "13px 16px", fontWeight: 800, color: "#6366f1" }}>{user.username}</td>
+									<td style={{ padding: "13px 16px", fontWeight: 700, color: "#6366f1" }}>{user.username}</td>
 									<td style={{ padding: "13px 16px", color: "#1e293b", fontWeight: 600 }}>{user.displayName}</td>
 									<td style={{ padding: "13px 16px" }}><span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "3px 8px", borderRadius: 6, fontWeight: 800, fontSize: 12 }}>{user.role}</span></td>
 									<td style={{ padding: "13px 16px" }}>{user.isActive ? "Yes" : "No"}</td>
