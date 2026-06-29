@@ -1459,6 +1459,17 @@ export default function App() {
     } catch (e) { alert("Failed to update run: " + e.message); }
   }
 
+  async function duplicateTestRun(run) {
+    try {
+      const duped = await api.duplicateTestRun(run.id);
+
+      setRuns(p => [...p, duped]);
+      setContextMenu(null);
+    } catch (e) {
+      alert("Failed to duplicate run: " + e.message);
+    }
+  }
+
   async function deleteRuns(ids) {
     try {
       await Promise.all(ids.map(id => api.deleteTestRun(id)));
@@ -3499,6 +3510,8 @@ linear-gradient(
               canWrite={canWrite}
               deleteRuns={deleteRuns}
               exportRuns={exportRuns}
+              duplicateTestRun={duplicateTestRun}
+              setContextMenu={setContextMenu}
               setShowAddRun={setShowAddRun}
               runStats={runStats}
               runStatusPriorityStats={runStatusPriorityStats}
@@ -4816,20 +4829,38 @@ linear-gradient(
           {/* header */}
           <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #f8fafc" }}>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              {contextMenu.type === "tc" ? "Test Case" : "Defect"}
+              {
+                contextMenu.type === "tc"
+                  ? "Test Case"
+                  : contextMenu.type === "defect"
+                    ? "Defect"
+                    : "Test Run"
+              }
             </div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#1e293b", marginTop: 2 }}>
-              {contextMenu.type === "tc"
-                ? contextMenu.item.tcNumber
-                : contextMenu.item.defectNumber}
+              {
+                contextMenu.type === "tc"
+                  ? contextMenu.item.tcNumber
+                  : contextMenu.type === "defect"
+                    ? contextMenu.item.defectNumber
+                    : contextMenu.item.runNumber
+              }
             </div>
           </div>
           {/* actions */}
           <div style={{ padding: "4px 0" }}>
             <button
-              onClick={() => contextMenu.type === "tc"
-                ? duplicateTC(contextMenu.item)
-                : duplicateDefect(contextMenu.item)}
+              onClick={() => {
+                if (contextMenu.type === "tc") {
+                  duplicateTC(contextMenu.item);
+                } else if (contextMenu.type === "defect") {
+                  duplicateDefect(contextMenu.item);
+                } else if (contextMenu.type === "run") {
+                  duplicateTestRun(contextMenu.item);
+                }
+
+                setContextMenu(null);
+              }}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 width: "100%", padding: "9px 14px", background: "none",
@@ -4843,10 +4874,25 @@ linear-gradient(
             {canDelete && <button
               onClick={() => {
                 if (contextMenu.type === "tc") {
-                  if (window.confirm("Delete this test case?")) deleteTestCases([contextMenu.item.id]);
-                } else {
-                  if (window.confirm(`Delete ${contextMenu.item.defectNumber}?`)) deleteDefects([contextMenu.item.id]);
+
+                  if (window.confirm("Delete this test case?")) {
+                    deleteTestCases([contextMenu.item.id]);
+                  }
+
+                } else if (contextMenu.type === "defect") {
+
+                  if (window.confirm(`Delete ${contextMenu.item.defectNumber}?`)) {
+                    deleteDefects([contextMenu.item.id]);
+                  }
+
+                } else if (contextMenu.type === "run") {
+
+                  if (window.confirm(`Delete ${contextMenu.item.runNumber}?`)) {
+                    deleteRuns([contextMenu.item.id]);
+                  }
+
                 }
+
                 setContextMenu(null);
               }}
               style={{

@@ -216,14 +216,14 @@ public class TestRunsController : ControllerBase
         var entry = await _db.TestRunEntries
             .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
         if (entry == null) return NotFound();
-        
+
         // Record timestamp and user if status is changing
         if (entry.ExecStatus != dto.ExecStatus)
         {
             entry.StatusChangedAt = DateTime.UtcNow;
             entry.StatusChangedBy = await GetCommentTesterAsync();
         }
-        
+
         entry.ExecStatus = dto.ExecStatus;
         entry.Comment = dto.Comment;
         await _db.SaveChangesAsync();
@@ -240,6 +240,45 @@ public class TestRunsController : ControllerBase
         _db.TestRuns.Remove(run);
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    [HttpPost("{id}/duplicate")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
+    public async Task<IActionResult> Duplicate(int id)
+    {
+        var original = await _db.TestRuns
+            .Include(r => r.Entries)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (original == null)
+            return NotFound();
+
+        var count = await _db.TestRuns.CountAsync();
+
+        var copy = new TestRun
+        {
+            RunNumber = $"RUN-{(count + 1):D3}",
+            Name = original.Name + " (Copy)",
+            Tester = original.Tester,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        foreach (var entry in original.Entries)
+        {
+            copy.Entries.Add(new TestRunEntry
+            {
+                TestCaseId = entry.TestCaseId,
+
+                // Reset execution
+                ExecStatus = "Not Run",
+                Comment = "",
+            });
+        }
+
+        _db.TestRuns.Add(copy);
+        await _db.SaveChangesAsync();
+
+        return Ok(copy);
     }
 }
 

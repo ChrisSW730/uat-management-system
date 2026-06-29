@@ -271,25 +271,25 @@ export const api = {
     return await response.json();
   },
   deleteTestCase: (id) => fetch(`${BASE}/testcases/${id}`, {
-  method: "DELETE"
+    method: "DELETE"
   }),
-	async updateTestCase(id, data) {
-	  const response = await fetch(
-    `${BASE}/testcases/${id}`,
-		{
-		  method: "PUT",
-		  headers: {
-			"Content-Type": "application/json"
-		  },
-		  body: JSON.stringify(data)
-		}
-	  );
+  async updateTestCase(id, data) {
+    const response = await fetch(
+      `${BASE}/testcases/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      }
+    );
 
-	  if (!response.ok) {
-		throw new Error("Failed to update test case");
-	  }
+    if (!response.ok) {
+      throw new Error("Failed to update test case");
+    }
 
-	  return await response.json();
+    return await response.json();
   },
   getTestCaseAttachments: (id) => fetch(`${BASE}/testcases/${id}/attachments`).then(r => r.json()),
   uploadTestCaseAttachments: (id, files, uploadedBy) => {
@@ -354,6 +354,9 @@ export const api = {
   }).then(async r => {
     if (!r.ok) throw new Error(await r.text());
   }),
+  duplicateTestRun: (id) => fetch(`${BASE}/testruns/${id}/duplicate`, {
+    method: "POST"
+  }).then(r => r.json()),
 
   // Defects
   getDefects: () => fetch(`${BASE}/defects`).then(r => r.json()),

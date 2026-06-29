@@ -21,6 +21,7 @@ export default function TestRuns(props) {
 		canWrite,
 		deleteRuns,
 		exportRuns,
+		duplicateTestRun,
 		setShowAddRun,
 		runStats,
 		runStatusPriorityStats,
@@ -39,6 +40,8 @@ export default function TestRuns(props) {
 		setRunPlanId,
 		runProjectPlans,
 		runFilteredTestCases,
+		contextMenu,
+setContextMenu,
 	} = props;
 
 	return (
@@ -254,6 +257,16 @@ export default function TestRuns(props) {
 								setHoveredRunId(null);
 							}}
 							onClick={() => setViewRun(run)}
+							onContextMenu={e => {
+    e.preventDefault();
+
+    setContextMenu({
+        type: "run",
+        item: run,
+        x: e.clientX,
+        y: e.clientY
+    });
+}}
 						>
 							<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
 								<div>
