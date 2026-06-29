@@ -3048,8 +3048,8 @@ linear-gradient(
                     <DiamondMark size={24} outer="#ffffff" inner="#4f46e5" stroke={4} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 18, fontWeight: 750, color: "#fff", lineHeight: 1.2 }}>TMS</div>
-                    <div style={{ fontSize: 12, color: "#8892a4", fontWeight: 500 }}>Test Management System</div>
+                    <div style={{ fontSize: 18, fontWeight: 750, color: "#fff", lineHeight: 1.1 }}>PeekQA</div>
+                    <div style={{ fontSize: 11, color: "#8892a4", fontWeight: 500 }}>Test Management System</div>
                   </div>
                 </div>
                 <button onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar"
