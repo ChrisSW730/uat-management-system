@@ -390,8 +390,8 @@ export default function Defects({
                   </td>
                   <td style={{ padding: "13px 16px", width: 220, minWidth: 220 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                      <button onClick={() => setViewDef(def)} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>View</button>
-                      {canWrite && <button
+                      <button className="primary-action-btn" onClick={() => setViewDef(def)}>View</button>
+                      {canWrite && <button className="secondary-action-btn"
                         onClick={() => setEditDef({
                           ...def,
                           dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
@@ -399,20 +399,19 @@ export default function Defects({
                           linkedRunId: runs.find(r => r.runNumber === def.runNumber)?.id || "",
                           linkedTestCaseId: allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || "",
                         })}
-                        style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
+                        
                       >
                         Edit
                       </button>}
-                      {canDelete && <button
+                      {canDelete && <button className="third-action-btn"
                         onClick={() => {
                           if (window.confirm(`Delete ${def.defectNumber}?`)) {
                             deleteDefects([def.id]);
                           }
                         }}
-                        style={xBtn}
                         title="Delete"
                       >
-                        ✕
+                        <Bin size={15} />
                       </button>}
                     </div>
                   </td>

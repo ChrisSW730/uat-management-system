@@ -431,14 +431,14 @@ export default function TestCases(props) {
                   </td>
                   <td style={{ padding: "13px 16px", width: 180, minWidth: 180 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                      <button onClick={() => setViewTC(tc)} style={{ ...btnS, padding: "5px 12px", fontSize: 14 }}>View</button>
+                      <button className="primary-action-btn" onClick={() => setViewTC(tc)}>View</button>
                       {canWrite && <button
+                        className="secondary-action-btn"
                         onClick={() => setEditTC({
                           ...tc,
                           expected: tc.expectedResult,
                           testScopeId: tc.testScopeId ? String(tc.testScopeId) : ""
                         })}
-                        style={{ ...btnP, padding: "5px 12px", fontSize: 14 }}
                       >
                         Edit
                       </button>}
@@ -446,10 +446,10 @@ export default function TestCases(props) {
                         onClick={() => {
                           if (window.confirm(`Delete ${tc.tcNumber}?`)) deleteTestCases([tc.id]);
                         }}
-                        style={xBtn}
+                        className="third-action-btn"
                         title="Delete"
                       >
-                        ✕
+                        <Bin size={15} />
                       </button>}
                     </div>
                   </td>

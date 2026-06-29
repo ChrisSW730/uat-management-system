@@ -4857,7 +4857,7 @@ linear-gradient(
               }}
               onMouseEnter={e => e.currentTarget.style.background = "#fff1f2"}
               onMouseLeave={e => e.currentTarget.style.background = "none"}>
-              <span style={{ fontSize: 15 }}>🗑</span> Delete
+              <Trash2 size={16} /> Delete
             </button>}
           </div>
         </div>
