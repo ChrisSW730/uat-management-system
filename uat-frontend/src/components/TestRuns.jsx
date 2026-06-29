@@ -41,7 +41,7 @@ export default function TestRuns(props) {
 		runProjectPlans,
 		runFilteredTestCases,
 		contextMenu,
-setContextMenu,
+		setContextMenu,
 	} = props;
 
 	return (
@@ -258,15 +258,15 @@ setContextMenu,
 							}}
 							onClick={() => setViewRun(run)}
 							onContextMenu={e => {
-    e.preventDefault();
+								e.preventDefault();
 
-    setContextMenu({
-        type: "run",
-        item: run,
-        x: e.clientX,
-        y: e.clientY
-    });
-}}
+								setContextMenu({
+									type: "run",
+									item: run,
+									x: e.clientX,
+									y: e.clientY
+								});
+							}}
 						>
 							<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
 								<div>
