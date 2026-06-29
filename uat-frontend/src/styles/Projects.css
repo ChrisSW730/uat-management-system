@@ -514,25 +514,6 @@
     border-color: #fca5a5;
 }
 
-.reset-password-btn {
-
-    display:flex;
-
-    align-items:center;
-
-    gap:5px;
-
-    background:linear-gradient(135deg,#6366f1,#7c3aed);
-
-    border:1px solid #dbe4f0;
-
-    color: #ffffff;
-
-    padding: 5px 13px;
-
-    outline: none;
-}
-
 /* =========================
    LAYOUT
 ========================= */
