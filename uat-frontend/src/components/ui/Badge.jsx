@@ -4,6 +4,8 @@ import {
   PRIORITY_META
 } from "../../constants";
 
+import "../../styles/Badge.css";
+
 /* -----------------------------------------
    SMALL UI COMPONENTS
 ----------------------------------------- */
@@ -30,6 +32,11 @@ export function DefBadge({ status }) {
 }
 
 export function PriBadge({ label }) {
-  const m = PRIORITY_META[label] || { bg: "#e2e8f0", text: "#334155", shadow: "#0000001a" };
-  return <span style={{ background: m.bg, color: m.text, padding: "3px 10px", borderRadius: 6, fontSize: 14, fontWeight: 700, textTransform: "uppercase", boxShadow: `0 2px 8px ${m.shadow}`, whiteSpace: "nowrap" }}>{label}</span>;
+  const priority = (label || "Medium").toLowerCase();
+
+  return (
+    <span className={`badge priority-badge priority-${priority}`}>
+      {label}
+    </span>
+  );
 }
