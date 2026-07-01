@@ -2,18 +2,30 @@ import { useState } from "react";
 import { Eye, EyeOff, CircleUser, Lock } from "lucide-react";
 import DiamondMark from "./ui/DiamondMark";
 import loginBg from "../../public/login.png";
+import peekqaLogo from "../../public/peekqa-logo.png";
+import "../styles/LoginScreen.css";
 
 export default function LoginScreen({ username, password, rememberMe, error, busy, onUsernameChange, onPasswordChange, onRememberMeChange, onSubmit, onContactAdmin, onForgotPassword }) {
   const [showPw, setShowPw] = useState(false);
 
   return (
-    <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", fontFamily: "'Inter','Segoe UI',sans-serif", background: "#f8faff" }}>
-      <img src={loginBg} alt="Test Management System" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} />
+    <div className="login-page">
+      <div className="login-hero">
+        <img
+          src={loginBg}
+          alt="PeekQA"
+          className="login-hero-image"
+        />
+      </div>
 
-      <div style={{ position: "relative", zIndex: 2, minHeight: "100vh", display: "flex", justifyContent: "flex-end", alignItems: "center", paddingRight: "8%" }}>
-        <div style={{ width: "100%", height: "auto", maxWidth: 520, padding: "80px 42px", borderRadius: 36, background: "rgba(255,255,255,0.32)", border: "1px solid rgba(255,255,255,0.28)", boxShadow: "0 8px 32px rgba(31,38,135,0.12), inset 0 1px 1px rgba(255,255,255,0.18)", position: "absolute", right: "8%", top: "50%", transform: "translateY(-50%)", overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-            <div style={{ width: 78, height: 78, borderRadius: 24, background: "linear-gradient(135deg,#6366f1,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 30px rgba(99,102,241,0.22)" }}><DiamondMark size={34} outer="#ffffff" inner="#4f46e5" stroke={6} /></div>
+      <div className="login-content">
+        <div className="login-card">
+          <div className="login-logo">
+            <img
+              src={peekqaLogo}
+              alt="PeekQA"
+              className="login-logo-image"
+            />
           </div>
 
           <div style={{ textAlign: "center", marginBottom: 50 }}>
@@ -26,17 +38,17 @@ export default function LoginScreen({ username, password, rememberMe, error, bus
               <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 700, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase" }}>Username</label>
               <div style={{ position: "relative" }}>
                 <CircleUser
-  size={16}
-  style={{
-    position: "absolute",
-    left: 16,
-    top: "50%",
-    transform: "translateY(-50%)",
-    color: "#94a3b8",
-    zIndex: 2,
-    pointerEvents: "none",
-  }}
-/>
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: 16,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#94a3b8",
+                    zIndex: 2,
+                    pointerEvents: "none",
+                  }}
+                />
                 <input
                   value={username}
                   onChange={e => onUsernameChange(e.target.value)}
@@ -51,17 +63,17 @@ export default function LoginScreen({ username, password, rememberMe, error, bus
               <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 700, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase" }}>Password</label>
               <div style={{ position: "relative" }}>
                 <Lock
-  size={16}
-  style={{
-    position: "absolute",
-    left: 16,
-    top: "50%",
-    transform: "translateY(-50%)",
-    color: "#94a3b8",
-    zIndex: 2,
-    pointerEvents: "none",
-  }}
-/>
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: 16,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#94a3b8",
+                    zIndex: 2,
+                    pointerEvents: "none",
+                  }}
+                />
                 <input
                   type={showPw ? "text" : "password"}
                   value={password}
@@ -112,7 +124,7 @@ export default function LoginScreen({ username, password, rememberMe, error, bus
 
             {error && <div style={{ background: "rgba(255,240,242,0.92)", border: "1px solid rgba(244,63,94,0.12)", color: "#be123c", padding: "12px 14px", borderRadius: 14, fontSize: 13 }}>{error}</div>}
 
-            <button type="submit" disabled={busy} style={{ marginTop: 4, width: "100%", padding: "16px 18px", border: "none", borderRadius: 16, background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff", fontSize: 17, fontWeight: 800, cursor: "pointer", boxShadow: "0 14px 35px rgba(99,102,241,0.22)", transition: "all 0.18s ease" }}>
+            <button type="submit" disabled={busy} style={{ marginTop: 4, width: "100%", padding: "16px 18px", border: "none", borderRadius: 16, background: "linear-gradient( 135deg, #6366f1, #4f46e5)", color: "#fff", fontSize: 17, fontWeight: 800, cursor: "pointer", boxShadow: "0 14px 35px rgba(99,102,241,0.22)", transition: "all 0.18s ease" }}>
               {busy ? "Signing in..." : "→ Login"}
             </button>
 

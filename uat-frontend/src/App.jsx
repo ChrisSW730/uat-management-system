@@ -54,6 +54,7 @@ import TestCaseModals from "./components/TestCaseModals";
 import UsersTab from "./components/Users";
 import "./styles/Projects.css";
 import FilterDropdown from "./components/ui/FilterDropdown";
+import peekqaLogo from "../public/peekqa-logo.png";
 
 function getInitialDefectLinkId() {
   try {
@@ -537,7 +538,7 @@ export default function App() {
   }
 
   async function handleContactAdministrator() {
-    const subject = "Test Management System: Access Request";
+    const subject = "PeekQA: Access Request";
     const body = [
       "Hello Admin,",
       "",
@@ -571,7 +572,7 @@ export default function App() {
   }
 
   async function handleForgotPassword() {
-    const subject = "Test Management System: Password Reset Request";
+    const subject = "PeekQA: Password Reset Request";
     const body = [
       "Hello Admin,",
       "",
@@ -1533,11 +1534,11 @@ export default function App() {
       setShowAddUser(false);
 
       // Open admin's email client with pre-filled initial password email to the new user
-      const subject = "Test Management System - Your Account Has Been Created";
+      const subject = "PeekQA - Your Account Has Been Created";
       const body = [
         `Dear ${newUserDisplayName.trim()},`,
         "",
-        "Welcome to the Test Management System! Your account has been created.",
+        "Welcome to PeekQA! Your account has been created.",
         "",
         "Your login credentials:",
         `  Username (Email): ${newUserName.trim()}`,
@@ -1670,7 +1671,7 @@ export default function App() {
 
       setUsers(prev => prev.map(u => (u.id === result.user.id ? result.user : u)));
 
-      const subject = "Test Management System - Your Password Has Been Reset";
+      const subject = "PeekQA - Your Password Has Been Reset";
       const body = [
         `Dear ${user.displayName},`,
         "",
@@ -3043,15 +3044,42 @@ linear-gradient(
                 style={{ background: "none", border: "none", cursor: "pointer", color: "#8892a4", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>›</button>
             ) : (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 46, height: 46, background: "linear-gradient(135deg,#6366f1,#4f46e5)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <DiamondMark size={24} outer="#ffffff" inner="#4f46e5" stroke={4} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 750, color: "#fff", lineHeight: 1.1 }}>PeekQA</div>
-                    <div style={{ fontSize: 11, color: "#8892a4", fontWeight: 500 }}>Test Management System</div>
-                  </div>
-                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+  <img
+    src={peekqaLogo}
+    alt="PeekQA"
+    style={{
+      width: 54,
+      height: "auto",
+      objectFit: "contain",
+      flexShrink: 0,
+    }}
+  />
+
+  <div>
+    <div
+      style={{
+        fontSize: 18,
+        fontWeight: 700,
+        color: "#fff",
+        lineHeight: 1.1,
+      }}
+    >
+      PeekQA
+    </div>
+
+    <div
+      style={{
+        fontSize: 11,
+        color: "rgba(255,255,255,.65)",
+        fontWeight: 500,
+        marginTop: 2,
+      }}
+    >
+      Test Management System
+    </div>
+  </div>
+</div>
                 <button onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar"
                   style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#8892a4", fontSize: 16, flexShrink: 0 }}>‹</button>
               </>
