@@ -12,10 +12,30 @@ export const EXEC_STATUS = {
 };
 
 export const PRIORITY_META = {
-  Showstopper: { bg: "#ef4444", text: "#fff", shadow: "#ef444433" },
-  High: { bg: "#f97316", text: "#fff", shadow: "#f9731633" },
-  Medium: { bg: "#f59e0b", text: "#fff", shadow: "#f59e0b33" },
-  Low: { bg: "#22c55e", text: "#fff", shadow: "#22c55e33" },
+  Showstopper: {
+    bg: "#FEE2E2",
+    text: "#B91C1C",
+    border: "#FCA5A5",
+    shadow: "rgba(239,68,68,.15)",
+  },
+  High: {
+    bg: "#FFEDD5",
+    text: "#C2410C",
+    border: "#FDBA74",
+    shadow: "rgba(249,115,22,.15)",
+  },
+  Medium: {
+    bg: "#FEF3C7",
+    text: "#B45309",
+    border: "#FCD34D",
+    shadow: "rgba(245,158,11,.15)",
+  },
+  Low: {
+    bg: "#DCFCE7",
+    text: "#15803D",
+    border: "#86EFAC",
+    shadow: "rgba(34,197,94,.15)",
+  },
 };
 
 export const TEST_CASE_PRIORITIES = ["High", "Medium", "Low"];
