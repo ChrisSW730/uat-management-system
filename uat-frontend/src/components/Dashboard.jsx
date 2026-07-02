@@ -13,7 +13,7 @@ import {
 import {
     EXEC_STATUS,
     DEFECT_STATUS,
-    PRIORITY_META
+    DASHBOARD_PRIORITY_META
 } from "../constants";
 import html2canvas from "html2canvas";
 import CountUp from "react-countup";
@@ -749,7 +749,7 @@ export default function Dashboard({
                     <div style={{ borderTop: "1.5px solid #f1f5f9", paddingTop: 14 }}>
                         <div style={{ fontWeight: 800, fontSize: 14, color: "#0f172a", marginBottom: 12 }}>⚠ Defect Priority</div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
-                            {Object.entries(PRIORITY_META).map(([pri, meta]) => {
+                            {Object.entries(DASHBOARD_PRIORITY_META).map(([pri, meta]) => {
                                 const count = defByPriority[pri] || 0;
                                 return (
                                     <div key={pri} style={{ background: meta.bg + "18", border: `1.5px solid ${meta.bg}44`, borderRadius: 12, padding: "10px 6px", textAlign: "center" }}>
@@ -833,11 +833,11 @@ export default function Dashboard({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, paddingTop: 50 }}>
                             <div style={{ flexShrink: 0 }}>
                                 <DonutChart size={130} strokeWidth={20} label={defTotal} subLabel="Total"
-                                    segments={Object.entries(PRIORITY_META).map(([pri, meta]) => ({ value: defByPriority[pri] || 0, color: meta.bg }))}
+                                    segments={Object.entries(DASHBOARD_PRIORITY_META).map(([pri, meta]) => ({ value: defByPriority[pri] || 0, color: meta.bg }))}
                                 />
                             </div>
                             <div>
-                                {Object.entries(PRIORITY_META).map(([pri, meta]) => {
+                                {Object.entries(DASHBOARD_PRIORITY_META).map(([pri, meta]) => {
                                     const count = defByPriority[pri] || 0;
                                     const pct = defTotal > 0 ? Math.round((count / defTotal) * 100) : 0;
                                     return (

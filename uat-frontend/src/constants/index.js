@@ -38,6 +38,15 @@ export const PRIORITY_META = {
   },
 };
 
+export const DASHBOARD_PRIORITY_META = { 
+  Showstopper: { bg: "#ef4444", text: "#fff", shadow: "#ef444433" }, 
+  High: { bg: "#f97316", text: "#fff", shadow: "#f9731633" }, 
+  Medium: { bg: "#f59e0b", text: "#fff", shadow: "#f59e0b33" }, 
+  Low: { bg: "#22c55e", text: "#fff", shadow: "#22c55e33" 
+
+  }, 
+};
+
 export const TEST_CASE_PRIORITIES = ["High", "Medium", "Low"];
 
 export const DEFECT_STATUS = {
