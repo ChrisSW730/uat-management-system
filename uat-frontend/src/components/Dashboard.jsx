@@ -149,7 +149,7 @@ export default function Dashboard({
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, paddingLeft: 28 }}>
                     {data.map((d, i) => (
-                        <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
+                        <span key={i} style={{ fontSize: 10, color: "#94a3b8", width: barW, textAlign: "center" }}>{d.label}</span>
                     ))}
                 </div>
             </div>
@@ -197,10 +197,25 @@ export default function Dashboard({
                         </svg>
                     </div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, paddingLeft: 28 }}>
-                    {data.map((d, i) => (
-                        <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
-                    ))}
+                <div style={{ marginTop: 5, paddingLeft: 28 }}>
+                    <svg width="100%" height={16} viewBox={`0 0 ${chartW} 16`} preserveAspectRatio="none" aria-hidden="true">
+                        {data.map((d, i) => {
+                            const x = px(i);
+                            const textAnchor = i === 0 ? "start" : i === data.length - 1 ? "end" : "middle";
+                            return (
+                                <text
+                                    key={i}
+                                    x={x}
+                                    y={12}
+                                    textAnchor={textAnchor}
+                                    fontSize={10}
+                                    fill="#94a3b8"
+                                >
+                                    {d.label}
+                                </text>
+                            );
+                        })}
+                    </svg>
                 </div>
             </div>
         );
@@ -251,10 +266,25 @@ export default function Dashboard({
                         </svg>
                     </div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, paddingLeft: 28 }}>
-                    {data.map((d, i) => (
-                        <span key={i} style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</span>
-                    ))}
+                <div style={{ marginTop: 5, paddingLeft: 28 }}>
+                    <svg width="100%" height={16} viewBox={`0 0 ${chartW} 16`} preserveAspectRatio="none" aria-hidden="true">
+                        {data.map((d, i) => {
+                            const x = px(i);
+                            const textAnchor = i === 0 ? "start" : i === data.length - 1 ? "end" : "middle";
+                            return (
+                                <text
+                                    key={i}
+                                    x={x}
+                                    y={12}
+                                    textAnchor={textAnchor}
+                                    fontSize={10}
+                                    fill="#94a3b8"
+                                >
+                                    {d.label}
+                                </text>
+                            );
+                        })}
+                    </svg>
                 </div>
             </div>
         );
