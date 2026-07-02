@@ -1247,6 +1247,16 @@ export default function App() {
     return map;
   }, [testScopesByPlanId]);
 
+  const linkedTestCaseCountByScopeKey = useMemo(() => {
+    const map = {};
+    (allTestCases || []).forEach(tc => {
+      if (tc?.testPlanId == null || tc?.testScopeId == null) return;
+      const key = `${String(tc.testPlanId)}:${String(tc.testScopeId)}`;
+      map[key] = (map[key] || 0) + 1;
+    });
+    return map;
+  }, [allTestCases]);
+
   const visibleTabs = TABS;
 
   useEffect(() => {
@@ -4317,7 +4327,12 @@ linear-gradient(
                 )}
                 {(testScopesByPlanId[managingTestPlan.id] || []).map(scope => (
                   <div key={scope.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
-                    <span style={{ color: "#334155", fontWeight: 700 }}>{scope.name}</span>
+                    <div style={{ display: "grid", gap: 2 }}>
+                      <span style={{ color: "#334155", fontWeight: 700 }}>{scope.name}</span>
+                      <span style={{ color: "#64748b", fontSize: 12 }}>
+                        {linkedTestCaseCountByScopeKey[`${String(managingTestPlan.id)}:${String(scope.id)}`] || 0} linked test {(linkedTestCaseCountByScopeKey[`${String(managingTestPlan.id)}:${String(scope.id)}`] || 0) === 1 ? "case" : "cases"}
+                      </span>
+                    </div>
                     <button
                       onClick={() => {
                         if (window.confirm(`Delete testing scope "${scope.name}"?`)) deleteTestingScope(scope.id);
