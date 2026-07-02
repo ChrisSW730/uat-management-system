@@ -665,8 +665,9 @@ export default function App() {
       return { progress: 100, status: "Completed", color: "#22c55e" };
     }
 
-    const total = Math.max(endMs - startMs, 1);
-    const elapsed = current - startMs;
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const total = Math.max(endMs - startMs + oneDayMs, 1);
+    const elapsed = current - startMs + oneDayMs;
     const progress = Math.max(0, Math.min(100, Math.round((elapsed / total) * 100)));
     return { progress, status: "In progress", color: "#3b82f6" };
   }

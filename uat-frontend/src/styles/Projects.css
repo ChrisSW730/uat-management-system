@@ -271,6 +271,43 @@
 
 }
 
+.view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.view-toggle-btn {
+    border: none;
+    background: transparent;
+    color: #475569;
+    border-radius: 9px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+
+.view-toggle-btn:hover {
+    background: #f8fafc;
+    color: #334155;
+}
+
+.view-toggle-btn.active {
+    color: #ffffff;
+    background: linear-gradient(135deg,#6366f1,#7c3aed);
+    box-shadow: 0 8px 18px rgba(99,102,241,.24);
+}
+
 /* =========================
    FILTER
 ========================= */

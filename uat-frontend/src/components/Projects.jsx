@@ -1,9 +1,10 @@
-import { Search, Filter, FolderKanban, Briefcase, ClipboardCheck, Plus } from "lucide-react";
+import { Search, Briefcase, ClipboardCheck, Plus, CalendarDays } from "lucide-react";
 import "../styles/Projects.css";
 import ProjectCard from "./ProjectCard";
 import TestPlanCard from "./TestPlanCard";
 import FilterDropdown from "./ui/FilterDropdown";
 import { useState, useEffect } from "react";
+import TimelineModal from "./TimelineModal";
 
 
 export default function Projects(props) {
@@ -44,6 +45,7 @@ export default function Projects(props) {
     const [searchText, setSearchText] = useState("");
 
     const [statusFilter, setStatusFilter] = useState("All");
+    const [showTimelineModal, setShowTimelineModal] = useState(false);
 
     const statusOptions = [
         { value: "All", label: "All" },
@@ -101,6 +103,28 @@ export default function Projects(props) {
 
     }, [filteredProjects, selectedProjectId]);
 
+    const openTimeline = () => {
+        setShowTimelineModal(true);
+    };
+
+    const closeTimeline = () => {
+        setShowTimelineModal(false);
+    };
+
+    const openProjectFromTimeline = (project) => {
+        setSelectedProjectId(String(project.id));
+        setSelectedTestPlanId("");
+        closeTimeline();
+    };
+
+    const openTestPlanFromTimeline = (project, plan) => {
+        setSelectedProjectId(String(project.id));
+        setSelectedTestPlanId(String(plan.id));
+        setNewTC(p => ({ ...p, testScopeId: "" }));
+        setActiveTab("testcases");
+        closeTimeline();
+    };
+
     return (
         <div className="projects-page">
 
@@ -124,6 +148,20 @@ export default function Projects(props) {
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                         />
+                    </div>
+
+                    <div className="view-toggle" role="tablist" aria-label="Projects view mode">
+                        <button
+                            type="button"
+                            className={`view-toggle-btn ${showTimelineModal ? "active" : ""}`}
+                            role="tab"
+                            aria-selected={showTimelineModal}
+                            title="View all Projects & Test Plans on a timeline"
+                            onClick={openTimeline}
+                        >
+                            <CalendarDays size={15} />
+                            Timeline View
+                        </button>
                     </div>
 
 
@@ -250,6 +288,15 @@ export default function Projects(props) {
                 </div>
 
             </div>
+
+            <TimelineModal
+                isOpen={showTimelineModal}
+                onClose={closeTimeline}
+                projects={filteredProjects}
+                getTimelineMeta={getTimelineMeta}
+                onProjectClick={openProjectFromTimeline}
+                onTestPlanClick={openTestPlanFromTimeline}
+            />
 
         </div>
     );
