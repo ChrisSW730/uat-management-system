@@ -635,6 +635,30 @@ export default function App() {
     return d.toISOString().slice(0, 10);
   }
 
+  function formatBrowserDateTime(value) {
+    if (!value) return "-";
+
+    const raw = String(value).trim();
+    const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(raw);
+    const normalized = hasTimezone ? raw : `${raw}Z`;
+    const date = new Date(normalized);
+
+    if (Number.isNaN(date.getTime())) return "-";
+
+    const datePart = date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    const timePart = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    return `${datePart} ${timePart}`;
+  }
+
   function isValidDateRange(startDate, endDate) {
     return !!startDate && !!endDate && new Date(startDate) <= new Date(endDate);
   }
@@ -2260,20 +2284,31 @@ export default function App() {
     const tc = allTestCaseById[tcId];
     setNewDef({ ...blankDef, raisedBy: getCurrentUserDisplayName() });
     setNewDefAttachments([]);
-    setShowAddDef({ runId, tcId, tcName: tc?.name || tcId, tcTestPlanId: tc?.testPlanId ?? null });
+    setShowAddDef({ runId, tcId, tcName: tc?.name || tcId, tcTestPlanId: tc?.testPlanId ?? null, manualTestPlanId: "" });
   }
 
   function createStandaloneDefect() {
-    setNewDef({ ...blankDef, issueType: "Functional Issue", raisedBy: getCurrentUserDisplayName() });
+    setNewDef({
+      ...blankDef,
+      issueType: "Functional Issue",
+      market: defMarketFilter !== "All" ? defMarketFilter : blankDef.market,
+      raisedBy: getCurrentUserDisplayName(),
+    });
     setNewDefAttachments([]);
-    setShowAddDef({ runId: null, tcId: null, tcName: "No linked test case" });
+    setShowAddDef({
+      runId: null,
+      tcId: null,
+      tcName: "No linked test case",
+      tcTestPlanId: null,
+      manualTestPlanId: defPlanFilter !== "All" ? String(defPlanFilter) : "",
+    });
   }
 
   async function submitDefect() {
     try {
-      const { runId, tcId, tcTestPlanId } = showAddDef;
-      // Prefer the plan linked to the test case; fall back to the page filter only for standalone defects.
-      const resolvedTestPlanId = tcTestPlanId ?? (selectedTestPlanId ? Number(selectedTestPlanId) : null);
+      const { runId, tcId, tcTestPlanId, manualTestPlanId } = showAddDef;
+      // Prefer the plan linked to the selected test case; otherwise use an explicitly selected plan.
+      const resolvedTestPlanId = tcTestPlanId ?? (manualTestPlanId ? Number(manualTestPlanId) : null);
       const defect = await api.createDefect({
         testRunId: runId,
         testCaseId: tcId,
@@ -2381,6 +2416,8 @@ export default function App() {
 
     const runId = editDef.linkedRunId ? Number(editDef.linkedRunId) : null;
     const tcId = editDef.linkedTestCaseId ? Number(editDef.linkedTestCaseId) : null;
+    const oldRunId = editDef.testRunId ? Number(editDef.testRunId) : null;
+    const oldTcId = editDef.testCaseId ? Number(editDef.testCaseId) : null;
 
     if (!runId && tcId) {
       alert("Please select a Run when selecting a Test Case.");
@@ -2408,6 +2445,89 @@ export default function App() {
 
       setDefects(p => p.map(d => d.id === updated.id ? updated : d));
       setViewDef(d => d?.id === updated.id ? updated : d);
+
+      // Update viewRun if the defect is linked to a test case in it
+      if (viewRun) {
+        setViewRun(r => ({
+          ...r,
+          entries: (r.entries || []).map(e => {
+            // Remove from old entry if test case link changed
+            if (oldTcId && e.testCaseId === oldTcId && (tcId !== oldTcId || runId !== oldRunId)) {
+              return {
+                ...e,
+                defects: (e.defects || []).filter(d => d.id !== updated.id),
+              };
+            }
+            // Add to or update in new entry if test case link changed
+            if (runId && r.id === runId && tcId && e.testCaseId === tcId) {
+              const hasDefect = (e.defects || []).some(d => d.id === updated.id);
+              return {
+                ...e,
+                defects: hasDefect
+                  ? (e.defects || []).map(d => d.id === updated.id ? updated : d)
+                  : [...(e.defects || []), updated],
+              };
+            }
+            return e;
+          }),
+        }));
+      }
+
+      // Also update in the global runs list
+      setRuns(p => p.map(r => {
+        // If run ID didn't change and defect is linked to test case, update entries
+        if (runId === oldRunId && runId && tcId) {
+          return {
+            ...r,
+            entries: (r.entries || []).map(e => {
+              // Remove from old entry if test case link changed
+              if (oldTcId && e.testCaseId === oldTcId && tcId !== oldTcId) {
+                return {
+                  ...e,
+                  defects: (e.defects || []).filter(d => d.id !== updated.id),
+                };
+              }
+              // Update in new entry
+              if (e.testCaseId === tcId) {
+                return {
+                  ...e,
+                  defects: (e.defects || []).map(d => d.id === updated.id ? updated : d),
+                };
+              }
+              return e;
+            }),
+          };
+        }
+        // If run ID changed, remove from old run and add to new run
+        if (r.id === oldRunId && oldTcId && (!runId || r.id !== runId)) {
+          return {
+            ...r,
+            entries: (r.entries || []).map(e =>
+              e.testCaseId === oldTcId
+                ? { ...e, defects: (e.defects || []).filter(d => d.id !== updated.id) }
+                : e
+            ),
+          };
+        }
+        if (r.id === runId && runId && tcId) {
+          return {
+            ...r,
+            entries: (r.entries || []).map(e => {
+              if (e.testCaseId === tcId) {
+                const hasDefect = (e.defects || []).some(d => d.id === updated.id);
+                return {
+                  ...e,
+                  defects: hasDefect
+                    ? (e.defects || []).map(d => d.id === updated.id ? updated : d)
+                    : [...(e.defects || []), updated],
+                };
+              }
+              return e;
+            }),
+          };
+        }
+        return r;
+      }));
 
       if (newDefAttachments.length > 0) {
         try {
@@ -4161,12 +4281,10 @@ linear-gradient(
                                       style={{ background: "#f1f5f9", border: "none", color: "#94a3b8", width: 28, height: 28, borderRadius: 6, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                                   )}
                                 </div>
-                                {entry.statusChangedAt && (
-                                  <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", lineHeight: 1.3 }}>
-                                    <div>Changed: {new Date(entry.statusChangedAt).toLocaleDateString()} {new Date(entry.statusChangedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                    {entry.statusChangedBy && <div>by {entry.statusChangedBy}</div>}
-                                  </div>
-                                )}
+                                <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", lineHeight: 1.3 }}>
+                                  <div>Changed: {formatBrowserDateTime(entry.statusChangedAt)}</div>
+                                  {entry.statusChangedBy && <div>by {entry.statusChangedBy}</div>}
+                                </div>
                                 {canWrite &&
                                   (entry.execStatus === "Fail" || entry.execStatus === "Failed") &&
                                   entryDefects.length === 0 && (

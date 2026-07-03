@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import {
   Search,
   X,
-  Plus, Download, Upload, Trash2 as Bin, RotateCcw, CheckCheck
+  Plus, Download, Upload, Trash2 as Bin, RotateCcw, CheckCheck, ArrowUp, ArrowDown, ArrowUpDown
 } from "lucide-react";
 import { TEST_CASE_PRIORITIES } from "../constants";
 import { PriBadge } from "./ui/Badge";
@@ -93,6 +93,14 @@ export default function TestCases(props) {
     tcSortCol,
     tcSortDir
   ]);
+
+  const renderSortIcon = col => {
+    if (tcSortCol === col) {
+      return tcSortDir === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />;
+    }
+    return <ArrowUpDown size={13} />;
+  };
+
   return (
     <div style={{ padding: "20px 2.5%" }}>
       {/* toolbar */}
@@ -399,7 +407,10 @@ export default function TestCases(props) {
               {[{ label: "Actions", col: "" }, { label: "ID", col: "tcNumber" }, { label: "Project", col: "" }, { label: "Test Plan", col: "" }, { label: "Test Name", col: "name" }, { label: "Category", col: "category" }, { label: "Coverage", col: "" }, { label: "Priority", col: "priority" }].map(({ label, col }) => (
                 <th key={label} onClick={col ? () => { if (tcSortCol === col) setTcSortDir(d => d === "asc" ? "desc" : "asc"); else { setTcSortCol(col); setTcSortDir("asc"); } } : undefined}
                   style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && tcSortCol === col ? "#d4dff0" : undefined }}>
-                  {label}{col && tcSortCol === col ? (tcSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {label}
+                    {col ? renderSortIcon(col) : null}
+                  </span>
                 </th>
               ))}
             </tr>

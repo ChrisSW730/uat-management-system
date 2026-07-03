@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Search, X, Download, RotateCcw, CheckCheck, Plus, Trash2 as Bin } from "lucide-react";
+﻿import { useState, useEffect } from "react";
+import { Search, X, Download, RotateCcw, CheckCheck, Plus, Trash2 as Bin, ArrowUp, ArrowDown, ArrowUpDown, Funnel } from "lucide-react";
 import { DEFECT_STATUS, PRIORITY_META } from "../constants";
 import { PriBadge } from "./ui/Badge";
 import "../styles/Projects.css";
@@ -76,6 +76,29 @@ export default function Defects({
     defSortCol,
     defSortDir
   ]);
+
+  const renderSortIcon = col => {
+    if (defSortCol === col) {
+      return defSortDir === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />;
+    }
+    return <ArrowUpDown size={13} />;
+  };
+
+  const formatBrowserDateTime = value => {
+    if (!value) return "-";
+
+    const raw = String(value).trim();
+    const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(raw);
+    const normalized = hasTimezone ? raw : `${raw}Z`;
+    const parsed = new Date(normalized);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return raw;
+    }
+
+    return parsed.toLocaleString();
+  };
+
   return (
     <div style={{ padding: "20px 2.5%" }}>
       <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
@@ -325,7 +348,10 @@ export default function Defects({
               {[{ label: "Actions", col: "" }, { label: "ID", col: "defectNumber" }, { label: "Market", col: "market" }, { label: "Actual Result", col: "actualResult" }, { label: "Priority", col: "priority" }, { label: "Raised By", col: "raisedBy" }, { label: "Assigned To", col: "assignedTo" }, { label: "Status", col: "status" }].map(({ label, col }) => (
                 <th key={label} onClick={col ? () => { if (defSortCol === col) setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol(col); setDefSortDir("asc"); } } : undefined}
                   style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && defSortCol === col ? "#d4dff0" : undefined }}>
-                  {label}{col && defSortCol === col ? (defSortDir === "asc" ? " ▲" : " ▼") : col ? " ⇅" : ""}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {label}
+                    {col ? renderSortIcon(col) : null}
+                  </span>
                 </th>
               ))}
               <th
@@ -333,13 +359,16 @@ export default function Defects({
                 style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "openDateTime" ? "#d4dff0" : undefined }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Open Datetime{defSortCol === "openDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>
+                    Open Datetime
+                    {renderSortIcon("openDateTime")}
+                  </span>
                   <button
                     onClick={e => toggleDefDateFilterPanel(e, "open")}
                     title="Filter open datetime"
                     style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "open" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "open" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
                   >
-                    ⌕
+                    <Funnel size={12} />
                   </button>
                 </div>
               </th>
@@ -348,13 +377,16 @@ export default function Defects({
                 style={{ padding: "8px 12px", textAlign: "left", color: "#1f252e", whiteSpace: "nowrap", position: "relative", zIndex: 5, cursor: "pointer", userSelect: "none", background: defSortCol === "closeDateTime" ? "#d4dff0" : undefined }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>Close Datetime{defSortCol === "closeDateTime" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>
+                    Close Datetime
+                    {renderSortIcon("closeDateTime")}
+                  </span>
                   <button
                     onClick={e => toggleDefDateFilterPanel(e, "close")}
                     title="Filter close datetime"
                     style={{ border: "1px solid #cbd5e1", background: defDateFilterPanel?.type === "close" ? "#eff6ff" : "#fff", color: defDateFilterPanel?.type === "close" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
                   >
-                    ⌕
+                    <Funnel size={12} />
                   </button>
                 </div>
               </th>
@@ -362,7 +394,10 @@ export default function Defects({
                 onClick={() => { if (defSortCol === "aged") setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol("aged"); setDefSortDir("asc"); } }}
                 style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: defSortCol === "aged" ? "#d4dff0" : undefined }}
               >
-                Aged{defSortCol === "aged" ? (defSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  Aged
+                  {renderSortIcon("aged")}
+                </span>
               </th>
             </tr>
           </thead>
@@ -396,8 +431,18 @@ export default function Defects({
                           ...def,
                           dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
                           targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
-                          linkedRunId: runs.find(r => r.runNumber === def.runNumber)?.id || "",
-                          linkedTestCaseId: allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || "",
+                          linkedRunId: def.testRunEntry?.testRunId
+                            ? String(def.testRunEntry.testRunId)
+                            : (def.testRunEntryId
+                              ? String(runs.find(r => (r.entries || []).some(en => String(en.id) === String(def.testRunEntryId)))?.id || "")
+                              : String(runs.find(r => r.runNumber === def.runNumber)?.id || "")),
+                          linkedTestCaseId: def.testRunEntry?.testCaseId
+                            ? String(def.testRunEntry.testCaseId)
+                            : (def.testRunEntryId
+                              ? String(runs
+                                .flatMap(r => r.entries || [])
+                                .find(en => String(en.id) === String(def.testRunEntryId))?.testCaseId || "")
+                              : String(allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || "")),
                         })}
                         
                       >
@@ -481,10 +526,10 @@ export default function Defects({
                     </select>
                   </td>
                   <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
-                    {def.openDateTime ? new Date(def.openDateTime).toLocaleString() : "-"}
+                    {formatBrowserDateTime(def.openDateTime)}
                   </td>
                   <td style={{ padding: "13px 16px", color: "#64748b", fontSize: 13 }} onClick={() => setViewDef(def)}>
-                    {def.closeDateTime ? new Date(def.closeDateTime).toLocaleString() : "-"}
+                    {formatBrowserDateTime(def.closeDateTime)}
                   </td>
                   <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
                     <span style={{ fontWeight: 700, fontSize: 14, color: aged > 7 ? "#ef4444" : aged > 3 ? "#f97316" : "#22c55e" }}>{aged}d</span>
@@ -505,3 +550,4 @@ export default function Defects({
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { Search, X, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Search, X, Plus, RotateCcw, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import "../styles/Projects.css";
 import FilterDropdown from "./ui/FilterDropdown";
 import Pagination from "./ui/Pagination";
@@ -34,6 +34,13 @@ export default function UsersTab(props) {
 		totalPages,
 		setCurrentPage,
 	} = props;
+
+	const renderSortIcon = col => {
+		if (userSortCol === col) {
+			return userSortDir === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />;
+		}
+		return <ArrowUpDown size={13} />;
+	};
 
 	return (
 		<div style={{ padding: "20px 2.5%" }}>
@@ -139,7 +146,10 @@ export default function UsersTab(props) {
 									key={label}
 									onClick={() => toggleUserSort(col)}
 									style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", background: userSortCol === col ? "#d4dff0" : undefined }}>
-									{label}{userSortCol === col ? (userSortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
+									<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+										{label}
+										{renderSortIcon(col)}
+									</span>
 								</th>
 							))}
 						</tr>

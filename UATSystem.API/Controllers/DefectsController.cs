@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -147,7 +147,7 @@ public class DefectsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
         Ok(await _db.Defects
-            .Include(d => d.Comments)
+            .Include(d => d.Comments).Include(d => d.TestRunEntry)
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync());
 
@@ -285,15 +285,16 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "TcNumber", defect.TcNumber, entry?.TestCase.TcNumber ?? "-", changedBy);
         AddAudit(defect, "Market", defect.Market, dto.Market, changedBy);
         AddAudit(defect, "Description", defect.Description, dto.Description, changedBy);
+        AddAudit(defect, "IssueType", defect.IssueType, dto.IssueType, changedBy);
         AddAudit(defect, "ExpectedResult", defect.ExpectedResult, dto.ExpectedResult, changedBy);
         AddAudit(defect, "ActualResult", defect.ActualResult, dto.ActualResult, changedBy);
         AddAudit(defect, "Priority", defect.Priority, dto.Priority, changedBy);
         AddAudit(defect, "RaisedBy", defect.RaisedBy, dto.RaisedBy, changedBy);
         AddAudit(defect, "AssignedTo", defect.AssignedTo, dto.AssignedTo, changedBy);
         AddAudit(defect, "DateRaised", AuditDate(defect.DateRaised), AuditDate(dto.DateRaised), changedBy);
-        AddAudit(defect, "OpenDateTime", AuditDate(defect.OpenDateTime), AuditDate(dto.DateRaised), changedBy);
         AddAudit(defect, "TargetFixDate", AuditDate(defect.TargetFixDate), AuditDate(dto.TargetFixDate), changedBy);
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
+        AddAudit(defect, "Remarks", defect.Remarks, dto.Remarks, changedBy);
 
         var oldClose = defect.CloseDateTime;
         DateTime? newClose = dto.Status == "Closed" ? DateTime.UtcNow : null;
@@ -305,15 +306,16 @@ public class DefectsController : ControllerBase
         defect.TcNumber = entry?.TestCase.TcNumber ?? "-";
         defect.Market = dto.Market;
         defect.Description = dto.Description;
+        defect.IssueType = dto.IssueType;
         defect.ExpectedResult = dto.ExpectedResult;
         defect.ActualResult = dto.ActualResult;
         defect.Priority = dto.Priority;
         defect.RaisedBy = dto.RaisedBy;
         defect.AssignedTo = dto.AssignedTo;
         defect.DateRaised = dto.DateRaised;
-        defect.OpenDateTime = dto.DateRaised;
         defect.CloseDateTime = newClose;
         defect.TargetFixDate = dto.TargetFixDate;
+        defect.Remarks = dto.Remarks;
         defect.Status = dto.Status;
 
         if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), (defect.AssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
@@ -562,6 +564,7 @@ public record UpdateDefectDto(
     int? TestPlanId,
     string Market,
     string Description,
+    string IssueType,
     string ExpectedResult,
     string ActualResult,
     string Priority,
@@ -569,6 +572,7 @@ public record UpdateDefectDto(
     string AssignedTo,
     DateTime DateRaised,
     DateTime? TargetFixDate,
+    string Remarks,
     string Status);
 
 public record UpdateAssigneeDto(string AssignedTo);
