@@ -1072,12 +1072,12 @@ export default function App() {
       .filter(Boolean)
       .sort();
     const firstDefectDate = defectOpenDates.length > 0 ? defectOpenDates[0] : null;
-    const defectBurnStart = firstDefectDate
-      ? filteredDefects.filter(def => (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10) <= firstDefectDate).length
-      : 0;
-
-    const defectBurndownDays = last7.map((dateStr, index) => {
+    const defectBurndownDays = last7.reduce((acc, dateStr, index) => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const scopeAtDate = filteredDefects.filter(def => {
+        const opened = (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10);
+        return !!opened && opened <= dateStr;
+      }).length;
       const remaining = filteredDefects.filter(def => {
         const opened = (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10);
         if (!opened || opened > dateStr) return false;
@@ -1089,7 +1089,7 @@ export default function App() {
         return true; // closed but after this date
       }).length;
       let ideal;
-      if (!firstDefectDate || dateStr < firstDefectDate) {
+      if (!firstDefectDate || dateStr < firstDefectDate || scopeAtDate === 0) {
         ideal = 0;
       } else if (planStart && planEnd && planEnd >= planStart) {
         const current = new Date(dateStr + "T12:00:00");
@@ -1103,16 +1103,25 @@ export default function App() {
           ideal = 0;
         } else {
           const daysSinceStart = Math.round((current.getTime() - burnStartDate.getTime()) / msPerDay);
-          ideal = Math.max(0, Math.round(defectBurnStart * (1 - (daysSinceStart / Math.max(1, totalDays - 1)))));
+          ideal = Math.max(0, Math.round(scopeAtDate * (1 - (daysSinceStart / Math.max(1, totalDays - 1)))));
         }
       } else {
         const burnStartIndex = Math.max(0, last7.findIndex(d => d >= firstDefectDate));
         const burnSpan = Math.max(1, (last7.length - 1) - burnStartIndex);
         const progress = Math.max(0, (index - burnStartIndex) / burnSpan);
-        ideal = Math.max(0, Math.round(defectBurnStart * (1 - progress)));
+        ideal = Math.max(0, Math.round(scopeAtDate * (1 - progress)));
       }
-      return { label, remaining, ideal };
-    });
+
+      if (index > 0) {
+        const prev = acc[index - 1];
+        const scopeIncrease = Math.max(0, scopeAtDate - prev.scopeAtDate);
+        const minIdealAfterIncrease = prev.ideal + Math.max(0, scopeIncrease - 1);
+        ideal = Math.max(ideal, minIdealAfterIncrease);
+      }
+
+      acc.push({ label, remaining, ideal, scopeAtDate });
+      return acc;
+    }, []).map(({ label, remaining, ideal }) => ({ label, remaining, ideal }));
 
     const activeTcCount = runTcCount > 0 ? runTcCount : filteredTCs.length;
     return {
