@@ -65,3 +65,11 @@ export const CATEGORIES = [
   "Payout & Clawback Creation (Commercial Live Campaign)",
   "Payout Approval", "BMM", "PAF", "Data Insight",
 ];
+
+export const DATE_RANGE_LABEL = {
+    last7: "Last 7 Days",
+    last30: "Last 30 Days",
+    thisMonth: "This Month",
+    lastMonth: "Last Month",
+    custom: "Custom Range",
+};

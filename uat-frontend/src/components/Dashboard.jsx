@@ -8,12 +8,14 @@ import {
     TrendingUp,
     TrendingDown,
     Filter,
-    Download
+    Download,
+    Clock3
 } from "lucide-react";
 import {
     EXEC_STATUS,
     DEFECT_STATUS,
-    DASHBOARD_PRIORITY_META
+    DASHBOARD_PRIORITY_META,
+    DATE_RANGE_LABEL
 } from "../constants";
 import html2canvas from "html2canvas";
 import CountUp from "react-countup";
@@ -29,6 +31,12 @@ export default function Dashboard({
     setDashPlanId,
     dashRunId,
     setDashRunId,
+    dashDateStart,
+    setDashDateStart,
+    dashDateEnd,
+    setDashDateEnd,
+    dashDatePreset,
+    setDashDatePreset,
     dashboardRef,
     inp,
     openRunDetails
@@ -304,55 +312,141 @@ export default function Dashboard({
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 10, alignItems: "center" }}>
                 <div className="filter-wrapper">
                     <FilterDropdown
-    value={dashProjectId}
-    placeholder="All Projects"
-    options={[
-        { value: "", label: "All Projects" },
-        ...projects.map(p => ({
-            value: String(p.id),
-            label: p.name
-        }))
-    ]}
-    onChange={(value) => {
-        setDashProjectId(value);
-        setDashPlanId("");
-        setDashRunId("");
-    }}
-/>
+                        value={dashProjectId}
+                        placeholder="All Projects"
+                        options={[
+                            { value: "", label: "All Projects" },
+                            ...projects.map(p => ({
+                                value: String(p.id),
+                                label: p.name
+                            }))
+                        ]}
+                        onChange={(value) => {
+                            setDashProjectId(value);
+                            setDashPlanId("");
+                            setDashRunId("");
+                        }}
+                    />
                 </div>
                 <div className="filter-wrapper">
                     <FilterDropdown
-    value={dashPlanId}
-    placeholder="All Test Plans"
-    options={[
-        { value: "", label: "All Test Plans" },
-        ...(projects.find(
-            p => String(p.id) === dashProjectId
-        )?.testPlans || []).map(tp => ({
-            value: String(tp.id),
-            label: tp.name
-        }))
-    ]}
-    onChange={(value) => {
-        setDashPlanId(value);
-        setDashRunId("");
-    }}
-/>
+                        value={dashPlanId}
+                        placeholder="All Test Plans"
+                        options={[
+                            { value: "", label: "All Test Plans" },
+                            ...(projects.find(
+                                p => String(p.id) === dashProjectId
+                            )?.testPlans || []).map(tp => ({
+                                value: String(tp.id),
+                                label: tp.name
+                            }))
+                        ]}
+                        onChange={(value) => {
+                            setDashPlanId(value);
+                            setDashRunId("");
+                        }}
+                    />
                 </div>
                 <div className="filter-wrapper">
                     <FilterDropdown
-    value={dashRunId}
-    placeholder="All Test Runs"
-    options={[
-        { value: "", label: "All Test Runs" },
-        ...availableRuns.map(r => ({
-            value: String(r.id),
-            label: r.name
-        }))
-    ]}
-    onChange={setDashRunId}
-/>
+                        value={dashRunId}
+                        placeholder="All Test Runs"
+                        options={[
+                            { value: "", label: "All Test Runs" },
+                            ...availableRuns.map(r => ({
+                                value: String(r.id),
+                                label: r.name
+                            }))
+                        ]}
+                        onChange={setDashRunId}
+                    />
                 </div>
+                <div className="filter-wrapper">
+                    <FilterDropdown
+                        value={dashDatePreset}
+                        placeholder="Last 7 Days"
+                        options={[
+                            { value: "last7", label: "Last 7 Days" },
+                            { value: "last30", label: "Last 30 Days" },
+                            { value: "thisMonth", label: "This Month" },
+                            { value: "lastMonth", label: "Last Month" },
+                            { value: "custom", label: "Custom Range" }
+                        ]}
+                        onChange={(value) => {
+                            setDashDatePreset(value);
+
+                            const today = new Date();
+
+                            const format = (d) => {
+                                const year = d.getFullYear();
+                                const month = String(d.getMonth() + 1).padStart(2, "0");
+                                const day = String(d.getDate()).padStart(2, "0");
+                                return `${year}-${month}-${day}`;
+                            };
+
+                            switch (value) {
+                                case "last7": {
+                                    const start = new Date(today);
+                                    start.setDate(today.getDate() - 6);
+
+                                    setDashDateStart(format(start));
+                                    setDashDateEnd(format(today));
+                                    break;
+                                }
+
+                                case "last30": {
+                                    const start = new Date(today);
+                                    start.setDate(today.getDate() - 29);
+
+                                    setDashDateStart(format(start));
+                                    setDashDateEnd(format(today));
+                                    break;
+                                }
+
+                                case "thisMonth": {
+                                    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+
+                                    setDashDateStart(format(start));
+                                    setDashDateEnd(format(today));
+                                    break;
+                                }
+
+                                case "lastMonth": {
+                                    const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                                    const end = new Date(today.getFullYear(), today.getMonth(), 0);
+
+                                    setDashDateStart(format(start));
+                                    setDashDateEnd(format(end));
+                                    break;
+                                }
+
+                                case "custom":
+                                    // Keep current dates and let user choose
+                                    break;
+                            }
+                        }}
+                    />
+                </div>
+
+                {dashDatePreset === "custom" && (
+                    <>
+                        <input
+                            type="date"
+                            value={dashDateStart}
+                            onChange={(e) => setDashDateStart(e.target.value)}
+                            max={dashDateEnd || undefined}
+                            style={{ ...inp, width: 150 }}
+                        />
+
+                        <input
+                            type="date"
+                            value={dashDateEnd}
+                            onChange={(e) => setDashDateEnd(e.target.value)}
+                            min={dashDateStart || undefined}
+                            style={{ ...inp, width: 150 }}
+                        />
+                    </>
+                )}
                 <button
                     className="primary-btn"
                     onClick={handleExport}
@@ -801,7 +895,7 @@ export default function Dashboard({
                                 fontWeight: 600,
                             }}
                         >
-                            Last 7 Days
+                            {DATE_RANGE_LABEL[dashDatePreset]}
                         </span>
                     </div>
                 </div>
@@ -893,7 +987,7 @@ export default function Dashboard({
                                 fontWeight: 600,
                             }}
                         >
-                            Last 7 Days
+                            {DATE_RANGE_LABEL[dashDatePreset]}
                         </span>
                     </div>
                 </div>

@@ -123,6 +123,9 @@ export default function App() {
   const [dashProjectId, setDashProjectId] = useState("");
   const [dashPlanId, setDashPlanId] = useState("");
   const [dashRunId, setDashRunId] = useState("");
+  const [dashDateStart, setDashDateStart] = useState("");
+  const [dashDateEnd, setDashDateEnd] = useState("");
+  const [dashDatePreset, setDashDatePreset] = useState("last7");
   const [runProjectId, setRunProjectId] = useState("");
   const [runPlanId, setRunPlanId] = useState("");
   const [execStatusFilter, setExecStatusFilter] = useState("All");
@@ -913,9 +916,44 @@ export default function App() {
     const passedTotal = filteredEntries.filter(e => e.execStatus === "Passed").length;
     const failedTotal = filteredEntries.filter(e => e.execStatus === "Failed").length;
     const openDefs = filteredDefects.filter(d => d.status !== "Closed" && d.status !== "Rejected").length;
-    // Last 7 days trend
+    // Dashboard trend range: custom date range when provided, otherwise last 7 days.
+    const msPerDay = 24 * 60 * 60 * 1000;
     const today = new Date();
-    const last7 = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(d.getDate() - 6 + i); return d.toISOString().slice(0, 10); });
+    today.setHours(12, 0, 0, 0);
+    const parsedStart = dashDateStart ? new Date(dashDateStart + "T12:00:00") : null;
+    const parsedEnd = dashDateEnd ? new Date(dashDateEnd + "T12:00:00") : null;
+    const hasStart = parsedStart && !Number.isNaN(parsedStart.getTime());
+    const hasEnd = parsedEnd && !Number.isNaN(parsedEnd.getTime());
+
+    let rangeStart;
+    let rangeEnd;
+    if (hasStart && hasEnd) {
+      if (parsedStart <= parsedEnd) {
+        rangeStart = parsedStart;
+        rangeEnd = parsedEnd;
+      } else {
+        rangeStart = parsedEnd;
+        rangeEnd = parsedStart;
+      }
+    } else if (hasStart) {
+      rangeStart = parsedStart;
+      rangeEnd = today;
+    } else if (hasEnd) {
+      rangeEnd = parsedEnd;
+      rangeStart = new Date(rangeEnd);
+      rangeStart.setDate(rangeStart.getDate() - 6);
+    } else {
+      rangeEnd = today;
+      rangeStart = new Date(today);
+      rangeStart.setDate(rangeStart.getDate() - 6);
+    }
+
+    const rangeDays = Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / msPerDay) + 1);
+    const last7 = Array.from({ length: rangeDays }, (_, i) => {
+      const d = new Date(rangeStart);
+      d.setDate(rangeStart.getDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
     const trendDays = last7.map(dateStr => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const dayEntries = scopedRuns.flatMap(run =>
@@ -990,7 +1028,6 @@ export default function App() {
       let ideal;
       if (planStart && planEnd && planEnd >= planStart) {
         const current = new Date(dateStr + "T12:00:00");
-        const msPerDay = 24 * 60 * 60 * 1000;
         const totalDays = Math.max(1, Math.round((planEnd.getTime() - planStart.getTime()) / msPerDay) + 1);
         if (current < planStart) {
           ideal = tcBurnStart;
@@ -1006,15 +1043,14 @@ export default function App() {
       return { label, remaining, ideal };
     });
 
-    const defectBurnStart = filteredDefects.filter(def => {
-      const opened = (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10);
-      return opened && opened <= last7[0];
-    }).filter(def => {
-      const isClosed = ["Closed", "Rejected"].includes(def.status);
-      if (!isClosed) return true; // currently open/reopened — was open at window start
-      const closed = (def.closeDateTime || "").slice(0, 10);
-      return !(closed && closed <= last7[0]); // exclude only if it was closed before the window
-    }).length;
+    const defectOpenDates = filteredDefects
+      .map(def => (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10))
+      .filter(Boolean)
+      .sort();
+    const firstDefectDate = defectOpenDates.length > 0 ? defectOpenDates[0] : null;
+    const defectBurnStart = firstDefectDate
+      ? filteredDefects.filter(def => (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10) <= firstDefectDate).length
+      : 0;
 
     const defectBurndownDays = last7.map((dateStr, index) => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -1028,7 +1064,29 @@ export default function App() {
         if (closed && closed <= dateStr) return false; // was closed by this date
         return true; // closed but after this date
       }).length;
-      const ideal = Math.max(0, Math.round(defectBurnStart * (1 - (index / Math.max(1, last7.length - 1)))));
+      let ideal;
+      if (!firstDefectDate || dateStr < firstDefectDate) {
+        ideal = 0;
+      } else if (planStart && planEnd && planEnd >= planStart) {
+        const current = new Date(dateStr + "T12:00:00");
+        const firstDefectDateObj = new Date(firstDefectDate + "T12:00:00");
+        const planStartObj = new Date(planStart);
+        const burnStartDate = firstDefectDateObj > planStartObj ? firstDefectDateObj : planStartObj;
+        const totalDays = Math.max(1, Math.round((planEnd.getTime() - burnStartDate.getTime()) / msPerDay) + 1);
+        if (current < burnStartDate) {
+          ideal = 0;
+        } else if (current >= planEnd) {
+          ideal = 0;
+        } else {
+          const daysSinceStart = Math.round((current.getTime() - burnStartDate.getTime()) / msPerDay);
+          ideal = Math.max(0, Math.round(defectBurnStart * (1 - (daysSinceStart / Math.max(1, totalDays - 1)))));
+        }
+      } else {
+        const burnStartIndex = Math.max(0, last7.findIndex(d => d >= firstDefectDate));
+        const burnSpan = Math.max(1, (last7.length - 1) - burnStartIndex);
+        const progress = Math.max(0, (index - burnStartIndex) / burnSpan);
+        ideal = Math.max(0, Math.round(defectBurnStart * (1 - progress)));
+      }
       return { label, remaining, ideal };
     });
 
@@ -1040,7 +1098,7 @@ export default function App() {
       defTotal: filteredDefects.length, openDefs,
       execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays, availableRuns,
     };
-  }, [dashProjectId, dashPlanId, dashRunId, projects, allTestCases, runs, defects]);
+  }, [dashProjectId, dashPlanId, dashRunId, dashDateStart, dashDateEnd, projects, allTestCases, runs, defects]);
 
   const sortedRuns = useMemo(() => {
     return [...runs].sort((a, b) => {
@@ -3642,6 +3700,12 @@ linear-gradient(
               setDashPlanId={setDashPlanId}
               dashRunId={dashRunId}
               setDashRunId={setDashRunId}
+              dashDateStart={dashDateStart}
+              setDashDateStart={setDashDateStart}
+              dashDateEnd={dashDateEnd}
+              setDashDateEnd={setDashDateEnd}
+              dashDatePreset={dashDatePreset}
+              setDashDatePreset={setDashDatePreset}
               dashboardRef={dashboardRef}
               inp={inp}
               openRunDetails={openRunDetails}
