@@ -579,11 +579,11 @@ export default function DefectModals({
             <div>
               <label style={lbl}>Issue Type</label>
               <select
-                value={newDef.issueType || "Functional Issue"}
+                value={newDef.issueType || "Functional"}
                 onChange={e => setNewDef(p => ({ ...p, issueType: e.target.value }))}
                 style={inp}
               >
-                {["Functional Issue", "UI Issue", "Performance Issue", "Data Issue", "Other"].map(t => <option key={t}>{t}</option>)}
+                {["Functional", "UIUX", "Performance", "Test Data", "Environment", "Data Synchronous", "Backend Script/Scheduler", "Other"].map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
 
