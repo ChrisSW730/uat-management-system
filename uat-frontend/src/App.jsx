@@ -39,6 +39,9 @@ import {
   formatExportDateTime,
   downloadWorkbook
 } from "./utils/excel";
+import {
+  calculateIdealBurndown,
+} from "./utils/burndown";
 import LoginScreen from "./components/LoginScreen";
 import Dashboard from "./components/Dashboard";
 import DiamondMark from "./components/ui/DiamondMark";
@@ -1042,28 +1045,16 @@ export default function App() {
       .map(d => new Date(d));
     const planStart = planStartDates.length > 0 ? new Date(Math.min(...planStartDates.map(d => d.getTime()))) : null;
     const planEnd = planEndDates.length > 0 ? new Date(Math.max(...planEndDates.map(d => d.getTime()))) : null;
-    const tcBurndownDays = tcBurnStart === 0 ? [] : last7.map((dateStr, index) => {
+    const tcIdealStartDate = planStart && planEnd && planEnd >= planStart ? planStart : rangeStart;
+    const tcIdealEndDate = planStart && planEnd && planEnd >= planStart ? planEnd : rangeEnd;
+    const tcBurndownDays = tcBurnStart === 0 ? [] : last7.map((dateStr) => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const completed = burndownTcIds.filter(tcId => {
         const events = eventEntriesByTc[tcId] || [];
         return events.some(event => event.eventDate && event.eventDate <= dateStr && executedStatuses.has(event.execStatus));
       }).length;
       const remaining = Math.max(0, tcBurnStart - completed);
-      let ideal;
-      if (planStart && planEnd && planEnd >= planStart) {
-        const current = new Date(dateStr + "T12:00:00");
-        const totalDays = Math.max(1, Math.round((planEnd.getTime() - planStart.getTime()) / msPerDay) + 1);
-        if (current < planStart) {
-          ideal = tcBurnStart;
-        } else if (current >= planEnd) {
-          ideal = 0;
-        } else {
-          const daysSinceStart = Math.round((current.getTime() - planStart.getTime()) / msPerDay);
-          ideal = Math.max(0, Math.round(tcBurnStart * (1 - (daysSinceStart / Math.max(1, totalDays - 1)))));
-        }
-      } else {
-        ideal = Math.max(0, Math.round(tcBurnStart * (1 - (index / Math.max(1, last7.length - 1)))));
-      }
+      const ideal = calculateIdealBurndown(tcBurnStart, tcIdealStartDate, tcIdealEndDate, dateStr + "T12:00:00");
       return { label, remaining, ideal };
     });
 
@@ -1072,6 +1063,8 @@ export default function App() {
       .filter(Boolean)
       .sort();
     const firstDefectDate = defectOpenDates.length > 0 ? defectOpenDates[0] : null;
+    const defectTimelineStart = planStart && planEnd && planEnd >= planStart ? planStart : rangeStart;
+    const defectTimelineEnd = planStart && planEnd && planEnd >= planStart ? planEnd : rangeEnd;
     const defectBurndownDays = last7.reduce((acc, dateStr, index) => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const scopeAtDate = filteredDefects.filter(def => {
@@ -1091,32 +1084,18 @@ export default function App() {
       let ideal;
       if (!firstDefectDate || dateStr < firstDefectDate || scopeAtDate === 0) {
         ideal = 0;
-      } else if (planStart && planEnd && planEnd >= planStart) {
-        const current = new Date(dateStr + "T12:00:00");
-        const firstDefectDateObj = new Date(firstDefectDate + "T12:00:00");
-        const planStartObj = new Date(planStart);
-        const burnStartDate = firstDefectDateObj > planStartObj ? firstDefectDateObj : planStartObj;
-        const totalDays = Math.max(1, Math.round((planEnd.getTime() - burnStartDate.getTime()) / msPerDay) + 1);
-        if (current < burnStartDate) {
-          ideal = 0;
-        } else if (current >= planEnd) {
-          ideal = 0;
-        } else {
-          const daysSinceStart = Math.round((current.getTime() - burnStartDate.getTime()) / msPerDay);
-          ideal = Math.max(0, Math.round(scopeAtDate * (1 - (daysSinceStart / Math.max(1, totalDays - 1)))));
-        }
       } else {
-        const burnStartIndex = Math.max(0, last7.findIndex(d => d >= firstDefectDate));
-        const burnSpan = Math.max(1, (last7.length - 1) - burnStartIndex);
-        const progress = Math.max(0, (index - burnStartIndex) / burnSpan);
-        ideal = Math.max(0, Math.round(scopeAtDate * (1 - progress)));
+        const current = new Date(dateStr + "T12:00:00");
+        ideal = calculateIdealBurndown(scopeAtDate, defectTimelineStart, defectTimelineEnd, current);
       }
 
       if (index > 0) {
         const prev = acc[index - 1];
         const scopeIncrease = Math.max(0, scopeAtDate - prev.scopeAtDate);
-        const minIdealAfterIncrease = prev.ideal + Math.max(0, scopeIncrease - 1);
-        ideal = Math.max(ideal, minIdealAfterIncrease);
+        if (scopeIncrease > 0) {
+          const minIdealAfterIncrease = prev.ideal + Math.max(0, scopeIncrease - 1);
+          ideal = Math.max(ideal, minIdealAfterIncrease);
+        }
       }
 
       acc.push({ label, remaining, ideal, scopeAtDate });
