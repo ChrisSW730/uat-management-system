@@ -490,7 +490,7 @@ export default function DefectModals({
                 onChange={e => setEditDef(p => ({ ...p, issueType: e.target.value }))}
                 style={inp}
               >
-                {["Functional", "UIUX", "Performance", "Test Data", "Environment", "Configuration", "Data Synchronous", "Backend Script/Scheduler", "Other"].map(t => <option key={t}>{t}</option>)}
+                {["Functional", "UIUX", "Performance", "Test Data", "Environment", "Configuration", "Data Synchronization", "Compatibility", "Security", "Backend Script/Scheduler", "Enhancement", "Other"].map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
 
@@ -763,7 +763,7 @@ export default function DefectModals({
                 onChange={e => setNewDef(p => ({ ...p, issueType: e.target.value }))}
                 style={inp}
               >
-                {["Functional", "UIUX", "Performance", "Test Data", "Environment", "Configuration", "Data Synchronous", "Backend Script/Scheduler", "Other"].map(t => <option key={t}>{t}</option>)}
+                {["Functional", "UIUX", "Performance", "Test Data", "Environment", "Configuration", "Data Synchronization", "Compatibility", "Security", "Backend Script/Scheduler", "Enhancement","Other"].map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
 
