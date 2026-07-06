@@ -3338,7 +3338,15 @@ linear-gradient(
             )}
           </div>
           {/* Nav groups */}
-          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "8px 0" }}>
+          <div
+  className="sidebar-menu"
+  style={{
+    flex: 1,
+    overflowY: "auto",
+    overflowX: "hidden",
+    padding: "8px 0",
+  }}
+>
             {[
               {
                 group: "MAIN",
