@@ -57,6 +57,8 @@ export default function Defects({
   updateDefPriority,
   canUpdateDefectPriority,
 }) {
+  const DEF_MARKET_FILTER_ANY = "__ANY_MARKET__";
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -169,7 +171,7 @@ export default function Defects({
               value={defMarketFilter}
               placeholder="All"
               options={[
-                { value: "All", label: "All Market" },
+                { value: DEF_MARKET_FILTER_ANY, label: "Any Market" },
                 ...Array.from(
                   new Set(
                     defects
@@ -210,7 +212,7 @@ export default function Defects({
               setDefSearch("");
               setDefStatusFilter("All");
               setDefPriFilter("All");
-              setDefMarketFilter("All");
+              setDefMarketFilter(DEF_MARKET_FILTER_ANY);
               setDefPlanFilter("All");
               setDefOpenRule("Any");
               setDefOpenDate("");

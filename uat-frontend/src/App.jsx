@@ -93,6 +93,8 @@ const xBtn = { background: "#f1f5f9", border: "none", color: "#64748b", width: 3
    MAIN APP
 ----------------------------------------- */
 export default function App() {
+  const DEF_MARKET_FILTER_ANY = "__ANY_MARKET__";
+
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [projects, setProjects] = useState([]);
@@ -120,7 +122,7 @@ export default function App() {
   const [authUser, setAuthUser] = useState(() => readStoredAuth()?.user || null);
   const [defStatusFilter, setDefStatusFilter] = useState("All");
   const [defPriFilter, setDefPriFilter] = useState("All");
-  const [defMarketFilter, setDefMarketFilter] = useState("All");
+  const [defMarketFilter, setDefMarketFilter] = useState(DEF_MARKET_FILTER_ANY);
   const [defPlanFilter, setDefPlanFilter] = useState("All");
   const [defOpenRule, setDefOpenRule] = useState("Any");
   const [dashProjectId, setDashProjectId] = useState("");
@@ -899,11 +901,11 @@ export default function App() {
     return matchesSearch
       && (defStatusFilter === "All" || def.status === defStatusFilter)
       && (defPriFilter === "All" || def.priority === defPriFilter)
-      && (defMarketFilter === "All" || def.market === defMarketFilter)
+      && (defMarketFilter === DEF_MARKET_FILTER_ANY || def.market === defMarketFilter)
       && (defPlanFilter === "All" || String(def.testPlanId) === defPlanFilter)
       && matchesOpenRule
       && matchesCloseRule;
-  }), [defects, defSearch, defStatusFilter, defPriFilter, defMarketFilter, defPlanFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate]);
+  }), [defects, defSearch, defStatusFilter, defPriFilter, defMarketFilter, defPlanFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate, DEF_MARKET_FILTER_ANY]);
 
   const dashboardStats = useMemo(() => {
     const filteredProjects = dashProjectId
@@ -2279,7 +2281,7 @@ export default function App() {
     setNewDef({
       ...blankDef,
       issueType: "Functional Issue",
-      market: defMarketFilter !== "All" ? defMarketFilter : blankDef.market,
+      market: defMarketFilter !== DEF_MARKET_FILTER_ANY ? defMarketFilter : blankDef.market,
       raisedBy: getCurrentUserDisplayName(),
     });
     setNewDefAttachments([]);

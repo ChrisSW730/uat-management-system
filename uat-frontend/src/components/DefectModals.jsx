@@ -45,6 +45,8 @@ export default function DefectModals({
   getCurrentUserDisplayName,
   submitDefect,
 }) {
+  const marketOptions = ["All", "SG", "HK", "MY", "KR", "US", "ID", "TW"];
+
   return (
     <>
       {viewDef && (
@@ -344,7 +346,7 @@ export default function DefectModals({
                   onChange={e => setEditDef(p => ({ ...p, market: e.target.value }))}
                   style={inp}
                 >
-                  {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
+                  {marketOptions.map(m => <option key={m}>{m}</option>)}
                 </select>
               </div>
               <div>
@@ -579,7 +581,7 @@ export default function DefectModals({
                   onChange={e => setNewDef(p => ({ ...p, market: e.target.value }))}
                   style={inp}
                 >
-                  {["SG", "HK", "MY", "KR", "US", "ID", "TW"].map(m => <option key={m}>{m}</option>)}
+                  {marketOptions.map(m => <option key={m}>{m}</option>)}
                 </select>
               </div>
               <div>
