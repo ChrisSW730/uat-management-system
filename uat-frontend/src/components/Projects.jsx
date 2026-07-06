@@ -211,6 +211,19 @@ export default function Projects(props) {
 
                     <div className="panel-body">
 
+                        {projects.length === 0 &&
+                            <div className="empty-state">
+                                <p>No projects found.</p>
+                                <p>Click "Add Project" to create a project.</p>
+                            </div>
+                        }
+
+                        {projects.length > 0 && filteredProjects.length === 0 &&
+                            <div className="empty-state">
+                                No projects match the current filters.
+                            </div>
+                        }
+
                         {filteredProjects.map(project => (
                             <ProjectCard
                                 key={project.id}
