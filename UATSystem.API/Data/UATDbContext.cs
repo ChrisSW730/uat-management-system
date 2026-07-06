@@ -71,6 +71,34 @@ public class UATDbContext : DbContext
             .HasForeignKey(d => d.TestRunEntryId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<Defect>()
+            .HasOne(d => d.Project)
+            .WithMany(p => p.Defects)
+            .HasForeignKey(d => d.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Defect>()
+            .HasOne(d => d.TestPlan)
+            .WithMany(tp => tp.Defects)
+            .HasForeignKey(d => d.TestPlanId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Defect>()
+            .HasOne(d => d.TestRun)
+            .WithMany(r => r.Defects)
+            .HasForeignKey(d => d.TestRunId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<Defect>()
+            .HasOne(d => d.TestCase)
+            .WithMany(tc => tc.Defects)
+            .HasForeignKey(d => d.TestCaseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Defect>()
+            .HasIndex(d => d.DefectNumber)
+            .IsUnique();
+
         modelBuilder.Entity<TestRunEntryComment>()
             .HasOne(c => c.TestRunEntry)
             .WithMany(e => e.Comments)

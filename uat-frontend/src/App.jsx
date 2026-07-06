@@ -262,7 +262,21 @@ export default function App() {
     "BA / Owner ID: ",
     "Sample Serial Number: ",
   ].join("\n");
-  const blankDef = { market: "SG", description: defaultDefectTemplate, issueType: "Functional Issue", expected: "", actual: "", targetFix: "", raisedBy: "", priority: "Medium", assignedTo: "", remarks: "" };
+  const blankDef = {
+    projectId: "",
+    market: "SG",
+    source: "Exploratory Testing",
+    severity: "Medium",
+    description: defaultDefectTemplate,
+    issueType: "Functional Issue",
+    expected: "",
+    actual: "",
+    targetFix: "",
+    raisedBy: "",
+    priority: "Medium",
+    assignedTo: "",
+    remarks: ""
+  };
 
   const [newTC, setNewTC] = useState(blankTC);
   const [newRun, setNewRun] = useState(blankRun);
@@ -1294,7 +1308,7 @@ export default function App() {
     const map = {};
     (projects || []).forEach(p => {
       (p.testPlans || []).forEach(tp => {
-        map[tp.id] = { testPlanName: tp.name, projectName: p.name };
+        map[tp.id] = { testPlanName: tp.name, projectName: p.name, projectId: p.id };
       });
     });
     return map;
@@ -2075,13 +2089,21 @@ export default function App() {
 
   async function duplicateDefect(def) {
     try {
-      const run = runs.find(r => r.runNumber === def.runNumber);
-      const tc = testCases.find(t => t.tcNumber === def.tcNumber);
-      if (!run || !tc) { alert("Cannot duplicate: linked run or TC not found."); return; }
+      const run = def.testRunId ? runs.find(r => String(r.id) === String(def.testRunId)) : null;
+      const tc = def.testCaseId ? allTestCaseById[def.testCaseId] : null;
+      const fallbackProjectId = def.testPlanId ? testPlanMetaById[def.testPlanId]?.projectId : null;
+      const resolvedProjectId = def.projectId || fallbackProjectId || (selectedProjectId ? Number(selectedProjectId) : null);
+      if (!resolvedProjectId) {
+        alert("Cannot duplicate defect: project is missing.");
+        return;
+      }
       const duped = await api.createDefect({
-        testRunId: run.id,
-        testCaseId: tc.id,
+        projectId: resolvedProjectId,
+        testRunId: run?.id ?? null,
+        testCaseId: tc?.id ?? null,
         testPlanId: def.testPlanId ?? null,
+        source: def.source || "Exploratory Testing",
+        severity: def.severity || "Medium",
         market: def.market,
         description: def.description + " (Copy)",
         issueType: def.issueType,
@@ -2272,16 +2294,39 @@ export default function App() {
 
   function createDefect(runId, tcId) {
     const tc = allTestCaseById[tcId];
-    setNewDef({ ...blankDef, raisedBy: getCurrentUserDisplayName() });
+    const inferredTestPlanId = tc?.testPlanId ?? null;
+    const inferredProjectId = inferredTestPlanId ? testPlanMetaById[inferredTestPlanId]?.projectId ?? null : null;
+    setNewDef({
+      ...blankDef,
+      source: "Test Execution",
+      projectId: inferredProjectId ? String(inferredProjectId) : "",
+      raisedBy: getCurrentUserDisplayName()
+    });
     setNewDefAttachments([]);
-    setShowAddDef({ runId, tcId, tcName: tc?.name || tcId, tcTestPlanId: tc?.testPlanId ?? null, manualTestPlanId: "" });
+    setShowAddDef({
+      runId,
+      tcId,
+      tcName: tc?.name || tcId,
+      projectId: inferredProjectId ? String(inferredProjectId) : "",
+      testPlanId: inferredTestPlanId ? String(inferredTestPlanId) : "",
+    });
   }
 
   function createStandaloneDefect() {
+    const defaultProjectId = selectedProjectId || (projects[0] ? String(projects[0].id) : "");
+    const filteredPlanId = defPlanFilter !== "All" ? String(defPlanFilter) : "";
+    const filteredPlanMeta = filteredPlanId ? testPlanMetaById[filteredPlanId] : null;
+    const linkedPlanId =
+      filteredPlanMeta && String(filteredPlanMeta.projectId) === String(defaultProjectId)
+        ? filteredPlanId
+        : "";
+
     setNewDef({
       ...blankDef,
       issueType: "Functional Issue",
       market: defMarketFilter !== DEF_MARKET_FILTER_ANY ? defMarketFilter : blankDef.market,
+      source: "Exploratory Testing",
+      projectId: defaultProjectId,
       raisedBy: getCurrentUserDisplayName(),
     });
     setNewDefAttachments([]);
@@ -2289,20 +2334,40 @@ export default function App() {
       runId: null,
       tcId: null,
       tcName: "No linked test case",
-      tcTestPlanId: null,
-      manualTestPlanId: defPlanFilter !== "All" ? String(defPlanFilter) : "",
+      projectId: defaultProjectId,
+      testPlanId: linkedPlanId,
     });
   }
 
   async function submitDefect() {
     try {
-      const { runId, tcId, tcTestPlanId, manualTestPlanId } = showAddDef;
-      // Prefer the plan linked to the selected test case; otherwise use an explicitly selected plan.
-      const resolvedTestPlanId = tcTestPlanId ?? (manualTestPlanId ? Number(manualTestPlanId) : null);
+      const { runId, tcId, projectId, testPlanId } = showAddDef;
+      if (!projectId) {
+        alert("Project is required.");
+        return;
+      }
+      if (!newDef.source?.trim()) {
+        alert("Source is required.");
+        return;
+      }
+
+      const projectIdNumber = Number(projectId);
+      const testPlanIdNumber = testPlanId ? Number(testPlanId) : null;
+      if (testPlanIdNumber) {
+        const planMeta = testPlanMetaById[String(testPlanIdNumber)];
+        if (!planMeta || Number(planMeta.projectId) !== projectIdNumber) {
+          alert("Selected test plan does not belong to the selected project.");
+          return;
+        }
+      }
+
       const defect = await api.createDefect({
+        projectId: projectIdNumber,
         testRunId: runId,
         testCaseId: tcId,
-        testPlanId: resolvedTestPlanId,
+        testPlanId: testPlanIdNumber,
+        source: newDef.source,
+        severity: newDef.severity,
         market: newDef.market,
         description: newDef.description,
         issueType: newDef.issueType,
@@ -2409,16 +2474,24 @@ export default function App() {
     const oldRunId = editDef.testRunId ? Number(editDef.testRunId) : null;
     const oldTcId = editDef.testCaseId ? Number(editDef.testCaseId) : null;
 
-    if (!runId && tcId) {
-      alert("Please select a Run when selecting a Test Case.");
+    if (!editDef.projectId) {
+      alert("Project is required.");
+      return;
+    }
+
+    if (!editDef.source?.trim()) {
+      alert("Source is required.");
       return;
     }
 
     try {
       const updated = await api.updateDefect(editDef.id, {
+        projectId: Number(editDef.projectId),
         testRunId: runId,
         testCaseId: tcId,
         testPlanId: editDef.testPlanId ?? null,
+        source: editDef.source,
+        severity: editDef.severity,
         market: editDef.market,
         description: editDef.description,
         issueType: editDef.issueType,
@@ -4350,6 +4423,7 @@ linear-gradient(
             xBtn={xBtn}
             lbl={lbl}
             inp={inp}
+            projects={projects}
             testPlanMetaById={testPlanMetaById}
             defectAttachments={defectAttachments}
             openAttachment={openAttachment}

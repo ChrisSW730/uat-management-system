@@ -9,4 +9,5 @@ public class TestRun
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<TestRunEntry> Entries { get; set; } = new List<TestRunEntry>();
+    public ICollection<Defect> Defects { get; set; } = new List<Defect>();
 }

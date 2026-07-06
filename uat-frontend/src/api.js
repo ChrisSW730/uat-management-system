@@ -360,10 +360,20 @@ export const api = {
 
   // Defects
   getDefects: () => fetch(`${BASE}/defects`).then(r => r.json()),
-  createDefect: (data) => fetch(`${BASE}/defects`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
-  }).then(r => r.json()),
+  createDefect: async (data) => {
+    const response = await fetch(`${BASE}/defects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to create defect");
+    }
+
+    return await response.json();
+  },
   deleteDefect: (id) => fetch(`${BASE}/defects/${id}`, {
     method: "DELETE"
   }),

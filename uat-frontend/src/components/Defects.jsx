@@ -433,18 +433,25 @@ export default function Defects({
                           ...def,
                           dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
                           targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
-                          linkedRunId: def.testRunEntry?.testRunId
-                            ? String(def.testRunEntry.testRunId)
-                            : (def.testRunEntryId
-                              ? String(runs.find(r => (r.entries || []).some(en => String(en.id) === String(def.testRunEntryId)))?.id || "")
-                              : String(runs.find(r => r.runNumber === def.runNumber)?.id || "")),
-                          linkedTestCaseId: def.testRunEntry?.testCaseId
-                            ? String(def.testRunEntry.testCaseId)
-                            : (def.testRunEntryId
-                              ? String(runs
-                                .flatMap(r => r.entries || [])
-                                .find(en => String(en.id) === String(def.testRunEntryId))?.testCaseId || "")
-                              : String(allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || "")),
+                          linkedRunId: def.testRunId
+                            ? String(def.testRunId)
+                            : (def.testRunEntry?.testRunId
+                              ? String(def.testRunEntry.testRunId)
+                              : (def.testRunEntryId
+                                ? String(runs.find(r => (r.entries || []).some(en => String(en.id) === String(def.testRunEntryId)))?.id || "")
+                                : String(runs.find(r => r.runNumber === def.runNumber)?.id || ""))),
+                          linkedTestCaseId: def.testCaseId
+                            ? String(def.testCaseId)
+                            : (def.testRunEntry?.testCaseId
+                              ? String(def.testRunEntry.testCaseId)
+                              : (def.testRunEntryId
+                                ? String(runs
+                                  .flatMap(r => r.entries || [])
+                                  .find(en => String(en.id) === String(def.testRunEntryId))?.testCaseId || "")
+                                : String(allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || ""))),
+                          projectId: def.projectId ? String(def.projectId) : "",
+                          source: def.source || "Exploratory Testing",
+                          severity: def.severity || "Medium",
                         })}
                         
                       >

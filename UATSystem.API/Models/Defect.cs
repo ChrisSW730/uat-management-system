@@ -4,8 +4,13 @@ public class Defect
 {
     public int Id { get; set; }
     public string DefectNumber { get; set; } = string.Empty;
+    public int ProjectId { get; set; }
+    public int? TestRunId { get; set; }
+    public int? TestCaseId { get; set; }
     public int? TestRunEntryId { get; set; }
     public int? TestPlanId { get; set; }
+    public string Source { get; set; } = "Exploratory Testing";
+    public string Severity { get; set; } = "Medium";
     public string RunNumber { get; set; } = string.Empty;
     public string TcNumber { get; set; } = string.Empty;
     public string Market { get; set; } = string.Empty;
@@ -24,6 +29,9 @@ public class Defect
     public string Remarks { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public Project Project { get; set; } = null!;
+    public TestRun? TestRun { get; set; }
+    public TestCase? TestCase { get; set; }
     public TestRunEntry? TestRunEntry { get; set; }
     public TestPlan? TestPlan { get; set; }
     public ICollection<DefectAuditLog> AuditLogs { get; set; } = new List<DefectAuditLog>();

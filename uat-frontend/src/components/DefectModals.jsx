@@ -1,4 +1,4 @@
-import { PRIORITY_META } from "../constants";
+import { PRIORITY_META, DEFECT_SOURCES, DEFECT_SEVERITIES } from "../constants";
 import Modal from "./ui/Modal";
 
 export default function DefectModals({
@@ -9,6 +9,7 @@ export default function DefectModals({
   xBtn,
   lbl,
   inp,
+  projects,
   testPlanMetaById,
   defectAttachments,
   openAttachment,
@@ -46,6 +47,29 @@ export default function DefectModals({
   submitDefect,
 }) {
   const marketOptions = ["All", "SG", "HK", "MY", "KR", "US", "ID", "TW"];
+  const sourceOptions = DEFECT_SOURCES;
+  const severityOptions = DEFECT_SEVERITIES;
+
+  const getProjectName = projectId => {
+    const project = (projects || []).find(p => String(p.id) === String(projectId));
+    return project?.name || "-";
+  };
+
+  const getTestPlanLabel = testPlanId => {
+    if (!testPlanId) return "-";
+    const meta = testPlanMetaById[testPlanId];
+    return meta ? `${meta.projectName} - ${meta.testPlanName}` : `Plan #${testPlanId}`;
+  };
+
+  const getRunLabel = defect => defect.runNumber || (defect.testRunId ? `Run #${defect.testRunId}` : "-");
+  const getTestCaseLabel = defect => defect.tcNumber || (defect.testCaseId ? `TC #${defect.testCaseId}` : "-");
+
+  const getRunTestCaseOptions = runId => {
+    const run = runs.find(r => String(r.id) === String(runId));
+    return (run?.entries || [])
+      .map(en => allTestCaseById[en.testCaseId])
+      .filter(Boolean);
+  };
 
   return (
     <>
@@ -71,6 +95,30 @@ export default function DefectModals({
           <div style={{ display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
+                <label style={lbl}>Project</label>
+                <input
+                  value={getProjectName(viewDef.projectId)}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
+              </div>
+              <div>
+                <label style={lbl}>Source</label>
+                <input
+                  value={viewDef.source || "-"}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
+              </div>
+              <div>
+                <label style={lbl}>Severity</label>
+                <input
+                  value={viewDef.severity || "-"}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
+              </div>
+              <div>
                 <label style={lbl}>Market</label>
                 <input
                   value={viewDef.market || ""}
@@ -79,35 +127,29 @@ export default function DefectModals({
                 />
               </div>
               <div>
-                <label style={lbl}>Run</label>
+                <label style={lbl}>Test Plan</label>
                 <input
-                  value={viewDef.runNumber || "Standalone"}
+                  value={getTestPlanLabel(viewDef.testPlanId)}
                   style={{ ...inp, background: "#f8fafc" }}
                   readOnly
                 />
               </div>
-              {viewDef.tcNumber && (
-                <div>
-                  <label style={lbl}>Test Case</label>
-                  <input
-                    value={viewDef.tcNumber}
-                    style={{ ...inp, background: "#f8fafc" }}
-                    readOnly
-                  />
-                </div>
-              )}
-              {viewDef.testPlanId && (
-                <div>
-                  <label style={lbl}>Test Plan</label>
-                  <input
-                    value={testPlanMetaById[viewDef.testPlanId]
-                      ? `${testPlanMetaById[viewDef.testPlanId].projectName} - ${testPlanMetaById[viewDef.testPlanId].testPlanName}`
-                      : `Plan #${viewDef.testPlanId}`}
-                    style={{ ...inp, background: "#f8fafc" }}
-                    readOnly
-                  />
-                </div>
-              )}
+              <div>
+                <label style={lbl}>Test Run</label>
+                <input
+                  value={getRunLabel(viewDef)}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
+              </div>
+              <div>
+                <label style={lbl}>Test Case</label>
+                <input
+                  value={getTestCaseLabel(viewDef)}
+                  style={{ ...inp, background: "#f8fafc" }}
+                  readOnly
+                />
+              </div>
             </div>
 
             <div>
@@ -340,6 +382,46 @@ export default function DefectModals({
           <div style={{ display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
+                <label style={lbl}>Project *</label>
+                <select
+                  value={editDef.projectId || ""}
+                  onChange={e => {
+                    const nextProjectId = e.target.value || "";
+                    setEditDef(p => ({
+                      ...p,
+                      projectId: nextProjectId,
+                      testPlanId: p.testPlanId && testPlanMetaById[p.testPlanId]?.projectId === Number(nextProjectId) ? p.testPlanId : null,
+                    }));
+                  }}
+                  style={inp}
+                >
+                  <option value="">Select project</option>
+                  {(projects || []).map(project => (
+                    <option key={project.id} value={project.id}>{project.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Source *</label>
+                <select
+                  value={editDef.source || "Exploratory Testing"}
+                  onChange={e => setEditDef(p => ({ ...p, source: e.target.value }))}
+                  style={inp}
+                >
+                  {sourceOptions.map(source => <option key={source}>{source}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Severity</label>
+                <select
+                  value={editDef.severity || "Medium"}
+                  onChange={e => setEditDef(p => ({ ...p, severity: e.target.value }))}
+                  style={inp}
+                >
+                  {severityOptions.map(severity => <option key={severity}>{severity}</option>)}
+                </select>
+              </div>
+              <div>
                 <label style={lbl}>Market</label>
                 <select
                   value={editDef.market || "SG"}
@@ -350,53 +432,15 @@ export default function DefectModals({
                 </select>
               </div>
               <div>
-                <label style={lbl}>Run</label>
-                <select
-                  value={editDef.linkedRunId || ""}
-                  onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value || "" }))}
-                  style={inp}
-                >
-                  <option value="">Standalone defect</option>
-                  {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
-                </select>
-              </div>
-              {editDef.linkedRunId && (
-                <div>
-                  <label style={lbl}>Test Case</label>
-                  <select
-                    value={editDef.linkedTestCaseId || ""}
-                    onChange={e => {
-                      const nextTcId = e.target.value || "";
-                      const nextTc = nextTcId ? allTestCaseById[nextTcId] : null;
-                      setEditDef(p => ({
-                        ...p,
-                        linkedTestCaseId: nextTcId,
-                        testPlanId: nextTc?.testPlanId ?? (p.testPlanId ?? null),
-                      }));
-                    }}
-                    style={inp}
-                  >
-                    <option value="">No specific test case (run-level defect)</option>
-                    {(() => {
-                      const run = runs.find(r => String(r.id) === String(editDef.linkedRunId));
-                      const options = (run?.entries || [])
-                        .map(en => allTestCaseById[en.testCaseId])
-                        .filter(Boolean);
-                      return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
-                    })()}
-                  </select>
-                </div>
-              )}
-              <div>
                 <label style={lbl}>Test Plan (Optional)</label>
                 <select
                   value={editDef.testPlanId ?? ""}
                   onChange={e => setEditDef(p => ({ ...p, testPlanId: e.target.value ? Number(e.target.value) : null }))}
                   style={inp}
-                  disabled={!!editDef.linkedTestCaseId}
                 >
                   <option value="">Not linked to test plan</option>
                   {Object.entries(testPlanMetaById)
+                    .filter(([, meta]) => !editDef.projectId || String(meta.projectId) === String(editDef.projectId))
                     .sort((a, b) => {
                       const aLabel = `${a[1].projectName} - ${a[1].testPlanName}`;
                       const bLabel = `${b[1].projectName} - ${b[1].testPlanName}`;
@@ -406,11 +450,36 @@ export default function DefectModals({
                       <option key={id} value={id}>{meta.projectName} - {meta.testPlanName}</option>
                     ))}
                 </select>
-                {editDef.linkedTestCaseId && (
-                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-                    Test plan is auto-linked from the selected test case.
-                  </div>
-                )}
+              </div>
+              <div>
+                <label style={lbl}>Run</label>
+                <select
+                  value={editDef.linkedRunId || ""}
+                  onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value || "", linkedTestCaseId: "" }))}
+                  style={inp}
+                >
+                  <option value="">Standalone defect</option>
+                  {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Test Case (Optional)</label>
+                <select
+                  value={editDef.linkedTestCaseId || ""}
+                  onChange={e => {
+                    const nextTcId = e.target.value || "";
+                    const nextTc = nextTcId ? allTestCaseById[nextTcId] : null;
+                    setEditDef(p => ({
+                      ...p,
+                      linkedTestCaseId: nextTcId,
+                      testPlanId: nextTc?.testPlanId ?? (p.testPlanId ?? null),
+                    }));
+                  }}
+                  style={inp}
+                >
+                  <option value="">No specific test case</option>
+                  {getRunTestCaseOptions(editDef.linkedRunId).map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>)}
+                </select>
               </div>
             </div>
 
@@ -561,7 +630,13 @@ export default function DefectModals({
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
             <button onClick={() => { setEditDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
-            <button onClick={saveDefectEdits} style={{ ...btnP, opacity: !editDef?.description ? 0.5 : 1 }} disabled={!editDef?.description}>Save Changes</button>
+            <button
+              onClick={saveDefectEdits}
+              style={{ ...btnP, opacity: (!editDef?.description || !editDef?.projectId || !editDef?.source) ? 0.5 : 1 }}
+              disabled={!editDef?.description || !editDef?.projectId || !editDef?.source}
+            >
+              Save Changes
+            </button>
           </div>
         </Modal>
       )}
@@ -575,6 +650,47 @@ export default function DefectModals({
           <div style={{ display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
+                <label style={lbl}>Project *</label>
+                <select
+                  value={showAddDef.projectId || ""}
+                  onChange={e => {
+                    const nextProjectId = e.target.value || "";
+                    setShowAddDef(p => ({
+                      ...p,
+                      projectId: nextProjectId,
+                      testPlanId: p.testPlanId && testPlanMetaById[p.testPlanId]?.projectId === Number(nextProjectId) ? p.testPlanId : "",
+                    }));
+                    setNewDef(p => ({ ...p, projectId: nextProjectId }));
+                  }}
+                  style={inp}
+                >
+                  <option value="">Select project</option>
+                  {(projects || []).map(project => (
+                    <option key={project.id} value={project.id}>{project.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Source *</label>
+                <select
+                  value={newDef.source || "Exploratory Testing"}
+                  onChange={e => setNewDef(p => ({ ...p, source: e.target.value }))}
+                  style={inp}
+                >
+                  {sourceOptions.map(source => <option key={source}>{source}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Severity</label>
+                <select
+                  value={newDef.severity || "Medium"}
+                  onChange={e => setNewDef(p => ({ ...p, severity: e.target.value }))}
+                  style={inp}
+                >
+                  {severityOptions.map(severity => <option key={severity}>{severity}</option>)}
+                </select>
+              </div>
+              <div>
                 <label style={lbl}>Market</label>
                 <select
                   value={newDef.market || "SG"}
@@ -585,6 +701,26 @@ export default function DefectModals({
                 </select>
               </div>
               <div>
+                <label style={lbl}>Test Plan (Optional)</label>
+                <select
+                  value={showAddDef.testPlanId || ""}
+                  onChange={e => setShowAddDef(p => ({ ...p, testPlanId: e.target.value || "" }))}
+                  style={inp}
+                >
+                  <option value="">Not linked to test plan</option>
+                  {Object.entries(testPlanMetaById)
+                    .filter(([, meta]) => !showAddDef.projectId || String(meta.projectId) === String(showAddDef.projectId))
+                    .sort((a, b) => {
+                      const aLabel = `${a[1].projectName} - ${a[1].testPlanName}`;
+                      const bLabel = `${b[1].projectName} - ${b[1].testPlanName}`;
+                      return aLabel.localeCompare(bLabel);
+                    })
+                    .map(([id, meta]) => (
+                      <option key={id} value={id}>{meta.projectName} - {meta.testPlanName}</option>
+                    ))}
+                </select>
+              </div>
+              <div>
                 <label style={lbl}>Run</label>
                 <select
                   value={showAddDef.runId || ""}
@@ -592,7 +728,6 @@ export default function DefectModals({
                     ...p,
                     runId: e.target.value || null,
                     tcId: null,
-                    tcTestPlanId: null,
                   }))}
                   style={inp}
                 >
@@ -600,61 +735,24 @@ export default function DefectModals({
                   {runs.map(r => <option key={r.id} value={r.id}>{r.runNumber}</option>)}
                 </select>
               </div>
-              {showAddDef.runId && (
-                <div>
-                  <label style={lbl}>Test Case</label>
-                  <select
-                    value={showAddDef.tcId || ""}
-                    onChange={e => {
-                      const nextTcId = e.target.value || null;
-                      const nextTc = nextTcId ? allTestCaseById[nextTcId] : null;
-                      setShowAddDef(p => ({
-                        ...p,
-                        tcId: nextTcId,
-                        tcTestPlanId: nextTc?.testPlanId ?? null,
-                      }));
-                    }}
-                    style={inp}
-                  >
-                    <option value="">No specific test case (run-level defect)</option>
-                    {(() => {
-                      const run = runs.find(r => String(r.id) === String(showAddDef.runId));
-                      const options = (run?.entries || [])
-                        .map(en => allTestCaseById[en.testCaseId])
-                        .filter(Boolean);
-                      return options.map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>);
-                    })()}
-                  </select>
-                </div>
-              )}
               <div>
-                <label style={lbl}>Test Plan (Optional)</label>
-                {showAddDef.tcTestPlanId ? (
-                  <input
-                    value={testPlanMetaById[showAddDef.tcTestPlanId]
-                      ? `${testPlanMetaById[showAddDef.tcTestPlanId].projectName} - ${testPlanMetaById[showAddDef.tcTestPlanId].testPlanName}`
-                      : `Plan #${showAddDef.tcTestPlanId}`}
-                    style={{ ...inp, background: "#f8fafc" }}
-                    readOnly
-                  />
-                ) : (
-                  <select
-                    value={showAddDef.manualTestPlanId || ""}
-                    onChange={e => setShowAddDef(p => ({ ...p, manualTestPlanId: e.target.value || "" }))}
-                    style={inp}
-                  >
-                    <option value="">Not linked to test plan</option>
-                    {Object.entries(testPlanMetaById)
-                      .sort((a, b) => {
-                        const aLabel = `${a[1].projectName} - ${a[1].testPlanName}`;
-                        const bLabel = `${b[1].projectName} - ${b[1].testPlanName}`;
-                        return aLabel.localeCompare(bLabel);
-                      })
-                      .map(([id, meta]) => (
-                        <option key={id} value={id}>{meta.projectName} - {meta.testPlanName}</option>
-                      ))}
-                  </select>
-                )}
+                <label style={lbl}>Test Case (Optional)</label>
+                <select
+                  value={showAddDef.tcId || ""}
+                  onChange={e => {
+                    const nextTcId = e.target.value || null;
+                    const nextTc = nextTcId ? allTestCaseById[nextTcId] : null;
+                    setShowAddDef(p => ({
+                      ...p,
+                      tcId: nextTcId,
+                      testPlanId: nextTc?.testPlanId ? String(nextTc.testPlanId) : p.testPlanId,
+                    }));
+                  }}
+                  style={inp}
+                >
+                  <option value="">No specific test case</option>
+                  {getRunTestCaseOptions(showAddDef.runId).map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>)}
+                </select>
               </div>
             </div>
 
@@ -784,7 +882,13 @@ export default function DefectModals({
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
             <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
-            <button onClick={submitDefect} style={{ ...btnP, opacity: !newDef.description ? 0.5 : 1 }} disabled={!newDef.description}>Log Defect</button>
+            <button
+              onClick={submitDefect}
+              style={{ ...btnP, opacity: (!newDef.description || !showAddDef.projectId || !newDef.source) ? 0.5 : 1 }}
+              disabled={!newDef.description || !showAddDef.projectId || !newDef.source}
+            >
+              Log Defect
+            </button>
           </div>
         </Modal>
       )}

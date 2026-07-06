@@ -59,6 +59,18 @@ export const DEFECT_STATUS = {
   Closed: { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0", dot: "#94a3b8" },
 };
 
+export const DEFECT_SOURCES = [
+  "Test Execution",
+  "Exploratory Testing",
+  "UAT Feedback",
+  "Automation",
+  "Production Verification",
+  "Customer Report",
+  "Other",
+];
+
+export const DEFECT_SEVERITIES = ["Critical", "High", "Medium", "Low"];
+
 export const CATEGORIES = [
   "User Authentication", "User Management",
   "Payout & Clawback Creation (Charity Live Campaign)",
