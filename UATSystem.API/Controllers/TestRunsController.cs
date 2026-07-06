@@ -69,6 +69,7 @@ public class TestRunsController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var runs = await _db.TestRuns
+            .AsNoTracking()
             .Include(r => r.Entries)
                 .ThenInclude(e => e.TestCase)
             .Include(r => r.Entries)

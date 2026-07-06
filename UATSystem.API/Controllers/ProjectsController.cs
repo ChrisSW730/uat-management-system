@@ -22,6 +22,7 @@ public class ProjectsController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var projects = await _db.Projects
+            .AsNoTracking()
             .Include(p => p.TestPlans)
                 .ThenInclude(tp => tp.TestScopes)
             .OrderBy(p => p.Name)

@@ -158,10 +158,7 @@ public class DefectsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
         Ok(await _db.Defects
-            .Include(d => d.Project)
-            .Include(d => d.TestPlan)
-            .Include(d => d.TestRun)
-            .Include(d => d.TestCase)
+            .AsNoTracking()
             .Include(d => d.Comments)
             .Include(d => d.TestRunEntry)
             .OrderByDescending(d => d.CreatedAt)
