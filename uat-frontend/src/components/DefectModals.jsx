@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { PRIORITY_META, DEFECT_SOURCES, DEFECT_SEVERITIES } from "../constants";
+import { PRIORITY_META, DEFECT_SOURCES, DEFECT_SEVERITIES, DEFECT_STATUS } from "../constants";
 import Modal from "./ui/Modal";
+import { DefBadge } from "./ui/Badge";
 import "../styles/Defects.css";
 
 // ─── ClickUp placeholder API methods ────────────────────────────────────────
@@ -574,6 +575,12 @@ export default function DefectModals({
                 />
               </div>
               <div>
+                <label style={lbl}>Status</label>
+                <div style={{ marginTop: 6 }}>
+                  <DefBadge status={viewDef.status} />
+                </div>
+              </div>
+              <div>
                 <label style={lbl}>Market</label>
                 <input className="defect-textarea"
                   value={viewDef.market || ""}
@@ -888,6 +895,16 @@ export default function DefectModals({
                   style={inp}
                 >
                   {severityOptions.map(severity => <option key={severity}>{severity}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Status</label>
+                <select
+                  value={editDef.status || "New"}
+                  onChange={e => setEditDef(p => ({ ...p, status: e.target.value }))}
+                  style={inp}
+                >
+                  {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
               <div>
