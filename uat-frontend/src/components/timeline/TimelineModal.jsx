@@ -6,7 +6,7 @@ import TimelineLegend from "./TimelineLegend";
 import TimelineRows from "./TimelineRows";
 import TimelineTodayIndicator from "./TimelineTodayIndicator";
 import TimelineTooltip from "./TimelineTooltip";
-import "../styles/Timeline.css";
+import "../../styles/Timeline.css";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

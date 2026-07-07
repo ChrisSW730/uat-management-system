@@ -4,7 +4,7 @@ import ProjectCard from "./ProjectCard";
 import TestPlanCard from "./TestPlanCard";
 import FilterDropdown from "./ui/FilterDropdown";
 import { useState, useEffect } from "react";
-import TimelineModal from "./TimelineModal";
+import TimelineModal from "./timeline/TimelineModal";
 
 
 export default function Projects(props) {

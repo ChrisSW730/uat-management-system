@@ -6,7 +6,7 @@ import {
   ClipboardList,
   Play,
   Bug,
-  Settings,
+  Settings as SettingsIcon,
   Users,
   Files,
   CheckCircle2,
@@ -58,6 +58,9 @@ import UsersTab from "./components/Users";
 import "./styles/Projects.css";
 import FilterDropdown from "./components/ui/FilterDropdown";
 import peekqaLogo from "../public/peekqa-logo.png";
+import SettingsTab from "./components/Settings";
+import ManageCategoryModal from "./components/settings/ManageCategoryModal";
+import "./styles/Settings.css";
 
 function getInitialDefectLinkId() {
   try {
@@ -3369,7 +3372,7 @@ linear-gradient(
                 ? [{
                   group: "SETTINGS",
                   items: [
-                    ["settings_cat", <Settings size={18} />, "Settings"],
+                    ["settings", <SettingsIcon size={18} />, "Settings"],
                     ["users", <Users size={18} />, "Users"],
                   ]
                 }]
@@ -3384,7 +3387,7 @@ linear-gradient(
                   const active = activeTab === key;
                   return (
                     <button key={key}
-                      onClick={() => { if (key === "settings_cat") { setShowCategorySettings(true); } else { setActiveTab(key); } }}
+                      onClick={() => setActiveTab(key)}
                       onMouseEnter={(e) => {
                         if (!active) {
                           e.currentTarget.style.background =
@@ -3516,10 +3519,10 @@ linear-gradient(
           <div style={{ background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "45px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
             <div>
               <div style={{ fontSize: 30, fontWeight: 750, color: "#0f172a" }}>
-                {({ dashboard: "Dashboard", testcases: "Test Cases", runs: "Test Runs", defects: "Defect Log", projects: "Projects", users: "Users", settings_cat: "Settings" })[activeTab] || ""}
+                {({ dashboard: "Dashboard", testcases: "Test Cases", runs: "Test Runs", defects: "Defect Log", projects: "Projects", users: "Users", settings: "Settings" })[activeTab] || ""}
               </div>
               <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
-                {({ dashboard: "Overview of test execution and defects", testcases: "Manage and track all test cases", runs: "Execute and monitor test runs", defects: "Track and manage defects", projects: "Manage your test projects", users: "Manage user accounts and permissions", settings_cat: "Configure categories and options" })[activeTab] || ""}
+                {({ dashboard: "Overview of test execution and defects", testcases: "Manage and track all test cases", runs: "Execute and monitor test runs", defects: "Track and manage defects", projects: "Manage your test projects", users: "Manage user accounts and permissions", settings: "Manage system configuration and integrations" })[activeTab] || ""}
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -3900,6 +3903,16 @@ linear-gradient(
               dashboardRef={dashboardRef}
               inp={inp}
               openRunDetails={openRunDetails}
+            />
+          )}
+
+          {/* ══════════════════════════════════
+          TAB: SETTINGS
+      ══════════════════════════════════ */}
+          {activeTab === "settings" && (
+            <SettingsTab
+              categories={categories}
+              onManageCategories={() => setShowCategorySettings(true)}
             />
           )}
 
@@ -4943,46 +4956,18 @@ linear-gradient(
           )}
 
           {showCategorySettings && isAdmin && (
-            <Modal onClose={() => { setShowCategorySettings(false); setNewCategoryName(""); }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
-                <div style={{ fontSize: 17, fontWeight: 800 }}>Configure Categories</div>
-                <button onClick={() => { setShowCategorySettings(false); setNewCategoryName(""); }} style={xBtn}>✕</button>
-              </div>
-              <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
-                {[...categories].sort((a, b) => a.localeCompare(b)).map((cat, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
-                    <span style={{ flex: 1, fontSize: 14, color: "#1e293b", fontWeight: 600 }}>{cat}</span>
-                    <button
-                      onClick={() => deleteCategory(cat)}
-                      style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
-                      title="Remove category"
-                    >✕</button>
-                  </div>
-                ))}
-                {categories.length === 0 && <div style={{ color: "#94a3b8", fontSize: 13, textAlign: "center", padding: 12 }}>No categories defined.</div>}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={newCategoryName}
-                  onChange={e => setNewCategoryName(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && newCategoryName.trim()) {
-                      addCategory();
-                    }
-                  }}
-                  placeholder="New category name…"
-                  style={{ ...inp, flex: 1 }}
-                />
-                <button
-                  onClick={addCategory}
-                  disabled={!newCategoryName.trim()}
-                  style={{ ...btnP, opacity: !newCategoryName.trim() ? 0.5 : 1 }}
-                >Add</button>
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
-                <button onClick={() => { setShowCategorySettings(false); setNewCategoryName(""); }} style={btnS}>Close</button>
-              </div>
-            </Modal>
+            <ManageCategoryModal
+              onClose={() => { setShowCategorySettings(false); setNewCategoryName(""); }}
+              categories={categories}
+              newCategoryName={newCategoryName}
+              setNewCategoryName={setNewCategoryName}
+              addCategory={addCategory}
+              deleteCategory={deleteCategory}
+              inp={inp}
+              btnP={btnP}
+              btnS={btnS}
+              xBtn={xBtn}
+            />
           )}
           {showAddUser && (
             <Modal onClose={() => setShowAddUser(false)}>
