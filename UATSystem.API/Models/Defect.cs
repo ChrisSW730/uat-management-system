@@ -4,6 +4,7 @@ public class Defect
 {
     public int Id { get; set; }
     public string DefectNumber { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
     public int ProjectId { get; set; }
     public int? TestRunId { get; set; }
     public int? TestCaseId { get; set; }

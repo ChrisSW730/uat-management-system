@@ -272,6 +272,7 @@ export default function App() {
     severity: "Medium",
     description: defaultDefectTemplate,
     issueType: "Functional Issue",
+    title: "",
     expected: "",
     actual: "",
     targetFix: "",
@@ -2110,6 +2111,7 @@ export default function App() {
         market: def.market,
         description: def.description + " (Copy)",
         issueType: def.issueType,
+        title: def.title,
         expectedResult: def.expectedResult,
         actualResult: def.actualResult,
         priority: def.priority,
@@ -2374,6 +2376,7 @@ export default function App() {
         market: newDef.market,
         description: newDef.description,
         issueType: newDef.issueType,
+        title: newDef.title,
         expectedResult: newDef.expected,
         actualResult: newDef.actual,
         priority: newDef.priority,
@@ -2498,6 +2501,7 @@ export default function App() {
         market: editDef.market,
         description: editDef.description,
         issueType: editDef.issueType,
+        title: editDef.title,
         expectedResult: editDef.expectedResult,
         actualResult: editDef.actualResult,
         priority: editDef.priority,
@@ -3100,6 +3104,7 @@ export default function App() {
         Market: def.market || "",
         Status: def.status || "",
         Priority: def.priority || "",
+        "Defect Title": def.title || "",
         "Issue Type": def.issueType || "",
         Description: def.description || "",
         "Expected Result": def.expectedResult || "",
@@ -3331,7 +3336,7 @@ linear-gradient(
         marginTop: 2,
       }}
     >
-      Test Management System
+      Test Management
     </div>
   </div>
 </div>

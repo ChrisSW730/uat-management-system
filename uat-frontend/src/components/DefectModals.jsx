@@ -93,6 +93,14 @@ export default function DefectModals({
             <button onClick={() => setViewDef(null)} style={xBtn}>✕</button>
           </div>
           <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <label style={lbl}>Defect Title</label>
+              <input
+                value={viewDef.title || ""}
+                style={{ ...inp, background: "#f8fafc" }}
+                readOnly
+              />
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={lbl}>Project</label>
@@ -380,6 +388,15 @@ export default function DefectModals({
             <button onClick={() => setEditDef(null)} style={xBtn}>✕</button>
           </div>
           <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <label style={lbl}>Defect Title</label>
+              <input
+                value={editDef.title || ""}
+                onChange={e => setEditDef(p => ({ ...p, title: e.target.value }))}
+                placeholder="Short summary of the defect"
+                style={inp}
+              />
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={lbl}>Project *</label>
@@ -648,6 +665,15 @@ export default function DefectModals({
             <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={xBtn}>✕</button>
           </div>
           <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <label style={lbl}>Defect Title</label>
+              <input
+                value={newDef.title || ""}
+                onChange={e => setNewDef(p => ({ ...p, title: e.target.value }))}
+                placeholder="Short summary of the defect"
+                style={inp}
+              />
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={lbl}>Project *</label>

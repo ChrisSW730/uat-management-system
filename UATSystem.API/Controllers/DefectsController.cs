@@ -270,6 +270,7 @@ public class DefectsController : ControllerBase
             CloseDateTime = null,
             TargetFixDate = dto.TargetFixDate,
             Remarks = dto.Remarks,
+            Title = dto.Title ?? string.Empty,
             CreatedAt = now,
         };
         _db.Defects.Add(defect);
@@ -418,6 +419,7 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "IssueType", defect.IssueType, dto.IssueType, changedBy);
         AddAudit(defect, "ExpectedResult", defect.ExpectedResult, dto.ExpectedResult, changedBy);
         AddAudit(defect, "ActualResult", defect.ActualResult, dto.ActualResult, changedBy);
+        AddAudit(defect, "Title", defect.Title, dto.Title ?? string.Empty, changedBy);
         AddAudit(defect, "Priority", defect.Priority, dto.Priority, changedBy);
         AddAudit(defect, "RaisedBy", defect.RaisedBy, dto.RaisedBy, changedBy);
         AddAudit(defect, "AssignedTo", defect.AssignedTo, dto.AssignedTo, changedBy);
@@ -444,6 +446,7 @@ public class DefectsController : ControllerBase
         defect.IssueType = dto.IssueType;
         defect.ExpectedResult = dto.ExpectedResult;
         defect.ActualResult = dto.ActualResult;
+        defect.Title = dto.Title ?? string.Empty;
         defect.Priority = dto.Priority;
         defect.RaisedBy = dto.RaisedBy;
         defect.AssignedTo = dto.AssignedTo;
@@ -692,7 +695,8 @@ public record CreateDefectDto(
     string Market, string Description, string IssueType,
     string ExpectedResult, string ActualResult,
     string Priority, string RaisedBy, string AssignedTo,
-    DateTime? TargetFixDate, string Remarks);
+    DateTime? TargetFixDate, string Remarks,
+    string Title = "");
 
 public record UpdateStatusDto(string Status);
 
@@ -716,7 +720,8 @@ public record UpdateDefectDto(
     DateTime DateRaised,
     DateTime? TargetFixDate,
     string Remarks,
-    string Status);
+    string Status,
+    string Title = "");
 
 public record UpdateAssigneeDto(string AssignedTo);
 
