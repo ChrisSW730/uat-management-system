@@ -10,7 +10,7 @@ import {
     Settings2
 } from "lucide-react";
 
-export default function Settings({ categories, onManageCategories }) {
+export default function Settings({ categories, onManageCategories, onManageClickUp, clickUpEnabled }) {
     return (
         <div className="settings-page">
             <div className="page-header">
@@ -36,7 +36,9 @@ export default function Settings({ categories, onManageCategories }) {
                         icon: Link2,
                         title: "ClickUp Integration",
                         description: "Integrate with ClickUp to sync defects",
-                        badge: "Not Connected",
+                        badge: clickUpEnabled ? "Enabled" : "Disabled",
+                        badgeColor: clickUpEnabled ? "green" : undefined,
+                        onClick: onManageClickUp,
                     },
                 ]}
             />

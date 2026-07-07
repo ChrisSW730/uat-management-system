@@ -194,6 +194,11 @@ export default function App() {
   const [newScopeName, setNewScopeName] = useState("");
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showCategorySettings, setShowCategorySettings] = useState(false);
+  const [showClickUpSettings, setShowClickUpSettings] = useState(false);
+  const [clickUpEnabled, setClickUpEnabled] = useState(() => {
+    const saved = localStorage.getItem("clickUpEnabled");
+    return saved === null ? true : saved === "true";
+  });
   const categoryStorageKey = "uat_categories";
   const readStoredCategories = () => {
     try {
@@ -270,7 +275,7 @@ export default function App() {
     market: "SG",
     source: "Exploratory Testing",
     severity: "Medium",
-    description: defaultDefectTemplate,
+    description: "",
     issueType: "Functional Issue",
     title: "",
     expected: "",
@@ -2387,7 +2392,8 @@ export default function App() {
       });
 
       if (newDefAttachments.length > 0) {
-        const uploaded = await api.uploadDefectAttachments(defect.id, newDefAttachments, getCurrentUserName());
+        const renamedNew = renameImageFiles(newDefAttachments, defect.id, 1);
+        const uploaded = await api.uploadDefectAttachments(defect.id, renamedNew, getCurrentUserName());
         setDefectAttachments(p => ({ ...p, [defect.id]: uploaded }));
       }
 
@@ -2601,7 +2607,9 @@ export default function App() {
 
       if (newDefAttachments.length > 0) {
         try {
-          const uploaded = await api.uploadDefectAttachments(updated.id, newDefAttachments, getCurrentUserName());
+          const existingCount = (defectAttachments[updated.id] || []).length;
+          const renamedQueued = renameImageFiles(newDefAttachments, updated.id, existingCount + 1);
+          const uploaded = await api.uploadDefectAttachments(updated.id, renamedQueued, getCurrentUserName());
           setDefectAttachments(p => ({
             ...p,
             [updated.id]: [...(p[updated.id] || []), ...uploaded],
@@ -2684,13 +2692,25 @@ export default function App() {
     }
   }
 
+  function renameImageFiles(files, defectId, startIndex) {
+    return files.map((f, i) => {
+      if (!f.type?.startsWith("image/")) return f;
+      const extFromName = f.name?.includes(".") ? f.name.split(".").pop() : null;
+      const extFromType = f.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
+      const ext = extFromName || extFromType;
+      return new File([f], `image_${defectId}_${startIndex + i}.${ext}`, { type: f.type });
+    });
+  }
+
   async function uploadDefectFiles(defectId, files) {
     const selected = Array.from(files || []).filter(f => f && f.size > 0);
     if (selected.length === 0) return;
 
     try {
       setUploadingDefectId(defectId);
-      const uploaded = await api.uploadDefectAttachments(defectId, selected, getCurrentUserName());
+      const existingCount = (defectAttachments[defectId] || []).length;
+      const renamed = renameImageFiles(selected, defectId, existingCount + 1);
+      const uploaded = await api.uploadDefectAttachments(defectId, renamed, getCurrentUserName());
       if (!Array.isArray(uploaded)) throw new Error("Unexpected server response");
       setDefectAttachments(p => ({
         ...p,
@@ -3918,6 +3938,8 @@ linear-gradient(
             <SettingsTab
               categories={categories}
               onManageCategories={() => setShowCategorySettings(true)}
+              onManageClickUp={() => setShowClickUpSettings(true)}
+              clickUpEnabled={clickUpEnabled}
             />
           )}
 
@@ -4485,6 +4507,7 @@ linear-gradient(
             setNewDef={setNewDef}
             getCurrentUserDisplayName={getCurrentUserDisplayName}
             submitDefect={submitDefect}
+            clickUpEnabled={clickUpEnabled}
           />
 
           {showAddProject && canManageProjects && (
@@ -4956,6 +4979,51 @@ linear-gradient(
                   disabled={!newRun.name || newRun.selectedTcIds.length === 0}>
                   Create Run
                 </button>
+              </div>
+            </Modal>
+          )}
+
+          {showClickUpSettings && (
+            <Modal onClose={() => setShowClickUpSettings(false)}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>ClickUp Integration</div>
+                <button onClick={() => setShowClickUpSettings(false)} style={xBtn}>✕</button>
+              </div>
+
+              {/* Enable / Disable toggle */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 18px", marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>Enable ClickUp Integration</div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 3, lineHeight: 1.5 }}>Show the ClickUp card in Defect modals to sync defects.</div>
+                </div>
+                <label style={{ position: "relative", display: "inline-block", width: 44, height: 24, cursor: "pointer", flexShrink: 0, marginLeft: 16 }}>
+                  <input
+                    type="checkbox"
+                    checked={clickUpEnabled}
+                    onChange={e => {
+                      const val = e.target.checked;
+                      setClickUpEnabled(val);
+                      localStorage.setItem("clickUpEnabled", String(val));
+                    }}
+                    style={{ opacity: 0, width: 0, height: 0, position: "absolute" }}
+                  />
+                  <span style={{ position: "absolute", inset: 0, background: clickUpEnabled ? "#7c3aed" : "#cbd5e1", borderRadius: 24, transition: "background 0.2s" }} />
+                  <span style={{ position: "absolute", top: 3, left: clickUpEnabled ? 23 : 3, width: 18, height: 18, background: "#fff", borderRadius: "50%", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                </label>
+              </div>
+
+              {/* Status info */}
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 16px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>Connection Status</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#cbd5e1", display: "inline-block", flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>Not Connected</span>
+                </div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>API credentials not configured yet.</div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 22 }}>
+                <button onClick={() => setShowClickUpSettings(false)} style={btnS}>Close</button>
               </div>
             </Modal>
           )}

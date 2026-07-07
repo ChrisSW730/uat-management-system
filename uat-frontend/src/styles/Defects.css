@@ -1,0 +1,329 @@
+.defect-layout{
+
+    display:grid;
+
+    grid-template-columns:2fr 1fr;
+
+    gap:24px;
+
+    height:70vh;
+    
+}
+
+.defect-left{
+
+    overflow:auto;
+
+    padding-right:8px;
+}
+
+.defect-right{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow: hidden;
+    height: 100%;
+}
+
+/* Collaboration sidebar cards */
+.collab-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    padding: 20px;
+}
+
+.collab-card--comments {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.collab-card--integration {
+    flex-shrink: 0;
+}
+
+.collab-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+
+.comment-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.comment-input-area {
+    flex-shrink: 0;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+/* Integration card fields */
+.integration-field-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+}
+
+.integration-field-label {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.integration-field-value {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.integration-status-badge {
+    font-size: 12px;
+    color: #94a3b8;
+    background: #f1f5f9;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.integration-primary-btn {
+    margin-top: 14px;
+    width: 100%;
+    padding: 9px 0;
+    border-radius: 8px;
+    border: 1.5px solid #7c3aed;
+    background: #fff;
+    color: #7c3aed;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+}
+
+.integration-primary-btn:hover:not(:disabled) {
+    background: #7c3aed;
+    color: #fff;
+}
+
+.integration-primary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.integration-secondary-btn {
+    padding: 9px 0;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-family: inherit;
+}
+
+.integration-secondary-btn:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.integration-secondary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ─── ClickUp setup card ─────────────────────────────────────────────────── */
+.clickup-setup-card {
+    overflow-y: auto;
+    flex-shrink: 1;
+    min-height: 0;
+}
+
+.clickup-field-group {
+    margin-bottom: 10px;
+}
+
+.clickup-field-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.clickup-required {
+    color: #ef4444;
+    margin-left: 1px;
+}
+
+.clickup-optional {
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 2px;
+}
+
+.clickup-select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.clickup-select {
+    width: 100%;
+    padding: 7px 28px 7px 10px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 12px;
+    background: #f8fafc;
+    color: #0f172a;
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.clickup-select:focus {
+    border-color: #7c3aed;
+}
+
+.clickup-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.clickup-spinner {
+    position: absolute;
+    right: 24px;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #7c3aed;
+    border-radius: 50%;
+    animation: cu-spin 0.7s linear infinite;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+@keyframes cu-spin {
+    to { transform: rotate(360deg); }
+}
+
+.clickup-field-hint {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 3px;
+}
+
+.clickup-remember-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    font-size: 11px;
+    color: #475569;
+    cursor: pointer;
+    margin-top: 8px;
+    line-height: 1.5;
+}
+
+.clickup-remember-checkbox {
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: #7c3aed;
+    cursor: pointer;
+}
+
+.clickup-error-msg {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #ef4444;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: 7px 10px;
+}
+
+/* ─── ClickUp linked state ───────────────────────────────────────────────── */
+.clickup-linked-badge {
+    font-size: 12px;
+    color: #16a34a;
+    background: #f0fdf4;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.clickup-task-id {
+    font-family: monospace;
+    color: #6366f1 !important;
+    font-weight: 700;
+}
+
+.clickup-truncate {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* ─── Shared button row ──────────────────────────────────────────────────── */
+.clickup-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.clickup-btn-half {
+    flex: 1;
+    margin-top: 0 !important;
+}
+
+.defect-textarea{
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    color: #0f172a;
+    padding: 9px 13px;
+    width: 100%;
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+    font-family: inherit;
+}
+
+.defect-multitextarea{
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    color: #0f172a;
+    padding: 9px 13px;
+    width: 100%;
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+    min-height: 80px;
+    resize: vertical;
+    background: #f8fafc;
+    font-family: inherit;
+}

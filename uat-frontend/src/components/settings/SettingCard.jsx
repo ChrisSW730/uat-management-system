@@ -6,6 +6,7 @@ export default function SettingCard({
     description,
     count,
     badge,
+    badgeColor,
     onClick,
 }) {
     const Icon = icon;
@@ -43,7 +44,12 @@ export default function SettingCard({
                     )}
 
                     {badge && (
-                        <span className="badge">
+                        <span
+                            className="badge"
+                            style={badgeColor === "green"
+                                ? { background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }
+                                : undefined}
+                        >
                             {badge}
                         </span>
                     )}
