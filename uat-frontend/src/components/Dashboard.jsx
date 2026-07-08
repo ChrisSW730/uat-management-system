@@ -300,6 +300,11 @@ export default function Dashboard({
     const { tcCount, entryCount, passedTotal, failedTotal, defTotal, openDefs, passRate, availableRuns,
         execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays } = dashboardStats;
     const blockedTotal = execByStatus["Blocked"] || 0;
+    const executedTotal = passedTotal + failedTotal + blockedTotal;
+    const executionProgress =
+        tcCount > 0
+            ? Math.round((executedTotal / tcCount) * 100)
+            : 0;
     const execSegs = [
         { value: passedTotal, color: "#22c55e" },
         { value: failedTotal, color: "#f43f5e" },
@@ -732,7 +737,7 @@ export default function Dashboard({
                                     lineHeight: 1,
                                 }}
                             >
-                                {passRate}%
+                                {executionProgress}%
                             </div>
                             <div
                                 style={{
@@ -748,7 +753,7 @@ export default function Dashboard({
                                     width: "fit-content",
                                 }}
                             >
-                                {passedTotal.toLocaleString()} passed /{" "}
+                                {executedTotal.toLocaleString()} executed /{" "}
                                 {tcCount.toLocaleString()} total
                             </div>
 
@@ -770,7 +775,7 @@ export default function Dashboard({
                     >
                         <div
                             style={{
-                                width: `${passRate}%`,
+                                width: `${executionProgress}%`,
                                 height: "100%",
 
                                 background: "linear-gradient( #04cdffc2, #02a1c9c2)",
@@ -807,10 +812,10 @@ export default function Dashboard({
                         );
                     })}
                     <div style={{ marginTop: 28, paddingTop: 16, borderTop: "1.5px solid #f1f5f9", display: "flex", alignItems: "center", gap: 16 }}>
-                        <DonutChart size={100} strokeWidth={16} label={`${passRate}%`} segments={execSegs} />
+                        <DonutChart size={100} strokeWidth={16} label={`${executionProgress}%`} segments={execSegs} />
                         <div>
                             <div style={{ fontWeight: 700, fontSize: 13, color: "#334155" }}>Overall Execution Progress</div>
-                            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{passedTotal.toLocaleString()} / {tcCount.toLocaleString()} Test Cases Executed</div>
+                            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{executedTotal.toLocaleString()} / {tcCount.toLocaleString()} Test Cases Executed</div>
                         </div>
                     </div>
                 </div>
