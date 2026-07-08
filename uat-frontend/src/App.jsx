@@ -2958,6 +2958,7 @@ export default function App() {
           ID: tc.tcNumber,
           Project: planMeta?.projectName || "",
           "Test Plan": planMeta?.testPlanName || "",
+          "Test Scope": tc.testScopeId ? testScopeNameById[tc.testScopeId] || "" : "",
           "Test Name": tc.name || "",
           Category: tc.category || "",
           Priority: tc.priority || "",
@@ -2981,6 +2982,7 @@ export default function App() {
             "Test Name": tc.name || "",
             Project: planMeta?.projectName || "",
             "Test Plan": planMeta?.testPlanName || "",
+            "Test Scope": tc.testScopeId ? testScopeNameById[tc.testScopeId] || "" : "",
             Run: "",
             Tester: "",
             "Run Created At": "",
@@ -2991,6 +2993,7 @@ export default function App() {
           "Test Name": tc.name || "",
           Project: planMeta?.projectName || "",
           "Test Plan": planMeta?.testPlanName || "",
+          "Test Scope": tc.testScopeId ? testScopeNameById[tc.testScopeId] || "" : "",
           Run: run.runNumber || "",
           Tester: run.tester || "",
           "Run Created At": formatExportDateTime(run.createdAt),
@@ -3014,6 +3017,7 @@ export default function App() {
           "Test Name": tc.name || "",
           Project: planMeta?.projectName || "",
           "Test Plan": planMeta?.testPlanName || "",
+          "Test Scope": tc.testScopeId ? testScopeNameById[tc.testScopeId] || "" : "",
           File: attachment.fileName || "",
           Url: attachment.url || "",
           "Size (KB)": Math.max(1, Math.round((attachment.size || 0) / 1024)),
@@ -3268,6 +3272,16 @@ export default function App() {
     </div>
   );
 
+  const totalLinkedTestCases =
+    (testScopesByPlanId[managingTestPlan?.id] || []).reduce(
+      (total, scope) =>
+        total +
+        (linkedTestCaseCountByScopeKey[
+          `${String(managingTestPlan?.id)}:${String(scope.id)}`
+        ] || 0),
+      0
+    );
+
   return (
     //<div style={{ minHeight:"100vh", background:"#fff", fontFamily:"'Inter','Segoe UI',sans-serif", color:"#0f172a" }}>
     <div onClick={() => { setShowNotifications(false); setShowUserMenu(false); setShowImportMenu(false); }} style={{ height: "100vh", background: "#fff", fontFamily: "'Inter','Segoe UI',sans-serif", color: "#0f172a", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -3325,41 +3339,41 @@ linear-gradient(
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-  <img
-    src={peekqaLogo}
-    alt="PeekQA"
-    style={{
-      width: 54,
-      height: "auto",
-      objectFit: "contain",
-      flexShrink: 0,
-    }}
-  />
+                  <img
+                    src={peekqaLogo}
+                    alt="PeekQA"
+                    style={{
+                      width: 54,
+                      height: "auto",
+                      objectFit: "contain",
+                      flexShrink: 0,
+                    }}
+                  />
 
-  <div>
-    <div
-      style={{
-        fontSize: 18,
-        fontWeight: 700,
-        color: "#fff",
-        lineHeight: 1.1,
-      }}
-    >
-      PeekQA
-    </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: "#fff",
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      PeekQA
+                    </div>
 
-    <div
-      style={{
-        fontSize: 11,
-        color: "rgba(255,255,255,.65)",
-        fontWeight: 500,
-        marginTop: 2,
-      }}
-    >
-      Test Management
-    </div>
-  </div>
-</div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "rgba(255,255,255,.65)",
+                        fontWeight: 500,
+                        marginTop: 2,
+                      }}
+                    >
+                      Test Management
+                    </div>
+                  </div>
+                </div>
                 <button onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar"
                   style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#8892a4", fontSize: 16, flexShrink: 0 }}>‹</button>
               </>
@@ -3367,14 +3381,14 @@ linear-gradient(
           </div>
           {/* Nav groups */}
           <div
-  className="sidebar-menu"
-  style={{
-    flex: 1,
-    overflowY: "auto",
-    overflowX: "hidden",
-    padding: "8px 0",
-  }}
->
+            className="sidebar-menu"
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              overflowX: "hidden",
+              padding: "8px 0",
+            }}
+          >
             {[
               {
                 group: "MAIN",
@@ -4598,11 +4612,84 @@ linear-gradient(
 
           {showManageScopes && managingTestPlan && canManageProjects && (
             <Modal onClose={() => { setShowManageScopes(false); setManagingTestPlan(null); }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-                <div style={{ fontSize: 17, fontWeight: 800 }}>Testing Scopes - {managingTestPlan.name}</div>
-                <button onClick={() => { setShowManageScopes(false); setManagingTestPlan(null); }} style={xBtn}>✕</button>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: 16,
+                  gap: 16,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 17,
+                      fontWeight: 800,
+                      color: "#0f172a",
+                      lineHeight: 1.35,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Testing Scopes - {managingTestPlan.name}
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "5px 12px",
+                        borderRadius: 999,
+                        background: "#EEF2FF",
+                        color: "#4F46E5",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      🟣 {(testScopesByPlanId[managingTestPlan.id] || []).length} Scope
+                      {(testScopesByPlanId[managingTestPlan.id] || []).length !== 1 ? "s" : ""}
+                    </span>
+
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "5px 12px",
+                        borderRadius: 999,
+                        background: "#F8FAFC",
+                        border: "1px solid #E2E8F0",
+                        color: "#475569",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      🔗 {totalLinkedTestCases} Linked Test Case
+                      {totalLinkedTestCases !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowManageScopes(false);
+                    setManagingTestPlan(null);
+                  }}
+                  style={xBtn}
+                >
+                  ✕
+                </button>
               </div>
-              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+              <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
                 <input
                   value={newScopeName}
                   onChange={e => setNewScopeName(e.target.value)}
