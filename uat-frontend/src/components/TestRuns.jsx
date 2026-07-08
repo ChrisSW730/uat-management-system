@@ -229,7 +229,8 @@ export default function TestRuns(props) {
 				{filteredRuns.map(run => {
 					const st = runStats(run);
 					const byStatusPriority = runStatusPriorityStats(run);
-					const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0;
+					const executed = st.pass + st.fail + st.blocked;
+					const pct = st.total > 0 ? Math.round((executed / st.total) * 100) : 0;
 					const isRunSelected = selectedRunIds.includes(run.id);
 					const showRunCheckbox = hoveredRunId === run.id || isRunSelected;
 					return (
@@ -352,7 +353,7 @@ export default function TestRuns(props) {
 									})}
 								</div>
 								<div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#94a3b8", marginBottom: 5 }}>
-									<span>Progress</span><span style={{ fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
+									<span>Execution Progress</span><span style={{ fontWeight: 700, color: pct === 100 ? "#15803d" : "#64748b" }}>{pct}%</span>
 								</div>
 								<div
 									style={{
