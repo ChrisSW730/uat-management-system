@@ -4691,18 +4691,26 @@ linear-gradient(
               </div>
               <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
                 <input
-                  value={newScopeName}
-                  onChange={e => setNewScopeName(e.target.value)}
-                  style={inp}
-                  placeholder="Add a scope name"
-                />
+    value={newScopeName}
+    onChange={e => setNewScopeName(e.target.value)}
+    onKeyDown={e => {
+        if (e.key === "Enter" && newScopeName.trim()) {
+            addTestingScope();
+        }
+    }}
+    placeholder="Add a scope name"
+    style={{ ...inp, flex: 1 }}
+/>
                 <button
-                  onClick={addTestingScope}
-                  style={{ ...btnP, opacity: newScopeName.trim() ? 1 : 0.5 }}
-                  disabled={!newScopeName.trim()}
-                >
-                  + Add
-                </button>
+    onClick={addTestingScope}
+    disabled={!newScopeName.trim()}
+    style={{
+        ...btnP,
+        opacity: newScopeName.trim() ? 1 : 0.5,
+    }}
+>
+    Add
+</button>
               </div>
               <div style={{ display: "grid", gap: 8 }}>
                 {(testScopesByPlanId[managingTestPlan.id] || []).length === 0 && (
@@ -4727,6 +4735,23 @@ linear-gradient(
                   </div>
                 ))}
               </div>
+              <div
+  style={{
+    display: "flex",
+    justifyContent: "flex-end",
+    marginTop: 20,
+  }}
+>
+  <button
+    onClick={() => {
+      setShowManageScopes(false);
+      setManagingTestPlan(null);
+    }}
+    style={btnS}
+  >
+    Close
+  </button>
+</div>
             </Modal>
           )}
 
