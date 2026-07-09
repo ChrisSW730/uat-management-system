@@ -8,6 +8,10 @@ import {
 
 const CLICKUP_REQUEST_TIMEOUT_MS = 8000;
 
+const BASE = import.meta.env.DEV
+  ? ""
+  : "/api";
+
 function buildClickUpApiUrl(path) {
   return `/${path.replace(/^\/+/, "")}`;
 }
@@ -319,7 +323,7 @@ export function getClickUpFriendlyErrorMessage(statusOrError, fallback = "We cou
 }
 
 export async function getClickUpIntegrationConfig() {
-  const response = await fetchWithTimeout(buildClickUpApiUrl("clickup/integration"), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/integration`), {
     method: "GET",
     headers: { Accept: "application/json" },
   });
@@ -332,7 +336,7 @@ export async function getClickUpIntegrationConfig() {
 }
 
 export async function validateClickUpConnection(token) {
-  const response = await fetchWithTimeout(buildClickUpApiUrl("clickup/validate"), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/validate`), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -349,7 +353,7 @@ export async function validateClickUpConnection(token) {
 }
 
 export async function fetchClickUpWorkspaces(token) {
-  const response = await fetchWithTimeout(buildClickUpApiUrl("clickup/workspaces"), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/workspaces`), {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -365,7 +369,7 @@ export async function fetchClickUpWorkspaces(token) {
 }
 
 export async function fetchClickUpSpaces(workspaceId, token) {
-  const response = await fetchWithTimeout(buildClickUpApiUrl(`clickup/workspaces/${encodeURIComponent(workspaceId)}/spaces`), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/workspaces/${encodeURIComponent(workspaceId)}/spaces`), {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -384,7 +388,7 @@ export async function fetchClickUpSpaceMetadata(workspaceId, spaceId, token, lis
   const query = new URLSearchParams();
   if (listId) query.set("listId", listId);
 
-  const response = await fetchWithTimeout(buildClickUpApiUrl(`clickup/workspaces/${encodeURIComponent(workspaceId)}/spaces/${encodeURIComponent(spaceId)}/metadata${query.toString() ? `?${query.toString()}` : ""}`), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/workspaces/${encodeURIComponent(workspaceId)}/spaces/${encodeURIComponent(spaceId)}/metadata${query.toString() ? `?${query.toString()}` : ""}`), {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -404,7 +408,7 @@ export async function fetchClickUpLists(workspaceId, spaceId, token, folderId = 
   if (folderId) query.set("folderId", folderId);
 
   const response = await fetchWithTimeout(
-    buildClickUpApiUrl(`clickup/workspaces/${encodeURIComponent(workspaceId)}/spaces/${encodeURIComponent(spaceId)}/lists${query.toString() ? `?${query.toString()}` : ""}`),
+    buildClickUpApiUrl(`${BASE}/clickup/workspaces/${encodeURIComponent(workspaceId)}/spaces/${encodeURIComponent(spaceId)}/lists${query.toString() ? `?${query.toString()}` : ""}`),
     {
       method: "GET",
       headers: {
@@ -422,7 +426,7 @@ export async function fetchClickUpLists(workspaceId, spaceId, token, folderId = 
 }
 
 export async function fetchClickUpCustomItems(workspaceId, token) {
-  const response = await fetchWithTimeout(buildClickUpApiUrl(`clickup/workspaces/${encodeURIComponent(workspaceId)}/custom-items`), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/workspaces/${encodeURIComponent(workspaceId)}/custom-items`), {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -438,7 +442,7 @@ export async function fetchClickUpCustomItems(workspaceId, token) {
 }
 
 export async function fetchClickUpListTasks(listId, token) {
-  const response = await fetchWithTimeout(buildClickUpApiUrl(`clickup/lists/${encodeURIComponent(listId)}/tasks`), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/lists/${encodeURIComponent(listId)}/tasks`), {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -460,7 +464,7 @@ export async function syncDefectToClickUp(defectId, options = {}) {
     customItemId: options?.customItemId || null,
   };
 
-  const response = await fetchWithTimeout(buildClickUpApiUrl(`clickup/defects/${encodeURIComponent(defectId)}/sync`), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/defects/${encodeURIComponent(defectId)}/sync`), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -477,7 +481,7 @@ export async function syncDefectToClickUp(defectId, options = {}) {
 }
 
 export async function unlinkDefectFromClickUp(defectId) {
-  const response = await fetchWithTimeout(buildClickUpApiUrl(`clickup/defects/${encodeURIComponent(defectId)}/unlink`), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/defects/${encodeURIComponent(defectId)}/unlink`), {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -509,7 +513,7 @@ export async function saveClickUpIntegration(config) {
         valueMappings: normalized.customFieldValueMappings?.[field.id] || {},
       }));
 
-  const response = await fetchWithTimeout(buildClickUpApiUrl("clickup/integration"), {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/integration`), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
