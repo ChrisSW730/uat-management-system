@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UATSystem.API.Data;
 
@@ -11,9 +12,11 @@ using UATSystem.API.Data;
 namespace UATSystem.API.Migrations
 {
     [DbContext(typeof(UATDbContext))]
-    partial class UATDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260708030123_AddClickUpIntegrationSettings")]
+    partial class AddClickUpIntegrationSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -58,41 +61,6 @@ namespace UATSystem.API.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("AssignedTo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ClickUpCustomItemId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ClickUpCustomItemName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ClickUpLinkedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ClickUpListId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ClickUpListName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ClickUpParentTaskId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ClickUpParentTaskName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ClickUpTaskId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ClickUpTaskUrl")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

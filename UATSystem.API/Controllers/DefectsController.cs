@@ -190,6 +190,16 @@ public class DefectsController : ControllerBase
             return BadRequest("Severity is required.");
         }
 
+        if (string.IsNullOrWhiteSpace(dto.ExpectedResult))
+        {
+            return BadRequest("ExpectedResult is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.ActualResult))
+        {
+            return BadRequest("ActualResult is required.");
+        }
+
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
         if (project == null)
         {
@@ -349,6 +359,16 @@ public class DefectsController : ControllerBase
         if (string.IsNullOrWhiteSpace(severity))
         {
             return BadRequest("Severity is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.ExpectedResult))
+        {
+            return BadRequest("ExpectedResult is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.ActualResult))
+        {
+            return BadRequest("ActualResult is required.");
         }
 
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == dto.ProjectId);

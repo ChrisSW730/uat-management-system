@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   EXEC_STATUS,
+  DEFECT_ISSUE_TYPES,
   PRIORITY_META,
   TEST_CASE_PRIORITIES,
   DEFECT_STATUS,
@@ -60,6 +61,8 @@ import FilterDropdown from "./components/ui/FilterDropdown";
 import peekqaLogo from "../public/peekqa-logo.png";
 import SettingsTab from "./components/Settings";
 import ManageCategoryModal from "./components/settings/ManageCategoryModal";
+import ClickUpIntegrationModal from "./components/settings/ClickUpIntegrationModal";
+import { DEFAULT_CLICKUP_CONFIG, getClickUpIntegrationConfig, normalizeClickUpConfig, syncDefectToClickUp } from "./services/clickupService";
 import "./styles/Settings.css";
 
 function getInitialDefectLinkId() {
@@ -78,6 +81,42 @@ function getInitialDefectLinkId() {
   }
 
   return null;
+}
+
+function getInitialClickUpConfig() {
+  return normalizeClickUpConfig(DEFAULT_CLICKUP_CONFIG);
+}
+
+const CLICKUP_CONFIG_CACHE_KEY_PREFIX = "peekqa_clickup_config_cache_v1";
+
+function getClickUpConfigCacheKey(userId) {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) return null;
+  return `${CLICKUP_CONFIG_CACHE_KEY_PREFIX}_${normalizedUserId}`;
+}
+
+function readCachedClickUpConfig(userId) {
+  try {
+    const key = getClickUpConfigCacheKey(userId);
+    if (!key) return null;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return normalizeClickUpConfig(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function persistCachedClickUpConfig(userId, config) {
+  try {
+    const key = getClickUpConfigCacheKey(userId);
+    if (!key) return;
+    const normalized = normalizeClickUpConfig(config || getInitialClickUpConfig());
+    localStorage.setItem(key, JSON.stringify(normalized));
+  } catch {
+    // Ignore storage errors to avoid blocking app behavior.
+  }
 }
 
 /* -----------------------------------------
@@ -148,6 +187,85 @@ export default function App() {
     const id = setInterval(() => setPwTick(t => t + 1), 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!authUser?.id) {
+      setClickUpConfigHydratedUserId(null);
+      setClickUpConfig(getInitialClickUpConfig());
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setClickUpConfigHydratedUserId(null);
+
+    getClickUpIntegrationConfig()
+      .then((config) => {
+        if (!isMounted) return;
+        const cachedConfig = readCachedClickUpConfig(authUser?.id) || {};
+        const nextConfig = {
+          ...normalizeClickUpConfig(getInitialClickUpConfig()),
+          ...cachedConfig,
+          ...config,
+          token: cachedConfig?.token || "",
+          workspace: config?.workspace ?? cachedConfig?.workspace ?? null,
+          space: config?.space ?? cachedConfig?.space ?? null,
+          list: config?.list ?? cachedConfig?.list ?? null,
+          customItem: config?.customItem ?? cachedConfig?.customItem ?? null,
+          workspaces: Array.isArray(config?.workspaces) && config.workspaces.length > 0
+            ? config.workspaces
+            : (cachedConfig?.workspaces || []),
+          spaces: Array.isArray(config?.spaces) && config.spaces.length > 0
+            ? config.spaces
+            : (cachedConfig?.spaces || []),
+          lists: Array.isArray(config?.lists) && config.lists.length > 0
+            ? config.lists
+            : (cachedConfig?.lists || []),
+          customItems: Array.isArray(config?.customItems) && config.customItems.length > 0
+            ? config.customItems
+            : (cachedConfig?.customItems || []),
+          availableFields: Array.isArray(config?.availableFields) && config.availableFields.length > 0
+            ? config.availableFields
+            : (cachedConfig?.availableFields || []),
+          availableStatuses: Array.isArray(config?.availableStatuses) && config.availableStatuses.length > 0
+            ? config.availableStatuses
+            : (cachedConfig?.availableStatuses || []),
+          availablePriorities: Array.isArray(config?.availablePriorities) && config.availablePriorities.length > 0
+            ? config.availablePriorities
+            : (cachedConfig?.availablePriorities || []),
+          mappings: {
+            ...(cachedConfig?.mappings || {}),
+            ...(config?.mappings || {}),
+          },
+          statusMappings: {
+            ...(cachedConfig?.statusMappings || {}),
+            ...(config?.statusMappings || {}),
+          },
+          priorityMappings: {
+            ...(cachedConfig?.priorityMappings || {}),
+            ...(config?.priorityMappings || {}),
+          },
+          customFieldValueMappings: {
+            ...(cachedConfig?.customFieldValueMappings || {}),
+            ...(config?.customFieldValueMappings || {}),
+          },
+        };
+        setClickUpConfig(nextConfig);
+        setClickUpConfigHydratedUserId(String(authUser.id));
+      })
+      .catch(() => {
+        if (isMounted) {
+          setClickUpConfig(readCachedClickUpConfig(authUser?.id) || getInitialClickUpConfig());
+          setClickUpConfigHydratedUserId(String(authUser.id));
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authUser?.id]);
   const getPwCooldownRemaining = (key) => {
     const endsAt = pwCooldowns[key];
     if (!endsAt) return 0;
@@ -195,10 +313,16 @@ export default function App() {
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showCategorySettings, setShowCategorySettings] = useState(false);
   const [showClickUpSettings, setShowClickUpSettings] = useState(false);
-  const [clickUpEnabled, setClickUpEnabled] = useState(() => {
-    const saved = localStorage.getItem("clickUpEnabled");
-    return saved === null ? true : saved === "true";
-  });
+  const [clickUpConfigHydratedUserId, setClickUpConfigHydratedUserId] = useState(null);
+  const [clickUpConfig, setClickUpConfig] = useState(() => readCachedClickUpConfig(authUser?.id) || getInitialClickUpConfig());
+  const clickUpEnabled = Boolean(clickUpConfig?.enabled);
+
+  useEffect(() => {
+    if (!authUser?.id) return;
+    if (String(clickUpConfigHydratedUserId || "") !== String(authUser.id)) return;
+    persistCachedClickUpConfig(authUser.id, clickUpConfig);
+  }, [clickUpConfig, authUser?.id, clickUpConfigHydratedUserId]);
+
   const categoryStorageKey = "uat_categories";
   const readStoredCategories = () => {
     try {
@@ -272,11 +396,11 @@ export default function App() {
   ].join("\n");
   const blankDef = {
     projectId: "",
-    market: "SG",
+    market: "All",
     source: "Exploratory Testing",
     severity: "Medium",
     description: "",
-    issueType: "Functional Issue",
+    issueType: DEFECT_ISSUE_TYPES[0],
     title: "",
     expected: "",
     actual: "",
@@ -2333,7 +2457,7 @@ export default function App() {
 
     setNewDef({
       ...blankDef,
-      issueType: "Functional Issue",
+      issueType: DEFECT_ISSUE_TYPES[0],
       market: defMarketFilter !== DEF_MARKET_FILTER_ANY ? defMarketFilter : blankDef.market,
       source: "Exploratory Testing",
       projectId: defaultProjectId,
@@ -2358,6 +2482,14 @@ export default function App() {
       }
       if (!newDef.source?.trim()) {
         alert("Source is required.");
+        return;
+      }
+      if (!newDef.expected?.trim()) {
+        alert("Expected Result is required.");
+        return;
+      }
+      if (!newDef.actual?.trim()) {
+        alert("Actual Result is required.");
         return;
       }
 
@@ -2478,6 +2610,38 @@ export default function App() {
     }
   }
 
+  function updateDefectClickUpLinkState(defectId, linkPatch) {
+    const normalizedPatch = {
+      clickUpTaskId: linkPatch?.clickUpTaskId || "",
+      clickUpTaskUrl: linkPatch?.clickUpTaskUrl || "",
+      clickUpListId: linkPatch?.clickUpListId || "",
+      clickUpListName: linkPatch?.clickUpListName || "",
+      clickUpParentTaskId: linkPatch?.clickUpParentTaskId || "",
+      clickUpParentTaskName: linkPatch?.clickUpParentTaskName || "",
+      clickUpCustomItemId: linkPatch?.clickUpCustomItemId || "",
+      clickUpCustomItemName: linkPatch?.clickUpCustomItemName || "",
+      clickUpLinkedAt: linkPatch?.clickUpLinkedAt || null,
+    };
+
+    setDefects((current) => current.map((defect) => defect.id === defectId ? { ...defect, ...normalizedPatch } : defect));
+    setViewDef((current) => current?.id === defectId ? { ...current, ...normalizedPatch } : current);
+    setEditDef((current) => current?.id === defectId ? { ...current, ...normalizedPatch } : current);
+    setRuns((current) => current.map((run) => ({
+      ...run,
+      entries: (run.entries || []).map((entry) => ({
+        ...entry,
+        defects: (entry.defects || []).map((defect) => defect.id === defectId ? { ...defect, ...normalizedPatch } : defect),
+      })),
+    })));
+    setViewRun((current) => current ? ({
+      ...current,
+      entries: (current.entries || []).map((entry) => ({
+        ...entry,
+        defects: (entry.defects || []).map((defect) => defect.id === defectId ? { ...defect, ...normalizedPatch } : defect),
+      })),
+    }) : current);
+  }
+
   async function saveDefectEdits() {
     if (!editDef) return;
 
@@ -2493,6 +2657,14 @@ export default function App() {
 
     if (!editDef.source?.trim()) {
       alert("Source is required.");
+      return;
+    }
+    if (!editDef.expectedResult?.trim()) {
+      alert("Expected Result is required.");
+      return;
+    }
+    if (!editDef.actualResult?.trim()) {
+      alert("Actual Result is required.");
       return;
     }
 
@@ -2620,7 +2792,37 @@ export default function App() {
         setNewDefAttachments([]);
       }
 
+      const linkedTaskId = updated?.clickUpTaskId || editDef?.clickUpTaskId || "";
+      const shouldSyncLinkedDefect = Boolean(clickUpEnabled && linkedTaskId);
+      const syncPayload = {
+        listId: updated?.clickUpListId || editDef?.clickUpListId || null,
+        customItemId: updated?.clickUpCustomItemId || editDef?.clickUpCustomItemId || null,
+        parentTaskId: updated?.clickUpParentTaskId || editDef?.clickUpParentTaskId || null,
+      };
+
       setEditDef(null);
+
+      if (shouldSyncLinkedDefect) {
+        void (async () => {
+          try {
+            const syncResult = await syncDefectToClickUp(updated.id, syncPayload);
+
+            updateDefectClickUpLinkState(updated.id, {
+              clickUpTaskId: syncResult?.taskId || linkedTaskId,
+              clickUpTaskUrl: syncResult?.taskUrl || updated?.clickUpTaskUrl || editDef?.clickUpTaskUrl || "",
+              clickUpListId: updated?.clickUpListId || editDef?.clickUpListId || "",
+              clickUpListName: syncResult?.listName || updated?.clickUpListName || editDef?.clickUpListName || "",
+              clickUpParentTaskId: updated?.clickUpParentTaskId || editDef?.clickUpParentTaskId || "",
+              clickUpParentTaskName: updated?.clickUpParentTaskName || editDef?.clickUpParentTaskName || "",
+              clickUpCustomItemId: updated?.clickUpCustomItemId || editDef?.clickUpCustomItemId || "",
+              clickUpCustomItemName: updated?.clickUpCustomItemName || editDef?.clickUpCustomItemName || "",
+              clickUpLinkedAt: new Date().toISOString(),
+            });
+          } catch (syncError) {
+            alert("Defect saved but ClickUp sync failed: " + syncError.message);
+          }
+        })();
+      }
     } catch (e) {
       alert("Failed to update defect: " + e.message);
     }
@@ -4521,7 +4723,9 @@ linear-gradient(
             setNewDef={setNewDef}
             getCurrentUserDisplayName={getCurrentUserDisplayName}
             submitDefect={submitDefect}
+            clickUpConfig={clickUpConfig}
             clickUpEnabled={clickUpEnabled}
+            onClickUpLinkChange={updateDefectClickUpLinkState}
           />
 
           {showAddProject && canManageProjects && (
@@ -5101,42 +5305,26 @@ linear-gradient(
                 <div style={{ fontSize: 17, fontWeight: 800 }}>ClickUp Integration</div>
                 <button onClick={() => setShowClickUpSettings(false)} style={xBtn}>✕</button>
               </div>
-
-              {/* Enable / Disable toggle */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 18px", marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>Enable ClickUp Integration</div>
-                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 3, lineHeight: 1.5 }}>Show the ClickUp card in Defect modals to sync defects.</div>
-                </div>
-                <label style={{ position: "relative", display: "inline-block", width: 44, height: 24, cursor: "pointer", flexShrink: 0, marginLeft: 16 }}>
-                  <input
-                    type="checkbox"
-                    checked={clickUpEnabled}
-                    onChange={e => {
-                      const val = e.target.checked;
-                      setClickUpEnabled(val);
-                      localStorage.setItem("clickUpEnabled", String(val));
-                    }}
-                    style={{ opacity: 0, width: 0, height: 0, position: "absolute" }}
-                  />
-                  <span style={{ position: "absolute", inset: 0, background: clickUpEnabled ? "#7c3aed" : "#cbd5e1", borderRadius: 24, transition: "background 0.2s" }} />
-                  <span style={{ position: "absolute", top: 3, left: clickUpEnabled ? 23 : 3, width: 18, height: 18, background: "#fff", borderRadius: "50%", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
-                </label>
-              </div>
-
-              {/* Status info */}
-              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 16px" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>Connection Status</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#cbd5e1", display: "inline-block", flexShrink: 0 }} />
-                  <span style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>Not Connected</span>
-                </div>
-                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>API credentials not configured yet.</div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 22 }}>
-                <button onClick={() => setShowClickUpSettings(false)} style={btnS}>Close</button>
-              </div>
+              <ClickUpIntegrationModal
+                config={clickUpConfig}
+                onClose={() => setShowClickUpSettings(false)}
+                onSave={(nextConfig) => {
+                  setClickUpConfig((prev) => ({
+                    ...getInitialClickUpConfig(),
+                    ...prev,
+                    ...nextConfig,
+                    token: nextConfig?.token ?? prev?.token ?? "",
+                    workspaces: Array.isArray(nextConfig?.workspaces) ? nextConfig.workspaces : (prev?.workspaces || []),
+                    spaces: Array.isArray(nextConfig?.spaces) ? nextConfig.spaces : (prev?.spaces || []),
+                    lists: Array.isArray(nextConfig?.lists) ? nextConfig.lists : (prev?.lists || []),
+                    customItems: Array.isArray(nextConfig?.customItems) ? nextConfig.customItems : (prev?.customItems || []),
+                    availableFields: Array.isArray(nextConfig?.availableFields) ? nextConfig.availableFields : (prev?.availableFields || []),
+                    availableStatuses: Array.isArray(nextConfig?.availableStatuses) ? nextConfig.availableStatuses : (prev?.availableStatuses || []),
+                    availablePriorities: Array.isArray(nextConfig?.availablePriorities) ? nextConfig.availablePriorities : (prev?.availablePriorities || []),
+                    enabled: Boolean(nextConfig.enabled),
+                  }));
+                }}
+              />
             </Modal>
           )}
 

@@ -71,6 +71,21 @@ export const DEFECT_SOURCES = [
 
 export const DEFECT_SEVERITIES = ["Critical", "High", "Medium", "Low"];
 
+export const DEFECT_ISSUE_TYPES = [
+  "Functional",
+  "UIUX",
+  "Performance",
+  "Test Data",
+  "Environment",
+  "Configuration",
+  "Data Synchronization",
+  "Compatibility",
+  "Security",
+  "Backend Script/Scheduler",
+  "Enhancement",
+  "Other",
+];
+
 export const CATEGORIES = [
   "User Authentication", "User Management",
   "Payout & Clawback Creation (Charity Live Campaign)",

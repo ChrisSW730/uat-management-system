@@ -1,39 +1,54 @@
-import { useState } from "react";
-import { PRIORITY_META, DEFECT_SOURCES, DEFECT_SEVERITIES, DEFECT_STATUS } from "../constants";
+import { useEffect, useRef, useState } from "react";
+import { PRIORITY_META, DEFECT_ISSUE_TYPES, DEFECT_SOURCES, DEFECT_SEVERITIES, DEFECT_STATUS } from "../constants";
 import Modal from "./ui/Modal";
 import { DefBadge } from "./ui/Badge";
+import {
+  fetchClickUpCustomItems,
+  fetchClickUpLists,
+  fetchClickUpListTasks,
+  fetchClickUpSpaces,
+  fetchClickUpWorkspaces,
+  getClickUpIntegrationConfig,
+  syncDefectToClickUp,
+  unlinkDefectFromClickUp,
+} from "../services/clickupService";
 import "../styles/Defects.css";
 
-// ─── ClickUp placeholder API methods ────────────────────────────────────────
-async function loadWorkspaces() {
-  // TODO: replace with real ClickUp API call
-  return [];
-}
-async function loadSpaces(_workspaceId) {
-  // TODO: replace with real ClickUp API call
-  return [];
-}
-async function loadFolders(_spaceId) {
-  // TODO: replace with real ClickUp API call
-  return [];
-}
-async function loadLists(_id, _byFolder = false) {
-  // TODO: replace with real ClickUp API call
-  // _id = folderId when _byFolder is true, otherwise spaceId
-  return [];
-}
-async function loadTasks(_listId) {
-  // TODO: replace with real ClickUp API call
-  return [];
-}
-async function syncToClickUp({ defectId: _defectId, workspaceId: _w, spaceId: _s, folderId: _f, listId: _l, parentTaskId }) {
-  // TODO: replace with real ClickUp API call
-  // Internally determines Task vs Subtask: parentTaskId present → Subtask, else → Task
-  return { taskId: null, parentTask: null, syncType: parentTaskId ? "Subtask" : "Task" };
+// ─── ClickUpCard component ───────────────────────────────────────────────────
+function buildSyncResultFromDefect(defect, integrationConfig = null) {
+  if (!defect?.clickUpTaskId) {
+    return null;
+  }
+
+  return {
+    syncType: "Linked Task",
+    taskId: defect.clickUpTaskId || "",
+    taskUrl: defect.clickUpTaskUrl || null,
+    parentTask: defect.clickUpParentTaskName || null,
+    workspace: integrationConfig?.workspace?.name || integrationConfig?.workspace?.id || "",
+    space: integrationConfig?.space?.name || integrationConfig?.space?.id || "",
+    list: defect.clickUpListName || "",
+    customItem: defect.clickUpCustomItemName || "",
+    syncedAt: defect.clickUpLinkedAt ? new Date(defect.clickUpLinkedAt) : new Date(),
+  };
 }
 
-// ─── ClickUpCard component ───────────────────────────────────────────────────
-function ClickUpCard({ defectId, projectName, enabled = true }) {
+function getDefaultClickUpCustomItemId(customItems, configuredCustomItemId) {
+  const resolvedCustomItems = Array.isArray(customItems) ? customItems : [];
+  const bugItem = resolvedCustomItems.find((item) => String(item?.name || "").trim().toLowerCase() === "bug");
+  if (bugItem?.id) {
+    return String(bugItem.id);
+  }
+
+  if (configuredCustomItemId && resolvedCustomItems.some((item) => String(item.id) === String(configuredCustomItemId))) {
+    return String(configuredCustomItemId);
+  }
+
+  return String(resolvedCustomItems[0]?.id || "");
+}
+
+function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = null }) {
+  const defectId = defect?.id;
   // ── DISABLED ─────────────────────────────────────────────────────────────
   if (!enabled) {
     return (
@@ -58,123 +73,263 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
       </div>
     );
  }
-  const [phase, setPhase] = useState("idle"); // "idle" | "setup" | "linked"
-
-  const [workspaces, setWorkspaces] = useState([]);
-  const [spaces, setSpaces]         = useState([]);
-  const [folders, setFolders]       = useState([]);
-  const [lists, setLists]           = useState([]);
-  const [tasks, setTasks]           = useState([]);
-
-  const [selectedWorkspace, setSelectedWorkspace] = useState("");
-  const [selectedSpace,     setSelectedSpace]     = useState("");
-  const [selectedFolder,    setSelectedFolder]    = useState("");
-  const [selectedList,      setSelectedList]      = useState("");
-  const [selectedTask,      setSelectedTask]      = useState("");
-
-  const [hasFolders,          setHasFolders]          = useState(false);
-  const [rememberDestination, setRememberDestination] = useState(true);
+  const [phase, setPhase] = useState(defect?.clickUpTaskId ? "linked" : "idle"); // "idle" | "setup" | "linked"
+  const [tasks, setTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState("");
+  const [availableLists, setAvailableLists] = useState([]);
+  const [selectedListId, setSelectedListId] = useState("");
+  const [availableCustomItems, setAvailableCustomItems] = useState([]);
+  const [selectedCustomItemId, setSelectedCustomItemId] = useState("");
+  const [integrationConfig, setIntegrationConfig] = useState(() => settingsConfig || null);
   const [loading, setLoading] = useState({
-    workspaces: false, spaces: false, folders: false, lists: false, tasks: false, syncing: false,
+    config: false, lists: false, customItems: false, tasks: false, syncing: false,
   });
   const [errorMsg,   setErrorMsg]   = useState("");
-  const [syncResult, setSyncResult] = useState(null);
+  const [syncResult, setSyncResult] = useState(() => buildSyncResultFromDefect(defect, integrationConfig));
+  const lastAutoSyncKeyRef = useRef("");
+
+  useEffect(() => {
+    if (!settingsConfig) {
+      return;
+    }
+
+    setIntegrationConfig((current) => ({
+      ...(current || {}),
+      ...settingsConfig,
+      workspace: settingsConfig.workspace ?? current?.workspace ?? null,
+      space: settingsConfig.space ?? current?.space ?? null,
+      list: settingsConfig.list ?? current?.list ?? null,
+      customItem: settingsConfig.customItem ?? current?.customItem ?? null,
+    }));
+  }, [
+    settingsConfig?.workspace?.id,
+    settingsConfig?.workspace?.name,
+    settingsConfig?.space?.id,
+    settingsConfig?.space?.name,
+    settingsConfig?.list?.id,
+    settingsConfig?.list?.name,
+    settingsConfig?.customItem?.id,
+    settingsConfig?.customItem?.name,
+  ]);
+
+  useEffect(() => {
+    if (defect?.clickUpTaskId) {
+      setPhase("linked");
+      setSyncResult(buildSyncResultFromDefect(defect, integrationConfig));
+      setSelectedListId(defect.clickUpListId || "");
+      setSelectedCustomItemId(defect.clickUpCustomItemId || "");
+      setSelectedTask(defect.clickUpParentTaskId || "");
+      return;
+    }
+
+    setPhase("idle");
+    setSyncResult(null);
+  }, [
+    defect?.id,
+    defect?.clickUpTaskId,
+    defect?.clickUpTaskUrl,
+    defect?.clickUpListId,
+    defect?.clickUpListName,
+    defect?.clickUpParentTaskId,
+    defect?.clickUpParentTaskName,
+    defect?.clickUpCustomItemId,
+    defect?.clickUpCustomItemName,
+    defect?.clickUpLinkedAt,
+    integrationConfig?.workspace?.name,
+    integrationConfig?.workspace?.id,
+    integrationConfig?.space?.name,
+    integrationConfig?.space?.id,
+  ]);
+
+  useEffect(() => {
+    if (!defect?.clickUpTaskId || (integrationConfig?.workspace?.id && integrationConfig?.space?.id) || loading.config) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadIntegrationConfig = async () => {
+      setLoad("config", true);
+      try {
+        const cfg = await getClickUpIntegrationConfig();
+        let nextCfg = {
+          ...(settingsConfig || {}),
+          ...(cfg || {}),
+          workspace: cfg?.workspace ?? settingsConfig?.workspace ?? null,
+          space: cfg?.space ?? settingsConfig?.space ?? null,
+          list: cfg?.list ?? settingsConfig?.list ?? null,
+          customItem: cfg?.customItem ?? settingsConfig?.customItem ?? null,
+        };
+
+        if (cfg?.workspace?.id && !cfg?.workspace?.name) {
+          const workspaces = await fetchClickUpWorkspaces();
+          const matchedWorkspace = Array.isArray(workspaces)
+            ? workspaces.find((item) => String(item.id) === String(cfg.workspace.id))
+            : null;
+
+          if (matchedWorkspace) {
+            nextCfg = {
+              ...nextCfg,
+              workspace: {
+                id: cfg.workspace.id,
+                name: matchedWorkspace.name || cfg.workspace.id,
+              },
+            };
+          }
+        }
+
+        if (nextCfg?.workspace?.id && nextCfg?.space?.id && !nextCfg?.space?.name) {
+          const spaces = await fetchClickUpSpaces(nextCfg.workspace.id);
+          const matchedSpace = Array.isArray(spaces)
+            ? spaces.find((item) => String(item.id) === String(nextCfg.space.id))
+            : null;
+
+          if (matchedSpace) {
+            nextCfg = {
+              ...nextCfg,
+              space: {
+                id: nextCfg.space.id,
+                name: matchedSpace.name || nextCfg.space.id,
+              },
+            };
+          }
+        }
+
+        if (!cancelled) {
+          setIntegrationConfig(nextCfg);
+        }
+      } catch {
+        // Keep the linked card usable even if config hydration fails.
+      } finally {
+        if (!cancelled) {
+          setLoad("config", false);
+        }
+      }
+    };
+
+    loadIntegrationConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [defect?.clickUpTaskId, integrationConfig?.workspace?.id, integrationConfig?.space?.id, loading.config, settingsConfig?.workspace?.id, settingsConfig?.space?.id]);
 
   const setLoad = (key, val) => setLoading(l => ({ ...l, [key]: val }));
 
   const handleOpenSetup = async () => {
+    setErrorMsg("");
     setPhase("setup");
-    setLoad("workspaces", true);
-    const ws = await loadWorkspaces();
-    setWorkspaces(ws);
-    setLoad("workspaces", false);
-  };
+    setLoad("config", true);
+    setSelectedTask("");
+    setTasks([]);
+    setAvailableLists([]);
+    setAvailableCustomItems([]);
+    setSelectedListId("");
+    setSelectedCustomItemId("");
 
-  const handleSelectWorkspace = async (e) => {
-    const id = e.target.value;
-    setSelectedWorkspace(id);
-    setSelectedSpace(""); setSelectedFolder(""); setSelectedList(""); setSelectedTask("");
-    setSpaces([]); setFolders([]); setLists([]); setTasks([]);
-    setHasFolders(false);
-    if (!id) return;
-    setLoad("spaces", true);
-    const sp = await loadSpaces(id);
-    setSpaces(sp);
-    setLoad("spaces", false);
-  };
+    try {
+      const serverCfg = await getClickUpIntegrationConfig();
+      const cfg = {
+        ...(settingsConfig || {}),
+        ...(serverCfg || {}),
+        workspace: serverCfg?.workspace ?? settingsConfig?.workspace ?? null,
+        space: serverCfg?.space ?? settingsConfig?.space ?? null,
+        list: serverCfg?.list ?? settingsConfig?.list ?? null,
+        customItem: serverCfg?.customItem ?? settingsConfig?.customItem ?? null,
+      };
+      if (!cfg?.enabled || !cfg?.workspace?.id || !cfg?.space?.id) {
+        throw new Error("ClickUp integration is not configured. Please select workspace and space in Settings.");
+      }
 
-  const handleSelectSpace = async (e) => {
-    const id = e.target.value;
-    setSelectedSpace(id);
-    setSelectedFolder(""); setSelectedList(""); setSelectedTask("");
-    setFolders([]); setLists([]); setTasks([]);
-    setHasFolders(false);
-    if (!id) return;
-    setLoad("folders", true);
-    const fo = await loadFolders(id);
-    setLoad("folders", false);
-    if (fo.length > 0) {
-      setFolders(fo);
-      setHasFolders(true);
-    } else {
+      setIntegrationConfig(cfg);
+      setPhase("setup");
+
       setLoad("lists", true);
-      const li = await loadLists(id, false);
-      setLists(li);
+      setLoad("customItems", true);
+      const [lists, customItems] = await Promise.all([
+        fetchClickUpLists(cfg.workspace.id, cfg.space.id),
+        fetchClickUpCustomItems(cfg.workspace.id),
+      ]);
+
+      const resolvedLists = Array.isArray(lists) ? lists : [];
+      const resolvedCustomItems = Array.isArray(customItems) ? customItems : [];
+      setAvailableLists(resolvedLists);
+      setAvailableCustomItems(resolvedCustomItems);
+
+      const defaultListId = (cfg?.list?.id && resolvedLists.some((item) => String(item.id) === String(cfg.list.id)))
+        ? String(cfg.list.id)
+        : String(resolvedLists[0]?.id || "");
+      const defaultCustomItemId = getDefaultClickUpCustomItemId(resolvedCustomItems, cfg?.customItem?.id);
+
+      setSelectedListId(defaultListId);
+      setSelectedCustomItemId(defaultCustomItemId);
+
+      if (defaultListId) {
+        setLoad("tasks", true);
+        const listTasks = await fetchClickUpListTasks(defaultListId);
+        setTasks(Array.isArray(listTasks) ? listTasks : []);
+      }
+    } catch (err) {
+      setErrorMsg(err?.message || "Unable to load ClickUp configuration.");
+      setPhase("idle");
+    } finally {
+      setLoad("config", false);
       setLoad("lists", false);
+      setLoad("customItems", false);
+      setLoad("tasks", false);
     }
   };
 
-  const handleSelectFolder = async (e) => {
-    const id = e.target.value;
-    setSelectedFolder(id);
-    setSelectedList(""); setSelectedTask("");
-    setLists([]); setTasks([]);
-    if (!id) return;
-    setLoad("lists", true);
-    const li = await loadLists(id, true);
-    setLists(li);
-    setLoad("lists", false);
-  };
-
-  const handleSelectList = async (e) => {
-    const id = e.target.value;
-    setSelectedList(id);
+  const handleListChange = async (listId) => {
+    setSelectedListId(listId || "");
     setSelectedTask("");
     setTasks([]);
-    if (!id) return;
+    if (!listId) return;
+
     setLoad("tasks", true);
-    const ta = await loadTasks(id);
-    setTasks(ta);
-    setLoad("tasks", false);
+    try {
+      const listTasks = await fetchClickUpListTasks(listId);
+      setTasks(Array.isArray(listTasks) ? listTasks : []);
+    } catch (err) {
+      setErrorMsg(err?.message || "Unable to load ClickUp parent tasks.");
+    } finally {
+      setLoad("tasks", false);
+    }
   };
 
   const handleSync = async () => {
     setErrorMsg("");
     setLoad("syncing", true);
     try {
-      const result = await syncToClickUp({
-        defectId,
-        workspaceId: selectedWorkspace,
-        spaceId:     selectedSpace,
-        folderId:    selectedFolder || null,
-        listId:      selectedList,
+      const result = await syncDefectToClickUp(defectId, {
+        listId: selectedListId || null,
+        customItemId: selectedCustomItemId || null,
         parentTaskId: selectedTask || null,
       });
-      const wsName = workspaces.find(w => w.id === selectedWorkspace)?.name || selectedWorkspace;
-      const spName = spaces.find(s => s.id === selectedSpace)?.name       || selectedSpace;
-      const foName = folders.find(f => f.id === selectedFolder)?.name     || "";
-      const liName = lists.find(l => l.id === selectedList)?.name         || selectedList;
-      const taName = tasks.find(t => t.id === selectedTask)?.name         || "";
+      const taName = tasks.find(t => t.id === selectedTask)?.name || "";
+      const nextLink = {
+        clickUpTaskId: result.taskId || "",
+        clickUpTaskUrl: result.taskUrl || "",
+        clickUpListId: selectedListId || "",
+        clickUpListName: result.listName || availableLists.find((item) => String(item.id) === String(selectedListId))?.name || integrationConfig?.list?.name || "",
+        clickUpParentTaskId: selectedTask || "",
+        clickUpParentTaskName: taName || "",
+        clickUpCustomItemId: selectedCustomItemId || "",
+        clickUpCustomItemName: availableCustomItems.find((item) => String(item.id) === String(selectedCustomItemId))?.name || integrationConfig?.customItem?.name || "",
+        clickUpLinkedAt: new Date().toISOString(),
+      };
       setSyncResult({
-        syncType:   result.syncType,
-        taskId:     result.taskId || "CU-???",
-        parentTask: taName || null,
-        workspace:  wsName,
-        space:      spName,
-        folder:     foName,
-        list:       liName,
-        syncedAt:   new Date(),
+        syncType: result?.linkedExisting ? "Linked Existing Task" : (selectedTask ? "Subtask" : "Task"),
+        taskId: nextLink.clickUpTaskId,
+        taskUrl: nextLink.clickUpTaskUrl || null,
+        parentTask: nextLink.clickUpParentTaskName || null,
+        workspace: integrationConfig?.workspace?.name || integrationConfig?.workspace?.id || "",
+        space: integrationConfig?.space?.name || integrationConfig?.space?.id || "",
+        list: nextLink.clickUpListName,
+        customItem: nextLink.clickUpCustomItemName,
+        syncedAt: new Date(),
       });
+      onLinkChange?.(nextLink);
       setPhase("linked");
     } catch (err) {
       setErrorMsg(err?.message || "Sync failed. Please try again.");
@@ -187,8 +342,36 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
     setErrorMsg("");
     setLoad("syncing", true);
     try {
-      // TODO: call re-sync API with syncResult.taskId
-      setSyncResult(r => r ? { ...r, syncedAt: new Date() } : r);
+      const result = await syncDefectToClickUp(defectId, {
+        listId: selectedListId || null,
+        customItemId: selectedCustomItemId || null,
+        parentTaskId: selectedTask || null,
+      });
+      const taName = tasks.find(t => t.id === selectedTask)?.name || defect?.clickUpParentTaskName || "";
+      const nextLink = {
+        clickUpTaskId: result.taskId || defect?.clickUpTaskId || "",
+        clickUpTaskUrl: result.taskUrl || defect?.clickUpTaskUrl || "",
+        clickUpListId: selectedListId || defect?.clickUpListId || "",
+        clickUpListName: result.listName || availableLists.find((item) => String(item.id) === String(selectedListId))?.name || defect?.clickUpListName || "",
+        clickUpParentTaskId: selectedTask || defect?.clickUpParentTaskId || "",
+        clickUpParentTaskName: taName || "",
+        clickUpCustomItemId: selectedCustomItemId || defect?.clickUpCustomItemId || "",
+        clickUpCustomItemName: availableCustomItems.find((item) => String(item.id) === String(selectedCustomItemId))?.name || defect?.clickUpCustomItemName || "",
+        clickUpLinkedAt: new Date().toISOString(),
+      };
+      setSyncResult(r => r ? {
+        ...r,
+        taskId: nextLink.clickUpTaskId,
+        taskUrl: nextLink.clickUpTaskUrl || r.taskUrl,
+        parentTask: nextLink.clickUpParentTaskName || r.parentTask,
+        workspace: integrationConfig?.workspace?.name || integrationConfig?.workspace?.id || r.workspace || "",
+        space: integrationConfig?.space?.name || integrationConfig?.space?.id || r.space || "",
+        list: nextLink.clickUpListName || r.list,
+        customItem: nextLink.clickUpCustomItemName || r.customItem,
+        syncType: result?.linkedExisting ? "Linked Existing Task" : r.syncType,
+        syncedAt: new Date(),
+      } : r);
+      onLinkChange?.(nextLink);
     } catch (err) {
       setErrorMsg(err?.message || "Sync failed. Please try again.");
     } finally {
@@ -196,17 +379,66 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
     }
   };
 
-  const formatSyncTime = date => {
-    if (!date) return "-";
-    const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (diffSec < 60) return "Just now";
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
-    return date.toLocaleString();
+  const handleUnlink = async () => {
+    setErrorMsg("");
+    setLoad("syncing", true);
+    try {
+      const updatedDefect = await unlinkDefectFromClickUp(defectId);
+      onLinkChange?.({
+        clickUpTaskId: updatedDefect?.clickUpTaskId || "",
+        clickUpTaskUrl: updatedDefect?.clickUpTaskUrl || "",
+        clickUpListId: updatedDefect?.clickUpListId || "",
+        clickUpListName: updatedDefect?.clickUpListName || "",
+        clickUpParentTaskId: updatedDefect?.clickUpParentTaskId || "",
+        clickUpParentTaskName: updatedDefect?.clickUpParentTaskName || "",
+        clickUpCustomItemId: updatedDefect?.clickUpCustomItemId || "",
+        clickUpCustomItemName: updatedDefect?.clickUpCustomItemName || "",
+        clickUpLinkedAt: updatedDefect?.clickUpLinkedAt || null,
+      });
+      setSelectedTask("");
+      setSelectedListId("");
+      setSelectedCustomItemId("");
+      setSyncResult(null);
+      setPhase("idle");
+    } catch (err) {
+      setErrorMsg(err?.message || "Unlink failed. Please try again.");
+    } finally {
+      setLoad("syncing", false);
+    }
   };
 
-  const isListEnabled = Boolean(selectedSpace && (!hasFolders || selectedFolder));
-  const canSync       = Boolean(selectedWorkspace && selectedSpace && selectedList && !loading.syncing);
+  useEffect(() => {
+    if (!enabled || !defect?.clickUpTaskId || !defectId) {
+      return;
+    }
+
+    const autoSyncKey = `${defectId}:${defect.clickUpTaskId}`;
+    if (lastAutoSyncKeyRef.current === autoSyncKey) {
+      return;
+    }
+
+    lastAutoSyncKeyRef.current = autoSyncKey;
+    handleSyncNow();
+  }, [enabled, defectId, defect?.clickUpTaskId]);
+
+  const formatSyncTime = (value) => {
+    if (!value) return "-";
+    const source = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(source.getTime())) return "-";
+
+    return new Intl.DateTimeFormat(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      timeZoneName: "short",
+    }).format(source);
+  };
+
+  const canSync = Boolean(!loading.syncing && !loading.config && selectedListId && selectedCustomItemId);
 
   // ── IDLE ─────────────────────────────────────────────────────────────────
   if (phase === "idle") {
@@ -223,8 +455,9 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
             <span className="integration-field-value">None</span>
           </div>
         </div>
-        <button type="button" className="integration-primary-btn" onClick={handleOpenSetup}>
-          Sync to ClickUp
+        {errorMsg && <div className="clickup-error-msg">{errorMsg}</div>}
+        <button type="button" className="integration-primary-btn" onClick={handleOpenSetup} disabled={loading.config}>
+          {loading.config ? "Loading…" : "Sync to ClickUp"}
         </button>
       </div>
     );
@@ -272,6 +505,12 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
             <span className="integration-field-label">List</span>
             <span className="integration-field-value clickup-truncate">{syncResult.list}</span>
           </div>
+          {syncResult.customItem && (
+            <div className="integration-field-row">
+              <span className="integration-field-label">Task Type</span>
+              <span className="integration-field-value clickup-truncate">{syncResult.customItem}</span>
+            </div>
+          )}
           <div className="integration-field-row">
             <span className="integration-field-label">Last Sync</span>
             <span className="integration-field-value">{formatSyncTime(syncResult.syncedAt)}</span>
@@ -282,7 +521,20 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
           <button
             type="button"
             className="integration-secondary-btn clickup-btn-half"
-            onClick={() => { /* TODO: open ClickUp task URL */ }}
+            onClick={handleUnlink}
+            disabled={loading.syncing}
+          >
+            Unlink
+          </button>
+          <button
+            type="button"
+            className="integration-secondary-btn clickup-btn-half"
+            onClick={() => {
+              if (syncResult.taskUrl) {
+                window.open(syncResult.taskUrl, "_blank", "noopener,noreferrer");
+              }
+            }}
+            disabled={!syncResult.taskUrl}
           >
             Open in ClickUp
           </button>
@@ -304,83 +556,52 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
     <div className="collab-card collab-card--integration clickup-setup-card">
       <div className="collab-card-title">ClickUp</div>
 
-      {/* Workspace */}
       <div className="clickup-field-group">
-        <label className="clickup-field-label">
-          Workspace <span className="clickup-required">*</span>
-        </label>
-        <div className="clickup-select-wrap">
-          <select
-            value={selectedWorkspace}
-            onChange={handleSelectWorkspace}
-            disabled={loading.workspaces}
-            className="clickup-select"
-          >
-            <option value="">{loading.workspaces ? "Loading…" : "Select Workspace"}</option>
-            {workspaces.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-          {loading.workspaces && <span className="clickup-spinner" />}
+        <label className="clickup-field-label">Workspace</label>
+        <div className="integration-field-value clickup-truncate" style={{ marginTop: 6 }}>
+          {integrationConfig?.workspace?.name || integrationConfig?.workspace?.id || "-"}
         </div>
       </div>
 
-      {/* Space */}
       <div className="clickup-field-group">
-        <label className="clickup-field-label">
-          Space <span className="clickup-required">*</span>
-        </label>
-        <div className="clickup-select-wrap">
-          <select
-            value={selectedSpace}
-            onChange={handleSelectSpace}
-            disabled={!selectedWorkspace || loading.spaces}
-            className="clickup-select"
-          >
-            <option value="">{loading.spaces ? "Loading…" : "Select Space"}</option>
-            {spaces.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          {loading.spaces && <span className="clickup-spinner" />}
+        <label className="clickup-field-label">Space</label>
+        <div className="integration-field-value clickup-truncate" style={{ marginTop: 6 }}>
+          {integrationConfig?.space?.name || integrationConfig?.space?.id || "-"}
         </div>
       </div>
 
-      {/* Folder — only shown when the selected Space contains folders */}
-      {hasFolders && (
-        <div className="clickup-field-group">
-          <label className="clickup-field-label">Folder</label>
-          <div className="clickup-select-wrap">
-            <select
-              value={selectedFolder}
-              onChange={handleSelectFolder}
-              disabled={loading.folders}
-              className="clickup-select"
-            >
-              <option value="">{loading.folders ? "Loading…" : "Select Folder"}</option>
-              {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-            {loading.folders && <span className="clickup-spinner" />}
-          </div>
-        </div>
-      )}
-
-      {/* List */}
       <div className="clickup-field-group">
-        <label className="clickup-field-label">
-          List <span className="clickup-required">*</span>
-        </label>
+        <label className="clickup-field-label">List</label>
         <div className="clickup-select-wrap">
           <select
-            value={selectedList}
-            onChange={handleSelectList}
-            disabled={!isListEnabled || loading.lists}
+            value={selectedListId}
+            onChange={e => handleListChange(e.target.value)}
+            disabled={loading.lists || loading.syncing}
             className="clickup-select"
           >
-            <option value="">{loading.lists ? "Loading…" : "Select List"}</option>
-            {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            <option value="">{loading.lists ? "Loading…" : "Select list"}</option>
+            {availableLists.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
           {loading.lists && <span className="clickup-spinner" />}
         </div>
       </div>
 
-      {/* Parent Task */}
+      <div className="clickup-field-group">
+        <label className="clickup-field-label">Task Type</label>
+        <div className="clickup-select-wrap">
+          <select
+            value={selectedCustomItemId}
+            onChange={e => setSelectedCustomItemId(e.target.value)}
+            disabled={loading.customItems || loading.syncing}
+            className="clickup-select"
+          >
+            <option value="">{loading.customItems ? "Loading…" : "Select task type"}</option>
+            {availableCustomItems.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+          {loading.customItems && <span className="clickup-spinner" />}
+        </div>
+      </div>
+
       <div className="clickup-field-group">
         <label className="clickup-field-label">
           Parent Task <span className="clickup-optional">(Optional)</span>
@@ -389,7 +610,7 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
           <select
             value={selectedTask}
             onChange={e => setSelectedTask(e.target.value)}
-            disabled={!selectedList || loading.tasks}
+            disabled={!selectedListId || loading.tasks}
             className="clickup-select"
           >
             <option value="">{loading.tasks ? "Loading…" : "None"}</option>
@@ -402,20 +623,8 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
             ? "Defect will be created as a Subtask."
             : "Defect will be created as a new Task."}
         </div>
+        <div className="clickup-field-hint">If a task with the same title already exists in the selected list, PeekQA links to it instead of creating a duplicate.</div>
       </div>
-
-      {/* Remember destination */}
-      <label className="clickup-remember-label">
-        <input
-          type="checkbox"
-          checked={rememberDestination}
-          onChange={e => setRememberDestination(e.target.checked)}
-          className="clickup-remember-checkbox"
-        />
-        <span>
-          Remember this ClickUp destination for <strong>{projectName || "this Project"}</strong>
-        </span>
-      </label>
 
       {errorMsg && <div className="clickup-error-msg">{errorMsg}</div>}
 
@@ -424,7 +633,7 @@ function ClickUpCard({ defectId, projectName, enabled = true }) {
           type="button"
           className="integration-secondary-btn clickup-btn-half"
           onClick={() => { setPhase("idle"); setErrorMsg(""); }}
-          disabled={loading.syncing}
+          disabled={loading.syncing || loading.config}
         >
           Cancel
         </button>
@@ -485,7 +694,9 @@ export default function DefectModals({
   setNewDef,
   getCurrentUserDisplayName,
   submitDefect,
+  clickUpConfig,
   clickUpEnabled = true,
+  onClickUpLinkChange,
 }) {
   const marketOptions = ["All", "SG", "HK", "MY", "KR", "US", "ID", "TW"];
   const sourceOptions = DEFECT_SOURCES;
@@ -820,9 +1031,10 @@ export default function DefectModals({
 
             {/* Card 2: ClickUp Integration */}
             <ClickUpCard
-              defectId={viewDef.id}
-              projectName={getProjectName(viewDef.projectId)}
+              defect={viewDef}
               enabled={clickUpEnabled}
+              settingsConfig={clickUpConfig}
+              onLinkChange={(patch) => onClickUpLinkChange?.(viewDef.id, patch)}
             />
 
             </div>
@@ -910,7 +1122,7 @@ export default function DefectModals({
               <div>
                 <label style={lbl}>Market</label>
                 <select
-                  value={editDef.market || "SG"}
+                  value={editDef.market || "All"}
                   onChange={e => setEditDef(p => ({ ...p, market: e.target.value }))}
                   style={inp}
                 >
@@ -976,7 +1188,7 @@ export default function DefectModals({
                 onChange={e => setEditDef(p => ({ ...p, issueType: e.target.value }))}
                 style={inp}
               >
-                {["Functional", "UIUX", "Performance", "Test Data", "Environment", "Configuration", "Data Synchronization", "Compatibility", "Security", "Backend Script/Scheduler", "Enhancement", "Other"].map(t => <option key={t}>{t}</option>)}
+                {DEFECT_ISSUE_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
 
@@ -990,7 +1202,7 @@ export default function DefectModals({
             </div>
 
             <div>
-              <label style={lbl}>Expected Result</label>
+              <label style={lbl}>Expected Result *</label>
               <textarea
                 value={editDef.expectedResult || ""}
                 onChange={e => setEditDef(p => ({ ...p, expectedResult: e.target.value }))}
@@ -999,7 +1211,7 @@ export default function DefectModals({
             </div>
 
             <div>
-              <label style={lbl}>Actual Result</label>
+              <label style={lbl}>Actual Result *</label>
               <textarea
                 value={editDef.actualResult || ""}
                 onChange={e => setEditDef(p => ({ ...p, actualResult: e.target.value }))}
@@ -1229,9 +1441,10 @@ export default function DefectModals({
 
               {/* Card 2: ClickUp Integration */}
               <ClickUpCard
-                defectId={editDef.id}
-                projectName={getProjectName(editDef.projectId)}
+                defect={editDef}
                 enabled={clickUpEnabled}
+                settingsConfig={clickUpConfig}
+                onLinkChange={(patch) => onClickUpLinkChange?.(editDef.id, patch)}
               />
 
             </div>
@@ -1240,8 +1453,8 @@ export default function DefectModals({
             <button onClick={() => { setEditDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
             <button
               onClick={saveDefectEdits}
-              style={{ ...btnP, opacity: (!editDef?.description || !editDef?.projectId || !editDef?.source) ? 0.5 : 1 }}
-              disabled={!editDef?.description || !editDef?.projectId || !editDef?.source}
+              style={{ ...btnP, opacity: (!editDef?.projectId || !editDef?.source || !editDef?.expectedResult?.trim() || !editDef?.actualResult?.trim()) ? 0.5 : 1 }}
+              disabled={!editDef?.projectId || !editDef?.source || !editDef?.expectedResult?.trim() || !editDef?.actualResult?.trim()}
             >
               Save Changes
             </button>
@@ -1310,7 +1523,7 @@ export default function DefectModals({
               <div>
                 <label style={lbl}>Market</label>
                 <select
-                  value={newDef.market || "SG"}
+                  value={newDef.market || "All"}
                   onChange={e => setNewDef(p => ({ ...p, market: e.target.value }))}
                   style={inp}
                 >
@@ -1380,12 +1593,12 @@ export default function DefectModals({
                 onChange={e => setNewDef(p => ({ ...p, issueType: e.target.value }))}
                 style={inp}
               >
-                {["Functional", "UIUX", "Performance", "Test Data", "Environment", "Configuration", "Data Synchronization", "Compatibility", "Security", "Backend Script/Scheduler", "Enhancement","Other"].map(t => <option key={t}>{t}</option>)}
+                {DEFECT_ISSUE_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={lbl}>Description *</label>
+              <label style={lbl}>Description</label>
               <textarea
                 value={newDef.description || ""}
                 onChange={e => setNewDef(p => ({ ...p, description: e.target.value }))}
@@ -1394,7 +1607,7 @@ export default function DefectModals({
             </div>
 
             <div>
-              <label style={lbl}>Expected Result</label>
+              <label style={lbl}>Expected Result *</label>
               <textarea
                 value={newDef.expected || ""}
                 onChange={e => setNewDef(p => ({ ...p, expected: e.target.value }))}
@@ -1403,7 +1616,7 @@ export default function DefectModals({
             </div>
 
             <div>
-              <label style={lbl}>Actual Result</label>
+              <label style={lbl}>Actual Result *</label>
               <textarea
                 value={newDef.actual || ""}
                 onChange={e => setNewDef(p => ({ ...p, actual: e.target.value }))}
@@ -1501,8 +1714,8 @@ export default function DefectModals({
             <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
             <button
               onClick={submitDefect}
-              style={{ ...btnP, opacity: (!newDef.description || !showAddDef.projectId || !newDef.source) ? 0.5 : 1 }}
-              disabled={!newDef.description || !showAddDef.projectId || !newDef.source}
+              style={{ ...btnP, opacity: (!showAddDef.projectId || !newDef.source || !newDef.expected?.trim() || !newDef.actual?.trim()) ? 0.5 : 1 }}
+              disabled={!showAddDef.projectId || !newDef.source || !newDef.expected?.trim() || !newDef.actual?.trim()}
             >
               Log Defect
             </button>

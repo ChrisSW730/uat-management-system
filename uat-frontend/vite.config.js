@@ -38,6 +38,10 @@ export default defineConfig({
       '/categories': {
         target: 'http://127.0.0.1:5176',
         changeOrigin: true
+      },
+      '/clickup': {
+        target: 'http://127.0.0.1:5176',
+        changeOrigin: true
       }
     }
   },

@@ -28,6 +28,15 @@ public class Defect
     public DateTime? CloseDateTime { get; set; }
     public DateTime? TargetFixDate { get; set; }
     public string Remarks { get; set; } = string.Empty;
+    public string ClickUpTaskId { get; set; } = string.Empty;
+    public string ClickUpTaskUrl { get; set; } = string.Empty;
+    public string ClickUpListId { get; set; } = string.Empty;
+    public string ClickUpListName { get; set; } = string.Empty;
+    public string ClickUpParentTaskId { get; set; } = string.Empty;
+    public string ClickUpParentTaskName { get; set; } = string.Empty;
+    public string ClickUpCustomItemId { get; set; } = string.Empty;
+    public string ClickUpCustomItemName { get; set; } = string.Empty;
+    public DateTime? ClickUpLinkedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Project Project { get; set; } = null!;
