@@ -2440,6 +2440,7 @@ export default function App() {
     setShowAddDef({
       runId,
       tcId,
+      tcIds: tcId ? [String(tcId)] : [],
       tcName: tc?.name || tcId,
       projectId: inferredProjectId ? String(inferredProjectId) : "",
       testPlanId: inferredTestPlanId ? String(inferredTestPlanId) : "",
@@ -2467,15 +2468,82 @@ export default function App() {
     setShowAddDef({
       runId: null,
       tcId: null,
+      tcIds: [],
       tcName: "No linked test case",
       projectId: defaultProjectId,
       testPlanId: linkedPlanId,
     });
   }
 
+  function normalizeDefectLinkedTestCaseIds(defect) {
+    if (Array.isArray(defect?.linkedTestCaseIds)) {
+      return defect.linkedTestCaseIds.map(id => Number(id)).filter(Boolean);
+    }
+    if (Array.isArray(defect?.linkedTestCases)) {
+      return defect.linkedTestCases.map(tc => Number(tc?.id)).filter(Boolean);
+    }
+    if (Array.isArray(defect?.LinkedTestCases)) {
+      return defect.LinkedTestCases.map(tc => Number(tc?.id)).filter(Boolean);
+    }
+    if (defect?.linkedTestCaseId) {
+      return [Number(defect.linkedTestCaseId)].filter(Boolean);
+    }
+    if (defect?.testCaseId) {
+      return [Number(defect.testCaseId)].filter(Boolean);
+    }
+    return [];
+  }
+
+  function syncDefectRunEntryState(defect) {
+    const nextRunId = defect?.testRunId ? Number(defect.testRunId) : null;
+    const nextLinkedTestCaseIds = normalizeDefectLinkedTestCaseIds(defect);
+
+    const pruneEntries = (entries) => (entries || []).map(entry => ({
+      ...entry,
+      defects: (entry.defects || []).filter(existing => existing.id !== defect.id),
+    }));
+
+    setRuns(current => current.map(run => ({
+      ...run,
+      entries: pruneEntries(run.entries),
+    })));
+    setViewRun(current => current ? ({
+      ...current,
+      entries: pruneEntries(current.entries),
+    }) : current);
+
+    if (!nextRunId || nextLinkedTestCaseIds.length === 0) {
+      return;
+    }
+
+    const addToEntries = (entries) => (entries || []).map(entry => {
+      const entryTcId = Number(entry.testCaseId);
+      if (!nextLinkedTestCaseIds.includes(entryTcId)) {
+        return entry;
+      }
+
+      const hasDefect = (entry.defects || []).some(existing => existing.id === defect.id);
+      return {
+        ...entry,
+        defects: hasDefect
+          ? (entry.defects || []).map(existing => existing.id === defect.id ? defect : existing)
+          : [...(entry.defects || []), defect],
+      };
+    });
+
+    setRuns(current => current.map(run => run.id === nextRunId ? {
+      ...run,
+      entries: addToEntries(run.entries),
+    } : run));
+    setViewRun(current => current?.id === nextRunId ? {
+      ...current,
+      entries: addToEntries(current.entries),
+    } : current);
+  }
+
   async function submitDefect() {
     try {
-      const { runId, tcId, projectId, testPlanId } = showAddDef;
+      const { runId, tcId, tcIds, projectId, testPlanId } = showAddDef;
       if (!projectId) {
         alert("Project is required.");
         return;
@@ -2503,10 +2571,13 @@ export default function App() {
         }
       }
 
+      const linkedTestCaseIds = (tcIds || (tcId ? [tcId] : [])).map(id => Number(id)).filter(Boolean);
+
       const defect = await api.createDefect({
         projectId: projectIdNumber,
         testRunId: runId,
-        testCaseId: tcId,
+        testCaseId: linkedTestCaseIds[0] || null,
+        linkedTestCaseIds,
         testPlanId: testPlanIdNumber,
         source: newDef.source,
         severity: newDef.severity,
@@ -2530,24 +2601,7 @@ export default function App() {
       }
 
       setDefects(p => [...p, defect]);
-      if (runId && tcId) {
-        setRuns(p => p.map(r => r.id !== runId ? r : {
-          ...r,
-          entries: r.entries.map(e =>
-            e.testCaseId !== tcId
-              ? e
-              : { ...e, defects: [...(e.defects || []), defect] }
-          )
-        }));
-        setViewRun(r => !r || r?.id !== runId ? r : {
-          ...r,
-          entries: (r.entries || []).map(e =>
-            e.testCaseId !== tcId
-              ? e
-              : { ...e, defects: [...(e.defects || []), defect] }
-          )
-        });
-      }
+      syncDefectRunEntryState(defect);
       setNewDef(blankDef);
       setNewDefAttachments([]);
       setShowAddDef(null);
@@ -2583,7 +2637,7 @@ export default function App() {
       setViewDef(d => d?.id === id ? updated : d);
 
       const linkedTaskId = updated?.clickUpTaskId || "";
-      const shouldSyncClickUpDefect = Boolean(clickUpEnabled);
+      const shouldSyncClickUpDefect = Boolean(clickUpEnabled && String(linkedTaskId).trim());
       if (shouldSyncClickUpDefect) {
         void (async () => {
           try {
@@ -2700,7 +2754,9 @@ export default function App() {
     if (!editDef) return;
 
     const runId = editDef.linkedRunId ? Number(editDef.linkedRunId) : null;
-    const tcId = editDef.linkedTestCaseId ? Number(editDef.linkedTestCaseId) : null;
+    const linkedTestCaseIds = (editDef.linkedTestCaseIds || (editDef.linkedTestCaseId ? [editDef.linkedTestCaseId] : []))
+      .map(id => Number(id))
+      .filter(Boolean);
     const oldRunId = editDef.testRunId ? Number(editDef.testRunId) : null;
     const oldTcId = editDef.testCaseId ? Number(editDef.testCaseId) : null;
 
@@ -2726,7 +2782,8 @@ export default function App() {
       const updated = await api.updateDefect(editDef.id, {
         projectId: Number(editDef.projectId),
         testRunId: runId,
-        testCaseId: tcId,
+        testCaseId: linkedTestCaseIds[0] || null,
+        linkedTestCaseIds,
         testPlanId: editDef.testPlanId ?? null,
         source: editDef.source,
         severity: editDef.severity,
@@ -2747,89 +2804,7 @@ export default function App() {
 
       setDefects(p => p.map(d => d.id === updated.id ? updated : d));
       setViewDef(d => d?.id === updated.id ? updated : d);
-
-      // Update viewRun if the defect is linked to a test case in it
-      if (viewRun) {
-        setViewRun(r => ({
-          ...r,
-          entries: (r.entries || []).map(e => {
-            // Remove from old entry if test case link changed
-            if (oldTcId && e.testCaseId === oldTcId && (tcId !== oldTcId || runId !== oldRunId)) {
-              return {
-                ...e,
-                defects: (e.defects || []).filter(d => d.id !== updated.id),
-              };
-            }
-            // Add to or update in new entry if test case link changed
-            if (runId && r.id === runId && tcId && e.testCaseId === tcId) {
-              const hasDefect = (e.defects || []).some(d => d.id === updated.id);
-              return {
-                ...e,
-                defects: hasDefect
-                  ? (e.defects || []).map(d => d.id === updated.id ? updated : d)
-                  : [...(e.defects || []), updated],
-              };
-            }
-            return e;
-          }),
-        }));
-      }
-
-      // Also update in the global runs list
-      setRuns(p => p.map(r => {
-        // If run ID didn't change and defect is linked to test case, update entries
-        if (runId === oldRunId && runId && tcId) {
-          return {
-            ...r,
-            entries: (r.entries || []).map(e => {
-              // Remove from old entry if test case link changed
-              if (oldTcId && e.testCaseId === oldTcId && tcId !== oldTcId) {
-                return {
-                  ...e,
-                  defects: (e.defects || []).filter(d => d.id !== updated.id),
-                };
-              }
-              // Update in new entry
-              if (e.testCaseId === tcId) {
-                return {
-                  ...e,
-                  defects: (e.defects || []).map(d => d.id === updated.id ? updated : d),
-                };
-              }
-              return e;
-            }),
-          };
-        }
-        // If run ID changed, remove from old run and add to new run
-        if (r.id === oldRunId && oldTcId && (!runId || r.id !== runId)) {
-          return {
-            ...r,
-            entries: (r.entries || []).map(e =>
-              e.testCaseId === oldTcId
-                ? { ...e, defects: (e.defects || []).filter(d => d.id !== updated.id) }
-                : e
-            ),
-          };
-        }
-        if (r.id === runId && runId && tcId) {
-          return {
-            ...r,
-            entries: (r.entries || []).map(e => {
-              if (e.testCaseId === tcId) {
-                const hasDefect = (e.defects || []).some(d => d.id === updated.id);
-                return {
-                  ...e,
-                  defects: hasDefect
-                    ? (e.defects || []).map(d => d.id === updated.id ? updated : d)
-                    : [...(e.defects || []), updated],
-                };
-              }
-              return e;
-            }),
-          };
-        }
-        return r;
-      }));
+      syncDefectRunEntryState(updated);
 
       if (newDefAttachments.length > 0) {
         try {
@@ -2846,8 +2821,8 @@ export default function App() {
         setNewDefAttachments([]);
       }
 
-      const linkedTaskId = updated?.clickUpTaskId || editDef?.clickUpTaskId || "";
-      const shouldSyncClickUpDefect = Boolean(clickUpEnabled);
+      const linkedTaskId = updated?.clickUpTaskId || "";
+      const shouldSyncClickUpDefect = Boolean(clickUpEnabled && String(linkedTaskId).trim());
       const syncPayload = {
         listId: updated?.clickUpListId || editDef?.clickUpListId || null,
         customItemId: updated?.clickUpCustomItemId || editDef?.clickUpCustomItemId || null,

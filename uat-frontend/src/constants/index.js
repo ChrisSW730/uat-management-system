@@ -16,47 +16,108 @@ export const PRIORITY_META = {
     bg: "#FEE2E2",
     text: "#B91C1C",
     border: "#FCA5A5",
-    shadow: "rgba(239,68,68,.15)",
+    shadow: "rgba(239,68,68,.18)",
   },
+
   High: {
-    bg: "#FFEDD5",
+    bg: "#FFF7ED",
     text: "#C2410C",
     border: "#FDBA74",
-    shadow: "rgba(249,115,22,.15)",
+    shadow: "rgba(249,115,22,.18)",
   },
+
   Medium: {
-    bg: "#FEF3C7",
-    text: "#B45309",
-    border: "#FCD34D",
-    shadow: "rgba(245,158,11,.15)",
+    bg: "#EFF6FF",
+    text: "#1D4ED8",
+    border: "#93C5FD",
+    shadow: "rgba(59,130,246,.18)",
   },
+
   Low: {
-    bg: "#DCFCE7",
+    bg: "#ECFDF5",
     text: "#15803D",
     border: "#86EFAC",
-    shadow: "rgba(34,197,94,.15)",
+    shadow: "rgba(34,197,94,.18)",
   },
 };
 
-export const DASHBOARD_PRIORITY_META = { 
-  Showstopper: { bg: "#ef4444", text: "#fff", shadow: "#ef444433" }, 
-  High: { bg: "#f97316", text: "#fff", shadow: "#f9731633" }, 
-  Medium: { bg: "#f59e0b", text: "#fff", shadow: "#f59e0b33" }, 
-  Low: { bg: "#22c55e", text: "#fff", shadow: "#22c55e33" 
+export const DASHBOARD_PRIORITY_META = {
+  Showstopper: {
+    bg: "#DC2626",
+    text: "#FFFFFF",
+    shadow: "#DC262633",
+  },
 
-  }, 
+  High: {
+    bg: "#F97316",
+    text: "#FFFFFF",
+    shadow: "#F9731633",
+  },
+
+  Medium: {
+    bg: "#3B82F6",
+    text: "#FFFFFF",
+    shadow: "#3B82F633",
+  },
+
+  Low: {
+    bg: "#22C55E",
+    text: "#FFFFFF",
+    shadow: "#22C55E33",
+  },
 };
 
 export const TEST_CASE_PRIORITIES = ["High", "Medium", "Low"];
 
 export const DEFECT_STATUS = {
-  New: { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe", dot: "#3b82f6" },
-  "In Progress": { bg: "#ecfdf5", text: "#065f46", border: "#6ee7b7", dot: "#10b981" },
-  Fixed: { bg: "#f0fdf4", text: "#15803d", border: "#bbf7d0", dot: "#22c55e" },
-  Reopened: { bg: "#fff1f2", text: "#be123c", border: "#fecdd3", dot: "#f43f5e" },
-  Rejected: { bg: "#fefce8", text: "#a16207", border: "#fde68a", dot: "#eab308" },
-  "Change Request": { bg: "#faf5ff", text: "#6d28d9", border: "#ddd6fe", dot: "#8b5cf6" },
-  Closed: { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0", dot: "#94a3b8" },
+  New: {
+    bg: "#eef2ff",
+    text: "#4f46e5",
+    border: "#c7d2fe",
+    dot: "#6366f1",
+  },
+
+  "In Progress": {
+    bg: "#fff7ed",
+    text: "#c2410c",
+    border: "#fdba74",
+    dot: "#f97316",
+  },
+
+  Fixed: {
+    bg: "#ecfdf5",
+    text: "#047857",
+    border: "#a7f3d0",
+    dot: "#10b981",
+  },
+
+  Reopened: {
+    bg: "#fef2f2",
+    text: "#dc2626",
+    border: "#fecaca",
+    dot: "#ef4444",
+  },
+
+  Rejected: {
+    bg: "#f8fafc",
+    text: "#475569",
+    border: "#cbd5e1",
+    dot: "#64748b",
+  },
+
+  "Change Request": {
+    bg: "#faf5ff",
+    text: "#7c3aed",
+    border: "#ddd6fe",
+    dot: "#8b5cf6",
+  },
+
+  Closed: {
+    bg: "#f1f5f9",
+    text: "#64748b",
+    border: "#e2e8f0",
+    dot: "#94a3b8",
+  },
 };
 
 export const DEFECT_SOURCES = [

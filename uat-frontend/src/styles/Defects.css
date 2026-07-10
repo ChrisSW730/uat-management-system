@@ -54,6 +54,125 @@
     flex-shrink: 0;
 }
 
+.linked-test-cases-panel {
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    min-height: 0;
+}
+
+.linked-test-cases-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.linked-test-cases-panel-summary {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.linked-test-cases-panel-empty {
+    display: grid;
+    gap: 6px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.linked-test-cases-inline {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.linked-test-cases-inline-empty {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.linked-test-cases-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.linked-test-cases-chip {
+    background: #eff6ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 999px;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 12px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.linked-test-cases-chip-remove {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+}
+
+.linked-test-cases-chip-remove:hover {
+    color: #1d4ed8;
+}
+
+.linked-test-cases-manage-btn {
+    width: 100%;
+    padding: 8px 12px;
+}
+
+.linked-test-cases-row {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 12px;
+    transition: background-color 0.15s ease;
+}
+
+.linked-test-cases-row:hover {
+    background: #f8fafc;
+}
+
+.linked-test-cases-row-number {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    text-align: left;
+    word-break: break-word;
+}
+
+.linked-test-cases-row-title {
+    font-size: 13px;
+    color: #334155;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.linked-test-cases-panel-footer {
+    display: flex;
+    justify-content: flex-end;
+}
+
 .comment-list {
     flex: 1;
     overflow-y: auto;

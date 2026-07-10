@@ -429,31 +429,57 @@ export default function Defects({
                     <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
                       <button className="primary-action-btn" onClick={() => setViewDef(def)}>View</button>
                       {canWrite && <button className="secondary-action-btn"
-                        onClick={() => setEditDef({
-                          ...def,
-                          dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
-                          targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
-                          linkedRunId: def.testRunId
-                            ? String(def.testRunId)
-                            : (def.testRunEntry?.testRunId
-                              ? String(def.testRunEntry.testRunId)
-                              : (def.testRunEntryId
-                                ? String(runs.find(r => (r.entries || []).some(en => String(en.id) === String(def.testRunEntryId)))?.id || "")
-                                : String(runs.find(r => r.runNumber === def.runNumber)?.id || ""))),
-                          linkedTestCaseId: def.testCaseId
-                            ? String(def.testCaseId)
-                            : (def.testRunEntry?.testCaseId
-                              ? String(def.testRunEntry.testCaseId)
-                              : (def.testRunEntryId
-                                ? String(runs
-                                  .flatMap(r => r.entries || [])
-                                  .find(en => String(en.id) === String(def.testRunEntryId))?.testCaseId || "")
-                                : String(allTestCases.find(t => t.tcNumber === def.tcNumber)?.id || ""))),
-                          projectId: def.projectId ? String(def.projectId) : "",
-                          source: def.source || "Exploratory Testing",
-                          severity: def.severity || "Medium",
-                        })}
-                        
+                        onClick={() => {
+                          const rawLinkedTestCases = Array.isArray(def.linkedTestCases)
+                            ? def.linkedTestCases
+                            : (Array.isArray(def.LinkedTestCases) ? def.LinkedTestCases : []);
+
+                          const normalizedLinkedTestCases = rawLinkedTestCases.length > 0
+                            ? rawLinkedTestCases.map(tc => {
+                                const resolvedId = [
+                                  tc?.id,
+                                  tc?.Id,
+                                  tc?.testCaseId,
+                                  tc?.TestCaseId,
+                                  tc?.testCase?.id,
+                                  tc?.testCase?.Id,
+                                  tc?.testCase?.testCaseId,
+                                  tc?.testCase?.TestCaseId,
+                                ].find(v => v !== undefined && v !== null && v !== "");
+
+                                return {
+                                  ...tc,
+                                  id: resolvedId,
+                                  testCaseNumber: tc?.testCaseNumber ?? tc?.tcNumber ?? tc?.TcNumber ?? tc?.TestCaseNumber ?? tc?.testCase?.tcNumber ?? tc?.testCase?.TcNumber ?? "",
+                                  title: tc?.title ?? tc?.Title ?? tc?.name ?? tc?.Name ?? tc?.testCase?.name ?? tc?.testCase?.Name ?? "",
+                                };
+                              })
+                            : (def.testCaseId ? [{ id: def.testCaseId, testCaseNumber: def.tcNumber || "", title: def.title || "" }] : []);
+
+                          const normalizedLinkedTestCaseIds = normalizedLinkedTestCases
+                            .map(tc => String(tc?.id))
+                            .filter(Boolean);
+
+                          setEditDef({
+                            ...def,
+                            linkedTestCases: normalizedLinkedTestCases,
+                            LinkedTestCases: normalizedLinkedTestCases,
+                            linkedTestCaseIds: normalizedLinkedTestCaseIds,
+                            linkedTestCaseId: normalizedLinkedTestCaseIds[0] || (def.testCaseId ? String(def.testCaseId) : ""),
+                            dateRaised: def.dateRaised ? String(def.dateRaised).slice(0, 10) : "",
+                            targetFixDate: def.targetFixDate ? String(def.targetFixDate).slice(0, 10) : "",
+                            linkedRunId: def.testRunId
+                              ? String(def.testRunId)
+                              : (def.testRunEntry?.testRunId
+                                ? String(def.testRunEntry.testRunId)
+                                : (def.testRunEntryId
+                                  ? String(runs.find(r => (r.entries || []).some(en => String(en.id) === String(def.testRunEntryId)))?.id || "")
+                                  : String(runs.find(r => r.runNumber === def.runNumber)?.id || ""))),
+                            projectId: def.projectId ? String(def.projectId) : "",
+                            source: def.source || "Exploratory Testing",
+                            severity: def.severity || "Medium",
+                          });
+                        }}
                       >
                         Edit
                       </button>}

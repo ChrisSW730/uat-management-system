@@ -19,5 +19,6 @@ public class TestCase
     public TestScope? TestScope { get; set; }
     public ICollection<TestRunEntry> TestRunEntries { get; set; } = new List<TestRunEntry>();
     public ICollection<Defect> Defects { get; set; } = new List<Defect>();
+    public ICollection<TestCaseDefect> DefectLinks { get; set; } = new List<TestCaseDefect>();
     public ICollection<TestCaseAttachment> Attachments { get; set; } = new List<TestCaseAttachment>();
 }

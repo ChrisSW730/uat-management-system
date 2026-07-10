@@ -44,7 +44,7 @@ public class TestCasesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int? testPlanId)
     {
-        var query = _db.TestCases.AsNoTracking().AsQueryable();
+        var query = _db.TestCases.AsQueryable();
         if (testPlanId.HasValue)
         {
             query = query.Where(t => t.TestPlanId == testPlanId.Value);

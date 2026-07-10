@@ -12,17 +12,6 @@ namespace UATSystem.API.Controllers;
 [Authorize]
 public class DefectsController : ControllerBase
 {
-    private static readonly HashSet<string> AllowedDefectSources = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Test Execution",
-        "Exploratory Testing",
-        "UAT Feedback",
-        "Automation",
-        "Production Verification",
-        "Customer Report",
-        "Other",
-    };
-
     private readonly UATDbContext _db;
     private readonly IWebHostEnvironment _env;
     public DefectsController(UATDbContext db, IWebHostEnvironment env)
@@ -158,9 +147,7 @@ public class DefectsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
         Ok(await _db.Defects
-            .AsNoTracking()
             .Include(d => d.Comments)
-            .Include(d => d.TestRunEntry)
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync());
 
@@ -168,53 +155,9 @@ public class DefectsController : ControllerBase
     [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> Create(CreateDefectDto dto)
     {
-        if (dto.ProjectId <= 0)
+        if (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
         {
-            return BadRequest("ProjectId is required.");
-        }
-
-        var source = (dto.Source ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(source))
-        {
-            return BadRequest("Source is required.");
-        }
-
-        if (!AllowedDefectSources.Contains(source))
-        {
-            return BadRequest("Source is invalid.");
-        }
-
-        var severity = (dto.Severity ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(severity))
-        {
-            return BadRequest("Severity is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(dto.ExpectedResult))
-        {
-            return BadRequest("ExpectedResult is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(dto.ActualResult))
-        {
-            return BadRequest("ActualResult is required.");
-        }
-
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
-        if (project == null)
-        {
-            return NotFound("Project not found.");
-        }
-
-        TestPlan? testPlan = null;
-        if (dto.TestPlanId.HasValue)
-        {
-            testPlan = await _db.TestPlans.FirstOrDefaultAsync(tp => tp.Id == dto.TestPlanId.Value);
-            if (testPlan == null) return NotFound("Test plan not found.");
-            if (testPlan.ProjectId != dto.ProjectId)
-            {
-                return BadRequest("TestPlanId does not belong to ProjectId.");
-            }
+            return BadRequest("TestCaseId cannot be provided without TestRunId.");
         }
 
         TestRun? run = null;
@@ -224,48 +167,26 @@ public class DefectsController : ControllerBase
             if (run == null) return NotFound("Test run not found.");
         }
 
-        TestCase? testCase = null;
-        if (dto.TestCaseId.HasValue)
-        {
-            testCase = await _db.TestCases.FirstOrDefaultAsync(tc => tc.Id == dto.TestCaseId.Value);
-            if (testCase == null) return NotFound("Test case not found.");
-
-            if (testPlan != null && testCase.TestPlanId != testPlan.Id)
-            {
-                return BadRequest("TestCaseId does not belong to TestPlanId.");
-            }
-
-            if (testPlan == null && testCase.TestPlanId.HasValue)
-            {
-                testPlan = await _db.TestPlans.FirstOrDefaultAsync(tp => tp.Id == testCase.TestPlanId.Value);
-            }
-        }
-
-        if (testPlan != null && testPlan.ProjectId != dto.ProjectId)
-        {
-            return BadRequest("Resolved test plan does not belong to ProjectId.");
-        }
-
         TestRunEntry? entry = null;
         if (dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
         {
             entry = await _db.TestRunEntries
+                .Include(e => e.TestCase)
+                .Include(e => e.TestRun)
                 .FirstOrDefaultAsync(e => e.TestRunId == dto.TestRunId.Value && e.TestCaseId == dto.TestCaseId.Value);
+
+            if (entry == null) return NotFound("Test run entry not found.");
         }
 
+        var count = await _db.Defects.CountAsync();
         var now = DateTime.UtcNow;
         var defect = new Defect
         {
-            DefectNumber = string.Empty,
-            ProjectId = dto.ProjectId,
-            TestRunId = dto.TestRunId,
-            TestCaseId = dto.TestCaseId,
+            DefectNumber = $"DEF-{(count + 1):D3}",
             TestRunEntryId = entry?.Id,
-            TestPlanId = testPlan?.Id,
-            Source = source,
-            Severity = severity,
-            RunNumber = run?.RunNumber ?? "-",
-            TcNumber = testCase?.TcNumber ?? "-",
+            TestPlanId = dto.TestPlanId,
+            RunNumber = entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-",
+            TcNumber = entry?.TestCase.TcNumber ?? "-",
             Market = dto.Market,
             Description = dto.Description,
             IssueType = dto.IssueType,
@@ -273,7 +194,6 @@ public class DefectsController : ControllerBase
             ActualResult = dto.ActualResult,
             Priority = dto.Priority,
             Status = "New",
-            StatusUpdatedAt = now,
             RaisedBy = dto.RaisedBy,
             AssignedTo = dto.AssignedTo,
             DateRaised = now,
@@ -281,13 +201,9 @@ public class DefectsController : ControllerBase
             CloseDateTime = null,
             TargetFixDate = dto.TargetFixDate,
             Remarks = dto.Remarks,
-            Title = dto.Title ?? string.Empty,
             CreatedAt = now,
         };
         _db.Defects.Add(defect);
-        await _db.SaveChangesAsync();
-
-        defect.DefectNumber = $"DEF-{defect.Id:D6}";
         await _db.SaveChangesAsync();
 
         if (!string.IsNullOrWhiteSpace(defect.AssignedTo))
@@ -326,8 +242,6 @@ public class DefectsController : ControllerBase
 
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(defect.CloseDateTime), changedBy);
         defect.Status = dto.Status;
-        defect.StatusUpdatedAt = DateTime.UtcNow;
-        defect.StatusUpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
         return Ok(defect);
@@ -342,53 +256,9 @@ public class DefectsController : ControllerBase
 
         var oldAssignedTo = defect.AssignedTo;
 
-        if (dto.ProjectId <= 0)
+        if (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
         {
-            return BadRequest("ProjectId is required.");
-        }
-
-        var source = (dto.Source ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(source))
-        {
-            return BadRequest("Source is required.");
-        }
-
-        if (!AllowedDefectSources.Contains(source))
-        {
-            return BadRequest("Source is invalid.");
-        }
-
-        var severity = (dto.Severity ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(severity))
-        {
-            return BadRequest("Severity is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(dto.ExpectedResult))
-        {
-            return BadRequest("ExpectedResult is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(dto.ActualResult))
-        {
-            return BadRequest("ActualResult is required.");
-        }
-
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
-        if (project == null)
-        {
-            return NotFound("Project not found.");
-        }
-
-        TestPlan? testPlan = null;
-        if (dto.TestPlanId.HasValue)
-        {
-            testPlan = await _db.TestPlans.FirstOrDefaultAsync(tp => tp.Id == dto.TestPlanId.Value);
-            if (testPlan == null) return NotFound("Test plan not found.");
-            if (testPlan.ProjectId != dto.ProjectId)
-            {
-                return BadRequest("TestPlanId does not belong to ProjectId.");
-            }
+            return BadRequest("TestCaseId cannot be provided without TestRunId.");
         }
 
         TestRun? run = null;
@@ -398,91 +268,51 @@ public class DefectsController : ControllerBase
             if (run == null) return NotFound("Test run not found.");
         }
 
-        TestCase? testCase = null;
-        if (dto.TestCaseId.HasValue)
-        {
-            testCase = await _db.TestCases.FirstOrDefaultAsync(tc => tc.Id == dto.TestCaseId.Value);
-            if (testCase == null) return NotFound("Test case not found.");
-
-            if (testPlan != null && testCase.TestPlanId != testPlan.Id)
-            {
-                return BadRequest("TestCaseId does not belong to TestPlanId.");
-            }
-
-            if (testPlan == null && testCase.TestPlanId.HasValue)
-            {
-                testPlan = await _db.TestPlans.FirstOrDefaultAsync(tp => tp.Id == testCase.TestPlanId.Value);
-            }
-        }
-
-        if (testPlan != null && testPlan.ProjectId != dto.ProjectId)
-        {
-            return BadRequest("Resolved test plan does not belong to ProjectId.");
-        }
-
         TestRunEntry? entry = null;
         if (dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
         {
             entry = await _db.TestRunEntries
+                .Include(e => e.TestCase)
+                .Include(e => e.TestRun)
                 .FirstOrDefaultAsync(e => e.TestRunId == dto.TestRunId.Value && e.TestCaseId == dto.TestCaseId.Value);
+
+            if (entry == null) return NotFound("Test run entry not found.");
         }
 
         var changedBy = GetChangedBy();
-        var statusChanged = !string.Equals(defect.Status, dto.Status, StringComparison.OrdinalIgnoreCase);
 
-        AddAudit(defect, "ProjectId", defect.ProjectId.ToString(), dto.ProjectId.ToString(), changedBy);
-        AddAudit(defect, "TestPlanId", defect.TestPlanId?.ToString() ?? string.Empty, testPlan?.Id.ToString() ?? string.Empty, changedBy);
-        AddAudit(defect, "TestRunId", defect.TestRunId?.ToString() ?? string.Empty, dto.TestRunId?.ToString() ?? string.Empty, changedBy);
-        AddAudit(defect, "TestCaseId", defect.TestCaseId?.ToString() ?? string.Empty, dto.TestCaseId?.ToString() ?? string.Empty, changedBy);
-        AddAudit(defect, "RunNumber", defect.RunNumber, run?.RunNumber ?? "-", changedBy);
-        AddAudit(defect, "TcNumber", defect.TcNumber, testCase?.TcNumber ?? "-", changedBy);
-        AddAudit(defect, "Source", defect.Source, source, changedBy);
-        AddAudit(defect, "Severity", defect.Severity, severity, changedBy);
+        AddAudit(defect, "RunNumber", defect.RunNumber, entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-", changedBy);
+        AddAudit(defect, "TcNumber", defect.TcNumber, entry?.TestCase.TcNumber ?? "-", changedBy);
         AddAudit(defect, "Market", defect.Market, dto.Market, changedBy);
         AddAudit(defect, "Description", defect.Description, dto.Description, changedBy);
-        AddAudit(defect, "IssueType", defect.IssueType, dto.IssueType, changedBy);
         AddAudit(defect, "ExpectedResult", defect.ExpectedResult, dto.ExpectedResult, changedBy);
         AddAudit(defect, "ActualResult", defect.ActualResult, dto.ActualResult, changedBy);
-        AddAudit(defect, "Title", defect.Title, dto.Title ?? string.Empty, changedBy);
         AddAudit(defect, "Priority", defect.Priority, dto.Priority, changedBy);
         AddAudit(defect, "RaisedBy", defect.RaisedBy, dto.RaisedBy, changedBy);
         AddAudit(defect, "AssignedTo", defect.AssignedTo, dto.AssignedTo, changedBy);
         AddAudit(defect, "DateRaised", AuditDate(defect.DateRaised), AuditDate(dto.DateRaised), changedBy);
         AddAudit(defect, "TargetFixDate", AuditDate(defect.TargetFixDate), AuditDate(dto.TargetFixDate), changedBy);
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
-        AddAudit(defect, "Remarks", defect.Remarks, dto.Remarks, changedBy);
 
         var oldClose = defect.CloseDateTime;
         DateTime? newClose = dto.Status == "Closed" ? DateTime.UtcNow : null;
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(newClose), changedBy);
 
-    defect.ProjectId = dto.ProjectId;
-    defect.TestRunId = dto.TestRunId;
-    defect.TestCaseId = dto.TestCaseId;
         defect.TestRunEntryId = entry?.Id;
-    defect.TestPlanId = testPlan?.Id;
-    defect.RunNumber = run?.RunNumber ?? "-";
-    defect.TcNumber = testCase?.TcNumber ?? "-";
-    defect.Source = source;
-    defect.Severity = severity;
+        defect.TestPlanId = dto.TestPlanId;
+        defect.RunNumber = entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-";
+        defect.TcNumber = entry?.TestCase.TcNumber ?? "-";
         defect.Market = dto.Market;
         defect.Description = dto.Description;
-        defect.IssueType = dto.IssueType;
         defect.ExpectedResult = dto.ExpectedResult;
         defect.ActualResult = dto.ActualResult;
-        defect.Title = dto.Title ?? string.Empty;
         defect.Priority = dto.Priority;
         defect.RaisedBy = dto.RaisedBy;
         defect.AssignedTo = dto.AssignedTo;
         defect.DateRaised = dto.DateRaised;
         defect.CloseDateTime = newClose;
         defect.TargetFixDate = dto.TargetFixDate;
-        defect.Remarks = dto.Remarks;
         defect.Status = dto.Status;
-        if (statusChanged)
-        {
-            defect.StatusUpdatedAt = DateTime.UtcNow;
-        }
 
         if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), (defect.AssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(defect.AssignedTo))
@@ -523,23 +353,6 @@ public class DefectsController : ControllerBase
                 $"/defects/{defect.Id}"
             );
         }
-
-        await _db.SaveChangesAsync();
-        return Ok(defect);
-    }
-
-    [HttpPatch("{id}/priority")]
-    [Authorize(Roles = "Admin,Test Lead,Tester,Developer")]
-    public async Task<IActionResult> UpdatePriority(int id, UpdatePriorityDto dto)
-    {
-        var defect = await _db.Defects.FindAsync(id);
-        if (defect == null) return NotFound();
-
-        var changedBy = GetChangedBy();
-        var newPriority = (dto.Priority ?? string.Empty).Trim();
-
-        AddAudit(defect, "Priority", defect.Priority, newPriority, changedBy);
-        defect.Priority = newPriority;
 
         await _db.SaveChangesAsync();
         return Ok(defect);
@@ -714,32 +527,20 @@ public class DefectsController : ControllerBase
 }
 
 public record CreateDefectDto(
-    int ProjectId,
-    int? TestRunId,
-    int? TestCaseId,
-    int? TestPlanId,
-    string Source,
-    string Severity,
+    int? TestRunId, int? TestCaseId, int? TestPlanId,
     string Market, string Description, string IssueType,
     string ExpectedResult, string ActualResult,
     string Priority, string RaisedBy, string AssignedTo,
-    DateTime? TargetFixDate, string Remarks,
-    string Title = "");
+    DateTime? TargetFixDate, string Remarks);
 
 public record UpdateStatusDto(string Status);
 
-public record UpdatePriorityDto(string Priority);
-
 public record UpdateDefectDto(
-    int ProjectId,
     int? TestRunId,
     int? TestCaseId,
     int? TestPlanId,
-    string Source,
-    string Severity,
     string Market,
     string Description,
-    string IssueType,
     string ExpectedResult,
     string ActualResult,
     string Priority,
@@ -747,9 +548,7 @@ public record UpdateDefectDto(
     string AssignedTo,
     DateTime DateRaised,
     DateTime? TargetFixDate,
-    string Remarks,
-    string Status,
-    string Title = "");
+    string Status);
 
 public record UpdateAssigneeDto(string AssignedTo);
 

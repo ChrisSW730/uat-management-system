@@ -13,6 +13,8 @@ import {
   unlinkDefectFromClickUp,
 } from "../services/clickupService";
 import "../styles/Defects.css";
+import LinkedTestCasesPanel from "./defect/LinkedTestCasesPanel";
+import LinkedTestCasesModal from "./defect/LinkedTestCasesModal";
 
 // ─── ClickUpCard component ───────────────────────────────────────────────────
 function buildSyncResultFromDefect(defect, integrationConfig = null) {
@@ -710,6 +712,37 @@ export default function DefectModals({
   const marketOptions = ["All", "SG", "HK", "MY", "KR", "US", "ID", "TW"];
   const sourceOptions = DEFECT_SOURCES;
   const severityOptions = DEFECT_SEVERITIES;
+  const [testCaseSearch, setTestCaseSearch] = useState("");
+  const [editLinkedOpen, setEditLinkedOpen] = useState(false);
+  const [addLinkedOpen, setAddLinkedOpen] = useState(false);
+
+  useEffect(() => {
+    if (!editDef) return;
+
+    const rawLinkedCases = Array.isArray(editDef?.linkedTestCases)
+      ? editDef.linkedTestCases
+      : (Array.isArray(editDef?.LinkedTestCases) ? editDef.LinkedTestCases : []);
+
+    const hydratedIds = rawLinkedCases
+      .map(tc => [tc?.id, tc?.Id, tc?.testCaseId, tc?.TestCaseId, tc?.testCase?.id, tc?.testCase?.Id, tc?.testCase?.testCaseId, tc?.testCase?.TestCaseId]
+        .find(v => v !== undefined && v !== null && v !== ""))
+      .map(id => String(id))
+      .filter(Boolean);
+
+    const nextIds = (Array.isArray(editDef?.linkedTestCaseIds) && editDef.linkedTestCaseIds.length > 0
+      ? editDef.linkedTestCaseIds
+      : hydratedIds)
+      .map(id => String(id))
+      .filter(Boolean);
+
+    const currentIds = (editDef?.linkedTestCaseIds || [])
+      .map(id => String(id))
+      .filter(Boolean);
+
+    if (nextIds.length > 0 && JSON.stringify(currentIds) !== JSON.stringify(nextIds)) {
+      setEditDef((current) => current?.id === editDef.id ? { ...current, linkedTestCaseIds: nextIds, linkedTestCaseId: nextIds[0] || "" } : current);
+    }
+  }, [editDef?.id, editDef?.linkedTestCases, editDef?.LinkedTestCases, editDef?.linkedTestCaseIds, editDef?.linkedTestCaseId]);
 
   const getProjectName = projectId => {
     const project = (projects || []).find(p => String(p.id) === String(projectId));
@@ -732,13 +765,79 @@ export default function DefectModals({
   };
 
   const getRunLabel = defect => defect.runNumber || (defect.testRunId ? `Run #${defect.testRunId}` : "-");
-  const getTestCaseLabel = defect => defect.tcNumber || (defect.testCaseId ? `TC #${defect.testCaseId}` : "-");
+  const getLinkedTestCaseDisplayItems = defectLike => {
+    if (Array.isArray(defectLike?.linkedTestCaseIds)) {
+      return defectLike.linkedTestCaseIds.map(id => {
+        const tc = allTestCaseById[Number(id)];
+        return {
+          id: String(id),
+          testCaseNumber: tc?.tcNumber ?? tc?.testCaseNumber ?? tc?.tcId ?? `TC #${id}`,
+          title: tc?.name ?? tc?.title ?? tc?.testCase?.name ?? tc?.testCase?.title ?? "",
+        };
+      });
+    }
+
+    const rawCases = Array.isArray(defectLike?.linkedTestCases)
+      ? defectLike.linkedTestCases
+      : (Array.isArray(defectLike?.LinkedTestCases) ? defectLike.LinkedTestCases : []);
+
+    if (rawCases.length > 0) {
+      return rawCases.map(tc => ({
+        id: [tc?.id, tc?.Id, tc?.testCaseId, tc?.TestCaseId, tc?.testCase?.id, tc?.testCase?.Id, tc?.testCase?.testCaseId, tc?.testCase?.TestCaseId].find(v => v !== undefined && v !== null && v !== ""),
+        testCaseNumber: tc?.testCaseNumber ?? tc?.tcNumber ?? tc?.TcNumber ?? tc?.testCase?.tcNumber ?? tc?.testCase?.TcNumber ?? tc?.TestCaseNumber ?? "",
+        title: tc?.title ?? tc?.Title ?? tc?.name ?? tc?.Name ?? tc?.testCase?.name ?? tc?.testCase?.Name ?? "",
+      }));
+    }
+
+    if (defectLike?.linkedTestCaseId || defectLike?.testCaseId || defectLike?.tcId) {
+      const id = defectLike?.linkedTestCaseId ?? defectLike?.testCaseId ?? defectLike?.tcId;
+      return [{ id: String(id), testCaseNumber: defectLike?.tcNumber || defectLike?.testCaseNumber || "", title: defectLike?.title || "" }];
+    }
+
+    return [];
+  };
+
+  const getTestCaseLabel = defect => {
+    const linkedCases = getLinkedTestCaseDisplayItems(defect);
+    if (linkedCases.length > 0) {
+      return linkedCases
+        .map(tc => tc?.testCaseNumber ? `${tc.testCaseNumber}${tc?.title ? ` - ${tc.title}` : ""}` : tc?.title || (tc?.id ? `TC #${tc.id}` : ""))
+        .join(", ");
+    }
+    return defect.tcNumber || (defect.testCaseId ? `TC #${defect.testCaseId}` : "-");
+  };
 
   const getRunTestCaseOptions = runId => {
     const run = runs.find(r => String(r.id) === String(runId));
     return (run?.entries || [])
       .map(en => allTestCaseById[en.testCaseId])
       .filter(Boolean);
+  };
+
+  const getLinkedTestCaseIds = defectLike => {
+    if (Array.isArray(defectLike?.linkedTestCaseIds)) {
+      return defectLike.linkedTestCaseIds.map(id => String(id)).filter(Boolean);
+    }
+    const displayItems = getLinkedTestCaseDisplayItems(defectLike);
+    if (displayItems.length > 0) {
+      return displayItems.map(tc => String(tc?.id)).filter(Boolean);
+    }
+    if (defectLike?.linkedTestCaseId) {
+      return [String(defectLike.linkedTestCaseId)].filter(Boolean);
+    }
+    if (defectLike?.tcId) {
+      return [String(defectLike.tcId)].filter(Boolean);
+    }
+    return [];
+  };
+
+  const getFilteredRunTestCases = runId => {
+    const term = (testCaseSearch || "").trim().toLowerCase();
+    return getRunTestCaseOptions(runId).filter(tc => {
+      if (!term) return true;
+      const haystack = `${tc?.tcNumber || ""} ${tc?.name || ""}`.toLowerCase();
+      return haystack.includes(term);
+    });
   };
 
   return (
@@ -822,11 +921,26 @@ export default function DefectModals({
                 />
               </div>
               <div>
-                <label style={lbl}>Test Case</label>
-                <input className="defect-textarea"
-                  value={getTestCaseLabel(viewDef)}
-                  readOnly
-                />
+                <label style={lbl}>Linked Test Cases</label>
+                {getLinkedTestCaseDisplayItems(viewDef).length === 0 ? (
+                  <div style={{ color: "#64748b", fontSize: 13, marginTop: 6 }}>No linked test cases.</div>
+                ) : (
+                  <div className="linked-test-cases-chip-list" style={{ marginTop: 6 }}>
+                    {getLinkedTestCaseDisplayItems(viewDef).map((tc) => {
+                      const number = tc.testCaseNumber ?? tc.tcNumber ?? tc.tcId ?? tc.id;
+                      const title = tc.title ?? tc.name ?? "Untitled Test Case";
+                      return (
+                        <span
+                          key={tc.id ?? number}
+                          className="linked-test-cases-chip"
+                          title={title}
+                        >
+                          <span>{number}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1056,7 +1170,7 @@ export default function DefectModals({
       )}
 
       {editDef && (
-        <Modal width={1200} onClose={() => setEditDef(null)} onPaste={e => onDefectPasteUpload(e, editDef.id)}>
+        <Modal width={1200} onClose={() => { setEditDef(null); setEditLinkedOpen(false); setTestCaseSearch(""); }} onPaste={e => onDefectPasteUpload(e, editDef.id)}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Defect</div>
@@ -1064,7 +1178,7 @@ export default function DefectModals({
                 {editDef.defectNumber || `#${editDef.id}`}
               </span>
             </div>
-            <button onClick={() => setEditDef(null)} style={xBtn}>✕</button>
+            <button onClick={() => { setEditDef(null); setEditLinkedOpen(false); setTestCaseSearch(""); }} style={xBtn}>✕</button>
           </div>
           <div className="defect-layout">
             <div className="defect-left">
@@ -1163,7 +1277,7 @@ export default function DefectModals({
                 <label style={lbl}>Run</label>
                 <select
                   value={editDef.linkedRunId || ""}
-                  onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value || "", linkedTestCaseId: "" }))}
+                  onChange={e => setEditDef(p => ({ ...p, linkedRunId: e.target.value || "", linkedTestCaseIds: [], linkedTestCaseId: "" }))}
                   style={inp}
                 >
                   <option value="">Standalone defect</option>
@@ -1171,28 +1285,48 @@ export default function DefectModals({
                 </select>
               </div>
               <div>
-                <label style={lbl}>Test Case (Optional)</label>
-                <select
-                  value={editDef.linkedTestCaseId || ""}
-                  onChange={e => {
-                    const nextTcId = e.target.value || "";
-                    const nextTc = nextTcId ? allTestCaseById[nextTcId] : null;
-                    setEditDef(p => ({
-                      ...p,
-                      linkedTestCaseId: nextTcId,
-                      testPlanId: nextTc?.testPlanId ?? (p.testPlanId ?? null),
-                    }));
-                  }}
-                  style={inp}
-                >
-                  <option value="">No specific test case</option>
-                  {getRunTestCaseOptions(editDef.linkedRunId).map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>)}
-                </select>
-              </div>
-            </div>
+                <label style={lbl}>Linked Test Cases</label>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <LinkedTestCasesPanel
+                    linkedTestCases={getLinkedTestCaseDisplayItems(editDef)}
+                    onManage={() => setEditLinkedOpen(p => !p)}
+                    onRemove={(idToRemove) => {
+                      const nextIds = getLinkedTestCaseIds(editDef).filter(id => String(id) !== String(idToRemove));
+                      setEditDef(p => ({
+                        ...p,
+                        linkedTestCaseIds: nextIds,
+                        linkedTestCaseId: nextIds[0] || "",
+                      }));
+                    }}
+                  />
 
-            <div>
-              <label style={lbl}>Issue Type</label>
+                  {editLinkedOpen && (
+                    <LinkedTestCasesModal
+                      open={editLinkedOpen}
+                      searchValue={testCaseSearch}
+                      onSearchChange={setTestCaseSearch}
+                      onClearSearch={() => setTestCaseSearch("")}
+                      testCases={getFilteredRunTestCases(editDef.linkedRunId)}
+                      selectedIds={getLinkedTestCaseIds(editDef)}
+                      onToggle={(tc, checked) => {
+                        const selectedIds = getLinkedTestCaseIds(editDef);
+                        const nextIds = selectedIds.filter(id => id !== String(tc.id));
+                        const nextValue = checked ? nextIds : [...selectedIds, String(tc.id)];
+                        setEditDef(p => ({
+                          ...p,
+                          linkedTestCaseIds: nextValue,
+                          linkedTestCaseId: nextValue[0] || "",
+                          testPlanId: tc?.testPlanId ?? p.testPlanId,
+                        }));
+                      }}
+                    />
+                  )}
+
+                </div>
+              </div>
+
+              <div>
+                <label style={lbl}>Issue Type</label>
               <select
                 value={editDef.issueType || "Functional"}
                 onChange={e => setEditDef(p => ({ ...p, issueType: e.target.value }))}
@@ -1201,6 +1335,7 @@ export default function DefectModals({
                 {DEFECT_ISSUE_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
+            </div> 
 
             <div>
               <label style={lbl}>Description</label>
@@ -1461,7 +1596,7 @@ export default function DefectModals({
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-            <button onClick={() => { setEditDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
+            <button onClick={() => { setEditDef(null); setEditLinkedOpen(false); setTestCaseSearch(""); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
             <button
               onClick={saveDefectEdits}
               style={{ ...btnP, opacity: (!editDef?.projectId || !editDef?.source || !editDef?.expectedResult?.trim() || !editDef?.actualResult?.trim()) ? 0.5 : 1 }}
@@ -1471,8 +1606,8 @@ export default function DefectModals({
             </button>
           </div>
         </Modal>
-      )}
-
+        )}
+        
       {showAddDef && (
         <Modal onClose={() => { setShowAddDef(null); setNewDefAttachments([]); }} onPaste={onNewDefectPasteUpload}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
@@ -1569,6 +1704,7 @@ export default function DefectModals({
                     ...p,
                     runId: e.target.value || null,
                     tcId: null,
+                    tcIds: [],
                   }))}
                   style={inp}
                 >
@@ -1577,28 +1713,66 @@ export default function DefectModals({
                 </select>
               </div>
               <div>
-                <label style={lbl}>Test Case (Optional)</label>
-                <select
-                  value={showAddDef.tcId || ""}
-                  onChange={e => {
-                    const nextTcId = e.target.value || null;
-                    const nextTc = nextTcId ? allTestCaseById[nextTcId] : null;
-                    setShowAddDef(p => ({
-                      ...p,
-                      tcId: nextTcId,
-                      testPlanId: nextTc?.testPlanId ? String(nextTc.testPlanId) : p.testPlanId,
-                    }));
-                  }}
-                  style={inp}
-                >
-                  <option value="">No specific test case</option>
-                  {getRunTestCaseOptions(showAddDef.runId).map(tc => <option key={tc.id} value={tc.id}>{tc.tcNumber} - {tc.name}</option>)}
-                </select>
-              </div>
-            </div>
+                <label style={lbl}>Linked Test Cases</label>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <LinkedTestCasesPanel
+                    linkedTestCases={Array.isArray(showAddDef.linkedTestCases) && showAddDef.linkedTestCases.length > 0
+                      ? getLinkedTestCaseDisplayItems({ linkedTestCases: showAddDef.linkedTestCases })
+                      : (Array.isArray(showAddDef.tcIds) ? showAddDef.tcIds.map(id => {
+                        const tc = allTestCaseById[Number(id)];
+                        return {
+                          id: String(id),
+                          testCaseNumber: tc?.tcNumber || `TC #${id}`,
+                          title: tc?.name || "",
+                        };
+                      }) : [])}
+                    onManage={() => setAddLinkedOpen(p => !p)}
+                    onRemove={(idToRemove) => {
+                      setShowAddDef(p => {
+                        const nextIds = Array.isArray(p.tcIds)
+                          ? p.tcIds.filter(id => String(id) !== String(idToRemove))
+                          : [];
 
-            <div>
-              <label style={lbl}>Issue Type</label>
+                        const nextLinkedCases = Array.isArray(p.linkedTestCases)
+                          ? p.linkedTestCases.filter(tc => String(tc?.id ?? tc?.testCaseId ?? tc?.Id ?? tc?.TestCaseId) !== String(idToRemove))
+                          : p.linkedTestCases;
+
+                        return {
+                          ...p,
+                          tcIds: nextIds,
+                          tcId: nextIds[0] || null,
+                          linkedTestCases: nextLinkedCases,
+                        };
+                      });
+                    }}
+                  />
+
+                  {addLinkedOpen && (
+                    <LinkedTestCasesModal
+                      open={addLinkedOpen}
+                      searchValue={testCaseSearch}
+                      onSearchChange={setTestCaseSearch}
+                      onClearSearch={() => setTestCaseSearch("")}
+                      testCases={getFilteredRunTestCases(showAddDef.runId)}
+                      selectedIds={Array.isArray(showAddDef.tcIds) ? showAddDef.tcIds : []}
+                      onToggle={(tc, checked) => {
+                        const selectedIds = Array.isArray(showAddDef.tcIds) ? showAddDef.tcIds : [];
+                        const nextIds = selectedIds.filter(id => id !== String(tc.id));
+                        const nextValue = checked ? nextIds : [...selectedIds, String(tc.id)];
+                        setShowAddDef(p => ({
+                          ...p,
+                          tcIds: nextValue,
+                          tcId: nextValue[0] || null,
+                          testPlanId: tc?.testPlanId ? String(tc.testPlanId) : p.testPlanId,
+                        }));
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label style={lbl}>Issue Type</label>
               <select
                 value={newDef.issueType || "Functional"}
                 onChange={e => setNewDef(p => ({ ...p, issueType: e.target.value }))}
@@ -1607,7 +1781,7 @@ export default function DefectModals({
                 {DEFECT_ISSUE_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
-
+</div> 
             <div>
               <label style={lbl}>Description</label>
               <textarea

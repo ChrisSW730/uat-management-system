@@ -15,6 +15,7 @@ public class UATDbContext : DbContext
     public DbSet<TestRunEntry> TestRunEntries => Set<TestRunEntry>();
     public DbSet<TestRunEntryComment> TestRunEntryComments => Set<TestRunEntryComment>();
     public DbSet<Defect> Defects => Set<Defect>();
+    public DbSet<TestCaseDefect> TestCaseDefects => Set<TestCaseDefect>();
     public DbSet<DefectComment> DefectComments => Set<DefectComment>();
     public DbSet<DefectAuditLog> DefectAuditLogs => Set<DefectAuditLog>();
     public DbSet<DefectAttachment> DefectAttachments => Set<DefectAttachment>();
@@ -97,6 +98,22 @@ public class UATDbContext : DbContext
 
         modelBuilder.Entity<Defect>()
             .HasIndex(d => d.DefectNumber)
+            .IsUnique();
+
+        modelBuilder.Entity<TestCaseDefect>()
+            .HasOne(link => link.Defect)
+            .WithMany(d => d.TestCaseDefects)
+            .HasForeignKey(link => link.DefectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TestCaseDefect>()
+            .HasOne(link => link.TestCase)
+            .WithMany(tc => tc.DefectLinks)
+            .HasForeignKey(link => link.TestCaseId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TestCaseDefect>()
+            .HasIndex(link => new { link.DefectId, link.TestCaseId })
             .IsUnique();
 
         modelBuilder.Entity<TestRunEntryComment>()

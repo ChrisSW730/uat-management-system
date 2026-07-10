@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace UATSystem.API.Models;
 
 public class Defect
@@ -45,7 +47,11 @@ public class Defect
     public TestCase? TestCase { get; set; }
     public TestRunEntry? TestRunEntry { get; set; }
     public TestPlan? TestPlan { get; set; }
+    public ICollection<TestCaseDefect> TestCaseDefects { get; set; } = new List<TestCaseDefect>();
     public ICollection<DefectAuditLog> AuditLogs { get; set; } = new List<DefectAuditLog>();
     public ICollection<DefectAttachment> Attachments { get; set; } = new List<DefectAttachment>();
     public ICollection<DefectComment> Comments { get; set; } = new List<DefectComment>();
+
+    [NotMapped]
+    public List<LinkedTestCaseSummaryDto> LinkedTestCases { get; set; } = new();
 }
