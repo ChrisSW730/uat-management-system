@@ -162,7 +162,7 @@ export default function App() {
   const [importingTestCases, setImportingTestCases] = useState(false);
   const [pendingDefectLinkId, setPendingDefectLinkId] = useState(() => getInitialDefectLinkId());
   const [authUser, setAuthUser] = useState(() => readStoredAuth()?.user || null);
-  const [defStatusFilter, setDefStatusFilter] = useState("All");
+  const [defStatusFilter, setDefStatusFilter] = useState([]);
   const [defPriFilter, setDefPriFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState(DEF_MARKET_FILTER_ANY);
   const [defPlanFilter, setDefPlanFilter] = useState("All");
@@ -1046,7 +1046,7 @@ export default function App() {
     const matchesCloseRule = matchDateRule(closeAt, defCloseRule, defCloseDate);
 
     return matchesSearch
-      && (defStatusFilter === "All" || def.status === defStatusFilter)
+      && (!Array.isArray(defStatusFilter) || defStatusFilter.length === 0 || defStatusFilter.includes(def.status))
       && (defPriFilter === "All" || def.priority === defPriFilter)
       && (defMarketFilter === DEF_MARKET_FILTER_ANY || def.market === defMarketFilter)
       && (defPlanFilter === "All" || String(def.testPlanId) === defPlanFilter)

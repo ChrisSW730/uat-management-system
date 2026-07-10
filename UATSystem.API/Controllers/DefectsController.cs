@@ -230,10 +230,15 @@ public class DefectsController : ControllerBase
         var changedBy = GetChangedBy();
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
 
+        var now = DateTime.UtcNow;
+        var oldOpen = defect.OpenDateTime;
+        defect.OpenDateTime = now;
+        AddAudit(defect, "OpenDateTime", AuditDate(oldOpen), AuditDate(defect.OpenDateTime), changedBy);
+
         var oldClose = defect.CloseDateTime;
         if (dto.Status == "Closed")
         {
-            defect.CloseDateTime = DateTime.UtcNow;
+            defect.CloseDateTime = now;
         }
         else
         {
@@ -290,9 +295,12 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "Priority", defect.Priority, dto.Priority, changedBy);
         AddAudit(defect, "RaisedBy", defect.RaisedBy, dto.RaisedBy, changedBy);
         AddAudit(defect, "AssignedTo", defect.AssignedTo, dto.AssignedTo, changedBy);
-        AddAudit(defect, "DateRaised", AuditDate(defect.DateRaised), AuditDate(dto.DateRaised), changedBy);
         AddAudit(defect, "TargetFixDate", AuditDate(defect.TargetFixDate), AuditDate(dto.TargetFixDate), changedBy);
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
+
+        var oldOpen = defect.OpenDateTime;
+        var newOpen = DateTime.UtcNow;
+        AddAudit(defect, "OpenDateTime", AuditDate(oldOpen), AuditDate(newOpen), changedBy);
 
         var oldClose = defect.CloseDateTime;
         DateTime? newClose = dto.Status == "Closed" ? DateTime.UtcNow : null;
@@ -309,7 +317,7 @@ public class DefectsController : ControllerBase
         defect.Priority = dto.Priority;
         defect.RaisedBy = dto.RaisedBy;
         defect.AssignedTo = dto.AssignedTo;
-        defect.DateRaised = dto.DateRaised;
+        defect.OpenDateTime = newOpen;
         defect.CloseDateTime = newClose;
         defect.TargetFixDate = dto.TargetFixDate;
         defect.Status = dto.Status;
@@ -341,6 +349,9 @@ public class DefectsController : ControllerBase
         var newAssignedTo = (dto.AssignedTo ?? string.Empty).Trim();
 
         AddAudit(defect, "AssignedTo", defect.AssignedTo, newAssignedTo, changedBy);
+        var oldOpen = defect.OpenDateTime;
+        defect.OpenDateTime = DateTime.UtcNow;
+        AddAudit(defect, "OpenDateTime", AuditDate(oldOpen), AuditDate(defect.OpenDateTime), changedBy);
         defect.AssignedTo = newAssignedTo;
 
         if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), (newAssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Search, X, Download, RotateCcw, CheckCheck, Plus, Trash2 as Bin, ArrowUp, ArrowDown, ArrowUpDown, Funnel } from "lucide-react";
 import { DEFECT_STATUS, PRIORITY_META } from "../constants";
 import { PriBadge } from "./ui/Badge";
@@ -58,9 +58,26 @@ export default function Defects({
   canUpdateDefectPriority,
 }) {
   const DEF_MARKET_FILTER_ANY = "__ANY_MARKET__";
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef(null);
+  const selectedStatuses = Array.isArray(defStatusFilter) ? defStatusFilter : [];
+  const statusLabel = selectedStatuses.length === 0
+    ? "All Status"
+    : (selectedStatuses.length === 1 ? selectedStatuses[0] : `${selectedStatuses.length} statuses`);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setStatusDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const pagedDefects = sortedFilteredDefects.slice(
     (currentPage - 1) * pageSize,
@@ -136,20 +153,51 @@ export default function Defects({
               </button>
             )}
           </div>
-          <div className="filter-wrapper">
-            <FilterDropdown
-              width={180}
-              value={defStatusFilter}
-              placeholder="All"
-              options={[
-                { value: "All", label: "All Status" },
-                ...Object.keys(DEFECT_STATUS).map(s => ({
-                  value: s,
-                  label: s,
-                })),
-              ]}
-              onChange={value => setDefStatusFilter(value)}
-            />
+          <div className="filter-wrapper" ref={statusDropdownRef}>
+            <div className="dropdown" style={{ width: 180 }}>
+              <button
+                type="button"
+                className="dropdown-btn"
+                onClick={() => setStatusDropdownOpen(p => !p)}
+              >
+                <span title={statusLabel}>{statusLabel}</span>
+                <ArrowDown size={16} />
+              </button>
+
+              {statusDropdownOpen && (
+                <div className="dropdown-menu" style={{ maxHeight: 260, overflowY: "auto" }}>
+                  <label className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedStatuses.length === 0}
+                      onChange={() => setDefStatusFilter([])}
+                    />
+                    <span>All Status</span>
+                  </label>
+
+                  {Object.keys(DEFECT_STATUS).map(status => {
+                    const checked = selectedStatuses.includes(status);
+                    return (
+                      <label key={status} className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setDefStatusFilter((prev) => {
+                              const current = Array.isArray(prev) ? prev : [];
+                              return current.includes(status)
+                                ? current.filter(item => item !== status)
+                                : [...current, status];
+                            });
+                          }}
+                        />
+                        <span>{status}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
           <div className="filter-wrapper">
             <FilterDropdown
@@ -210,7 +258,7 @@ export default function Defects({
           <button
             onClick={() => {
               setDefSearch("");
-              setDefStatusFilter("All");
+              setDefStatusFilter([]);
               setDefPriFilter("All");
               setDefMarketFilter(DEF_MARKET_FILTER_ANY);
               setDefPlanFilter("All");
