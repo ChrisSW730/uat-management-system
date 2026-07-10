@@ -59,7 +59,8 @@ public class ClickUpController : ControllerBase
             parsedConfig.FieldMappings,
             parsedConfig.StatusMappings,
             parsedConfig.PriorityMappings,
-            parsedConfig.CustomFieldValueMappings));
+            parsedConfig.CustomFieldValueMappings,
+            parsedConfig.SyncStatus));
     }
 
     [HttpPost("validate")]
@@ -300,7 +301,7 @@ public class ClickUpController : ControllerBase
 
         await using var transaction = await _db.Database.BeginTransactionAsync();
 
-        var payload = BuildConfigurationPayload(request.List, request.CustomItem, request.Mappings, request.FieldMappings, request.StatusMappings, request.PriorityMappings, request.CustomFieldValueMappings);
+        var payload = BuildConfigurationPayload(request.List, request.CustomItem, request.Mappings, request.FieldMappings, request.StatusMappings, request.PriorityMappings, request.CustomFieldValueMappings, request.SyncStatus ?? true);
 
         user.ClickUpApiTokenEncrypted = _protector.Protect(saveToken);
         user.ClickUpIntegrationEnabled = request.Enabled;
@@ -327,7 +328,8 @@ public class ClickUpController : ControllerBase
             parsedConfig.FieldMappings,
             parsedConfig.StatusMappings,
             parsedConfig.PriorityMappings,
-            parsedConfig.CustomFieldValueMappings));
+            parsedConfig.CustomFieldValueMappings,
+            parsedConfig.SyncStatus));
     }
 
     [HttpPost("defects/{defectId:int}/sync")]
@@ -402,6 +404,39 @@ public class ClickUpController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(defect.ClickUpTaskId))
         {
+            // Fetch current ClickUp task to resolve status conflicts based on timestamps
+            var currentTaskResponse = await CallClickUpAsync($"/task/{defect.ClickUpTaskId}", token);
+            if (currentTaskResponse.IsSuccessStatusCode)
+            {
+                var currentTaskJson = await currentTaskResponse.Content.ReadFromJsonAsync<JsonElement>();
+                var clickStatus = GetTaskStatusFromTask(currentTaskJson);
+                var clickUpdatedAt = GetTaskLastUpdatedUtc(currentTaskJson);
+
+                if (!string.IsNullOrWhiteSpace(clickStatus) && clickUpdatedAt.HasValue && (defect.StatusUpdatedAt == null || clickUpdatedAt > defect.StatusUpdatedAt))
+                {
+                    // reverse-map ClickUp status back to PeekQA status
+                    var mappedPeekQaStatus = config.StatusMappings.FirstOrDefault(kvp => string.Equals(kvp.Value, clickStatus, StringComparison.OrdinalIgnoreCase)).Key;
+                    if (!string.IsNullOrWhiteSpace(mappedPeekQaStatus))
+                    {
+                        _db.DefectAuditLogs.Add(new DefectAuditLog
+                        {
+                            DefectId = defect.Id,
+                            FieldName = "Status",
+                            OldValue = defect.Status,
+                            NewValue = mappedPeekQaStatus,
+                            ChangedBy = "ClickUp",
+                            ChangedAt = clickUpdatedAt.Value,
+                        });
+
+                        defect.Status = mappedPeekQaStatus;
+                        defect.StatusUpdatedAt = clickUpdatedAt;
+                        // avoid overwriting ClickUp status
+                        createTaskPayload.Remove("status");
+                        await _db.SaveChangesAsync();
+                    }
+                }
+            }
+
             var updatedPersistedTask = await UpdateExistingClickUpTaskAsync(defect.ClickUpTaskId, createTaskPayload, token);
             if (updatedPersistedTask == null)
             {
@@ -412,13 +447,45 @@ public class ClickUpController : ControllerBase
             var persistedCustomItemName = string.IsNullOrWhiteSpace(defect.ClickUpCustomItemName) ? selectedCustomItemName : defect.ClickUpCustomItemName;
             ApplyClickUpLink(defect, defect.ClickUpTaskId, updatedPersistedTask.Url, defect.ClickUpListId, defect.ClickUpListName, defect.ClickUpParentTaskId, defect.ClickUpParentTaskName, persistedCustomItemId, persistedCustomItemName);
             await _db.SaveChangesAsync();
-            return Ok(new ClickUpDefectSyncResponse(defect.ClickUpTaskId, updatedPersistedTask.Url, defect.ClickUpListId, defect.ClickUpListName, string.IsNullOrWhiteSpace(defect.ClickUpParentTaskId) ? null : defect.ClickUpParentTaskId, true));
+            return Ok(new ClickUpDefectSyncResponse(defect.ClickUpTaskId, updatedPersistedTask.Url, defect.ClickUpListId, defect.ClickUpListName, string.IsNullOrWhiteSpace(defect.ClickUpParentTaskId) ? null : defect.ClickUpParentTaskId, true, Status: defect.Status));
         }
 
         var existingTask = await FindTaskByExactNameAsync(targetList.Id, targetTaskName, normalizedParentTaskId, token);
 
         if (existingTask != null)
         {
+            // Fetch current ClickUp task to resolve status conflicts based on timestamps
+            var currentTaskResponse = await CallClickUpAsync($"/task/{existingTask.Id}", token);
+            if (currentTaskResponse.IsSuccessStatusCode)
+            {
+                var currentTaskJson = await currentTaskResponse.Content.ReadFromJsonAsync<JsonElement>();
+                var clickStatus = GetTaskStatusFromTask(currentTaskJson);
+                var clickUpdatedAt = GetTaskLastUpdatedUtc(currentTaskJson);
+
+                if (!string.IsNullOrWhiteSpace(clickStatus) && clickUpdatedAt.HasValue && (defect.StatusUpdatedAt == null || clickUpdatedAt > defect.StatusUpdatedAt))
+                {
+                    var mappedPeekQaStatus = config.StatusMappings.FirstOrDefault(kvp => string.Equals(kvp.Value, clickStatus, StringComparison.OrdinalIgnoreCase)).Key;
+                    if (!string.IsNullOrWhiteSpace(mappedPeekQaStatus))
+                    {
+                        _db.DefectAuditLogs.Add(new DefectAuditLog
+                        {
+                            DefectId = defect.Id,
+                            FieldName = "Status",
+                            OldValue = defect.Status,
+                            NewValue = mappedPeekQaStatus,
+                            ChangedBy = "ClickUp",
+                            ChangedAt = clickUpdatedAt.Value,
+                        });
+
+                        defect.Status = mappedPeekQaStatus;
+                        defect.StatusUpdatedAt = clickUpdatedAt;
+                        // avoid overwriting ClickUp status
+                        createTaskPayload.Remove("status");
+                        await _db.SaveChangesAsync();
+                    }
+                }
+            }
+
             var updatedExistingTask = await UpdateExistingClickUpTaskAsync(existingTask.Id, createTaskPayload, token);
             if (updatedExistingTask == null)
             {
@@ -427,7 +494,7 @@ public class ClickUpController : ControllerBase
 
             ApplyClickUpLink(defect, existingTask.Id, updatedExistingTask.Url ?? existingTask.Url, targetList.Id, selectedListName, normalizedParentTaskId, existingTask.ParentTaskName, effectiveCustomItemId, selectedCustomItemName);
             await _db.SaveChangesAsync();
-            return Ok(new ClickUpDefectSyncResponse(existingTask.Id, updatedExistingTask.Url ?? existingTask.Url, targetList.Id, selectedListName, normalizedParentTaskId, true));
+            return Ok(new ClickUpDefectSyncResponse(existingTask.Id, updatedExistingTask.Url ?? existingTask.Url, targetList.Id, selectedListName, normalizedParentTaskId, true, Status: defect.Status));
         }
 
         var createResponse = await CallClickUpAsync($"/list/{targetList.Id}/task", token, HttpMethod.Post, createTaskPayload.ToJsonString());
@@ -444,7 +511,7 @@ public class ClickUpController : ControllerBase
         var parentTaskName = await ResolveParentTaskNameAsync(targetList.Id, normalizedParentTaskId, token);
         ApplyClickUpLink(defect, taskId, taskUrl, targetList.Id, listName, normalizedParentTaskId, parentTaskName, effectiveCustomItemId, selectedCustomItemName);
         await _db.SaveChangesAsync();
-        return Ok(new ClickUpDefectSyncResponse(taskId, taskUrl, targetList.Id, listName, normalizedParentTaskId, false));
+        return Ok(new ClickUpDefectSyncResponse(taskId, taskUrl, targetList.Id, listName, normalizedParentTaskId, false, Status: defect.Status));
     }
 
     [HttpPost("defects/{defectId:int}/unlink")]
@@ -1470,6 +1537,53 @@ public class ClickUpController : ControllerBase
         };
     }
 
+    private static string? GetTaskStatusFromTask(JsonElement task)
+    {
+        if (!task.TryGetProperty("status", out var statusElement))
+        {
+            return null;
+        }
+
+        if (statusElement.ValueKind == JsonValueKind.String)
+        {
+            return statusElement.GetString();
+        }
+
+        if (statusElement.ValueKind == JsonValueKind.Object)
+        {
+            return GetString(statusElement, "status", "id", "label", "name");
+        }
+
+        return null;
+    }
+
+    private static DateTime? GetTaskLastUpdatedUtc(JsonElement task)
+    {
+        // ClickUp typically returns epoch milliseconds in properties like "date_updated" or "date_created"
+        long? ms = TryGetLongFromElement(task, "date_updated") ?? TryGetLongFromElement(task, "date_closed") ?? TryGetLongFromElement(task, "date_created") ?? TryGetLongFromElement(task, "modified_at");
+        if (!ms.HasValue) return null;
+        try
+        {
+            return DateTimeOffset.FromUnixTimeMilliseconds(ms.Value).UtcDateTime;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static long? TryGetLongFromElement(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var pe)) return null;
+        try
+        {
+            if (pe.ValueKind == JsonValueKind.Number && pe.TryGetInt64(out var v)) return v;
+            if (pe.ValueKind == JsonValueKind.String && long.TryParse(pe.GetString(), out var s)) return s;
+        }
+        catch { }
+        return null;
+    }
+
     private static List<ClickUpPriorityOptionDto> GetDefaultPriorities()
     {
         return new()
@@ -1515,7 +1629,8 @@ public class ClickUpController : ControllerBase
         List<ClickUpFieldMappingRequestDto>? fieldMappings,
         Dictionary<string, string>? statusMappings,
         Dictionary<string, string>? priorityMappings,
-        Dictionary<string, Dictionary<string, string>>? customFieldValueMappings)
+        Dictionary<string, Dictionary<string, string>>? customFieldValueMappings,
+        bool syncStatus)
     {
         var normalizedMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var mapping in mappings ?? new Dictionary<string, string>())
@@ -1591,6 +1706,7 @@ public class ClickUpController : ControllerBase
             statusMappings = normalizedStatusMappings,
             priorityMappings = normalizedPriorityMappings,
             customFieldValueMappings = normalizedCustomFieldValueMappings,
+            syncStatus = syncStatus,
         };
     }
 
@@ -1758,7 +1874,8 @@ public class ClickUpController : ControllerBase
                 new Dictionary<string, string>(),
                 null,
                 null,
-                new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase));
+                new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase),
+                true);
         }
 
         try
@@ -1774,7 +1891,8 @@ public class ClickUpController : ControllerBase
                     new Dictionary<string, string>(),
                     null,
                     null,
-                    new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase));
+                    new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase),
+                    true);
             }
 
             var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1782,6 +1900,7 @@ public class ClickUpController : ControllerBase
             var statusMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var priorityMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var customFieldValueMappings = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+            var syncStatus = true;
 
             static bool TryGetPropertyIgnoreCase(JsonElement element, string propertyName, out JsonElement propertyValue)
             {
@@ -1914,6 +2033,17 @@ public class ClickUpController : ControllerBase
                 }
             }
 
+            if (TryGetPropertyIgnoreCase(root, "syncStatus", out var syncElement))
+            {
+                if (syncElement.ValueKind == JsonValueKind.True) syncStatus = true;
+                else if (syncElement.ValueKind == JsonValueKind.False) syncStatus = false;
+                else if (syncElement.ValueKind == JsonValueKind.String)
+                {
+                    var s = syncElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(s) && bool.TryParse(s, out var parsed)) syncStatus = parsed;
+                }
+            }
+
             foreach (var field in fieldMappings.Where(f => !string.IsNullOrWhiteSpace(f.ClickUpFieldId)))
             {
                 if (field.ValueMappings != null && field.ValueMappings.Count > 0)
@@ -1922,7 +2052,7 @@ public class ClickUpController : ControllerBase
                 }
             }
 
-            return new ClickUpConfigurationParseResult(mappings, fieldMappings, statusMappings, priorityMappings, list, customItem, customFieldValueMappings);
+            return new ClickUpConfigurationParseResult(mappings, fieldMappings, statusMappings, priorityMappings, list, customItem, customFieldValueMappings, syncStatus);
         }
         catch
         {
@@ -1933,7 +2063,8 @@ public class ClickUpController : ControllerBase
                 new Dictionary<string, string>(),
                 null,
                 null,
-                new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase));
+                new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase),
+                true);
         }
     }
 }
@@ -1951,7 +2082,8 @@ public record ClickUpIntegrationRequest(
     List<ClickUpFieldMappingRequestDto>? FieldMappings,
     Dictionary<string, string>? StatusMappings,
     Dictionary<string, string>? PriorityMappings,
-    Dictionary<string, Dictionary<string, string>>? CustomFieldValueMappings);
+    Dictionary<string, Dictionary<string, string>>? CustomFieldValueMappings,
+    bool? SyncStatus);
 public record ClickUpIntegrationStateDto(
     bool Enabled,
     string ValidationStatus,
@@ -1964,7 +2096,8 @@ public record ClickUpIntegrationStateDto(
     List<ClickUpFieldMappingDto> FieldMappings,
     Dictionary<string, string> StatusMappings,
     Dictionary<string, string> PriorityMappings,
-    Dictionary<string, Dictionary<string, string>> CustomFieldValueMappings);
+    Dictionary<string, Dictionary<string, string>> CustomFieldValueMappings,
+    bool SyncStatus);
 public record ClickUpValidationResultDto(bool Success, string ValidationStatus, List<ClickUpWorkspaceDto> Workspaces, bool HasStoredToken);
 public record ClickUpWorkspaceDto(string Id, string Name);
 public record ClickUpCustomItemDto(string Id, string Name);
@@ -1986,6 +2119,7 @@ public record ClickUpConfigurationParseResult(
     Dictionary<string, string> PriorityMappings,
     ClickUpWorkspaceDto? List,
     ClickUpCustomItemDto? CustomItem,
-    Dictionary<string, Dictionary<string, string>> CustomFieldValueMappings);
+    Dictionary<string, Dictionary<string, string>> CustomFieldValueMappings,
+    bool SyncStatus);
 public record ClickUpDefectSyncRequest(string? ParentTaskId, string? ListId = null, string? CustomItemId = null);
-public record ClickUpDefectSyncResponse(string TaskId, string? TaskUrl, string ListId, string ListName, string? ParentTaskId, bool LinkedExisting = false);
+public record ClickUpDefectSyncResponse(string TaskId, string? TaskUrl, string ListId, string ListName, string? ParentTaskId, bool LinkedExisting = false, string? Status = null);

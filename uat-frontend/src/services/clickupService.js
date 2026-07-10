@@ -126,6 +126,8 @@ export const DEFAULT_CLICKUP_CONFIG = {
   statusMappings: { ...DEFAULT_CLICKUP_STATUS_MAPPINGS },
   priorityMappings: { ...DEFAULT_CLICKUP_PRIORITY_MAPPINGS },
   customFieldValueMappings: {},
+  // whether status should be synchronized bidirectionally
+  syncStatus: true,
   workspaces: [],
   spaces: [],
   lists: [],
@@ -147,6 +149,7 @@ export function normalizeClickUpConfig(config = {}) {
       config?.customFieldValueMappings && typeof config.customFieldValueMappings === "object"
         ? config.customFieldValueMappings
         : {},
+    syncStatus: true,
     workspaces: Array.isArray(config?.workspaces) ? config.workspaces : [],
     spaces: Array.isArray(config?.spaces) ? config.spaces : [],
     lists: Array.isArray(config?.lists) ? config.lists : [],
@@ -532,6 +535,7 @@ export async function saveClickUpIntegration(config) {
       statusMappings: normalized.statusMappings || {},
       priorityMappings: normalized.priorityMappings || {},
       customFieldValueMappings: normalized.customFieldValueMappings || {},
+      syncStatus: Boolean(normalized.syncStatus),
     }),
   });
 

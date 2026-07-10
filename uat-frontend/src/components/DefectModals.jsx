@@ -47,7 +47,7 @@ function getDefaultClickUpCustomItemId(customItems, configuredCustomItemId) {
   return String(resolvedCustomItems[0]?.id || "");
 }
 
-function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = null }) {
+function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = null, onDefectUpdate = null }) {
   const defectId = defect?.id;
   // ── DISABLED ─────────────────────────────────────────────────────────────
   if (!enabled) {
@@ -330,6 +330,10 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
         syncedAt: new Date(),
       });
       onLinkChange?.(nextLink);
+      onDefectUpdate?.(defectId, {
+        ...nextLink,
+        ...(result?.status ? { status: result.status } : {}),
+      });
       setPhase("linked");
     } catch (err) {
       setErrorMsg(err?.message || "Sync failed. Please try again.");
@@ -372,6 +376,10 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
         syncedAt: new Date(),
       } : r);
       onLinkChange?.(nextLink);
+      onDefectUpdate?.(defectId, {
+        ...nextLink,
+        ...(result?.status ? { status: result.status } : {}),
+      });
     } catch (err) {
       setErrorMsg(err?.message || "Sync failed. Please try again.");
     } finally {
@@ -697,6 +705,7 @@ export default function DefectModals({
   clickUpConfig,
   clickUpEnabled = true,
   onClickUpLinkChange,
+  onDefectUpdate,
 }) {
   const marketOptions = ["All", "SG", "HK", "MY", "KR", "US", "ID", "TW"];
   const sourceOptions = DEFECT_SOURCES;
@@ -1035,6 +1044,7 @@ export default function DefectModals({
               enabled={clickUpEnabled}
               settingsConfig={clickUpConfig}
               onLinkChange={(patch) => onClickUpLinkChange?.(viewDef.id, patch)}
+              onDefectUpdate={onDefectUpdate}
             />
 
             </div>
@@ -1445,6 +1455,7 @@ export default function DefectModals({
                 enabled={clickUpEnabled}
                 settingsConfig={clickUpConfig}
                 onLinkChange={(patch) => onClickUpLinkChange?.(editDef.id, patch)}
+                onDefectUpdate={onDefectUpdate}
               />
 
             </div>

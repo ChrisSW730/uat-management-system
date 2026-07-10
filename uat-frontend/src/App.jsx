@@ -2581,6 +2581,39 @@ export default function App() {
       const updated = await api.updateDefectStatus(id, v, getCurrentUserName());
       setDefects(p => p.map(d => d.id === id ? updated : d));
       setViewDef(d => d?.id === id ? updated : d);
+
+      const linkedTaskId = updated?.clickUpTaskId || "";
+      const shouldSyncClickUpDefect = Boolean(clickUpEnabled);
+      if (shouldSyncClickUpDefect) {
+        void (async () => {
+          try {
+            const syncPayload = {
+              listId: updated.clickUpListId || null,
+              customItemId: updated.clickUpCustomItemId || null,
+              parentTaskId: updated.clickUpParentTaskId || null,
+            };
+            const syncResult = await syncDefectToClickUp(id, syncPayload);
+
+            updateDefectClickUpLinkState(id, {
+              clickUpTaskId: syncResult?.taskId || linkedTaskId,
+              clickUpTaskUrl: syncResult?.taskUrl || updated?.clickUpTaskUrl || "",
+              clickUpListId: updated?.clickUpListId || "",
+              clickUpListName: syncResult?.listName || updated?.clickUpListName || "",
+              clickUpParentTaskId: updated?.clickUpParentTaskId || "",
+              clickUpParentTaskName: updated?.clickUpParentTaskName || "",
+              clickUpCustomItemId: updated?.clickUpCustomItemId || "",
+              clickUpCustomItemName: updated?.clickUpCustomItemName || "",
+              clickUpLinkedAt: new Date().toISOString(),
+            });
+
+            if (syncResult?.status && syncResult.status !== updated.status) {
+              updateDefectState(id, { status: syncResult.status });
+            }
+          } catch (syncError) {
+            alert("Status saved but ClickUp sync failed: " + syncError.message);
+          }
+        })();
+      }
     } catch (e) { console.error("Failed to update defect status:", e); }
   }
 
@@ -2623,6 +2656,27 @@ export default function App() {
       clickUpLinkedAt: linkPatch?.clickUpLinkedAt || null,
     };
 
+    setDefects((current) => current.map((defect) => defect.id === defectId ? { ...defect, ...normalizedPatch } : defect));
+    setViewDef((current) => current?.id === defectId ? { ...current, ...normalizedPatch } : current);
+    setEditDef((current) => current?.id === defectId ? { ...current, ...normalizedPatch } : current);
+    setRuns((current) => current.map((run) => ({
+      ...run,
+      entries: (run.entries || []).map((entry) => ({
+        ...entry,
+        defects: (entry.defects || []).map((defect) => defect.id === defectId ? { ...defect, ...normalizedPatch } : defect),
+      })),
+    })));
+    setViewRun((current) => current ? ({
+      ...current,
+      entries: (current.entries || []).map((entry) => ({
+        ...entry,
+        defects: (entry.defects || []).map((defect) => defect.id === defectId ? { ...defect, ...normalizedPatch } : defect),
+      })),
+    }) : current);
+  }
+
+  function updateDefectState(defectId, patch) {
+    const normalizedPatch = patch || {};
     setDefects((current) => current.map((defect) => defect.id === defectId ? { ...defect, ...normalizedPatch } : defect));
     setViewDef((current) => current?.id === defectId ? { ...current, ...normalizedPatch } : current);
     setEditDef((current) => current?.id === defectId ? { ...current, ...normalizedPatch } : current);
@@ -2793,7 +2847,7 @@ export default function App() {
       }
 
       const linkedTaskId = updated?.clickUpTaskId || editDef?.clickUpTaskId || "";
-      const shouldSyncLinkedDefect = Boolean(clickUpEnabled && linkedTaskId);
+      const shouldSyncClickUpDefect = Boolean(clickUpEnabled);
       const syncPayload = {
         listId: updated?.clickUpListId || editDef?.clickUpListId || null,
         customItemId: updated?.clickUpCustomItemId || editDef?.clickUpCustomItemId || null,
@@ -2802,7 +2856,7 @@ export default function App() {
 
       setEditDef(null);
 
-      if (shouldSyncLinkedDefect) {
+      if (shouldSyncClickUpDefect) {
         void (async () => {
           try {
             const syncResult = await syncDefectToClickUp(updated.id, syncPayload);
@@ -4726,6 +4780,7 @@ linear-gradient(
             clickUpConfig={clickUpConfig}
             clickUpEnabled={clickUpEnabled}
             onClickUpLinkChange={updateDefectClickUpLinkState}
+            onDefectUpdate={updateDefectState}
           />
 
           {showAddProject && canManageProjects && (

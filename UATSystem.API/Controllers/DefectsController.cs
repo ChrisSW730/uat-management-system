@@ -273,6 +273,7 @@ public class DefectsController : ControllerBase
             ActualResult = dto.ActualResult,
             Priority = dto.Priority,
             Status = "New",
+            StatusUpdatedAt = now,
             RaisedBy = dto.RaisedBy,
             AssignedTo = dto.AssignedTo,
             DateRaised = now,
@@ -325,6 +326,8 @@ public class DefectsController : ControllerBase
 
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(defect.CloseDateTime), changedBy);
         defect.Status = dto.Status;
+        defect.StatusUpdatedAt = DateTime.UtcNow;
+        defect.StatusUpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
         return Ok(defect);
@@ -425,6 +428,7 @@ public class DefectsController : ControllerBase
         }
 
         var changedBy = GetChangedBy();
+        var statusChanged = !string.Equals(defect.Status, dto.Status, StringComparison.OrdinalIgnoreCase);
 
         AddAudit(defect, "ProjectId", defect.ProjectId.ToString(), dto.ProjectId.ToString(), changedBy);
         AddAudit(defect, "TestPlanId", defect.TestPlanId?.ToString() ?? string.Empty, testPlan?.Id.ToString() ?? string.Empty, changedBy);
@@ -475,6 +479,10 @@ public class DefectsController : ControllerBase
         defect.TargetFixDate = dto.TargetFixDate;
         defect.Remarks = dto.Remarks;
         defect.Status = dto.Status;
+        if (statusChanged)
+        {
+            defect.StatusUpdatedAt = DateTime.UtcNow;
+        }
 
         if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), (defect.AssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(defect.AssignedTo))
