@@ -390,6 +390,74 @@
     font-weight: 600;
 }
 
+.clickup-collapse-toggle {
+    width: 100%;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+}
+.clickup-collapse-toggle:focus,
+.clickup-collapse-toggle:focus-visible,
+.clickup-collapse-toggle:active {
+    outline: none;
+    border: none;
+    box-shadow: none;
+}
+
+.clickup-collapse-copy {
+    min-width: 0;
+    display: grid;
+    gap: 8px;
+}
+
+.clickup-collapse-title {
+    margin-bottom: 0;
+}
+
+.clickup-collapse-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.clickup-collapse-summary-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    max-width: 120px;
+}
+
+.clickup-collapse-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.clickup-collapse-toggle:hover .clickup-collapse-icon {
+    background: #eef2ff;
+    color: #4f46e5;
+}
+
+.clickup-collapse-toggle:focus-visible {
+    outline: 2px solid #7c3aed;
+    outline-offset: 6px;
+    border-radius: 10px;
+}
+
 .clickup-task-id {
     font-family: monospace;
     color: #6366f1 !important;

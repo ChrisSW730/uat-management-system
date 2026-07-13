@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { PRIORITY_META, DEFECT_ISSUE_TYPES, DEFECT_SOURCES, DEFECT_SEVERITIES, DEFECT_STATUS } from "../constants";
 import Modal from "./ui/Modal";
 import { DefBadge } from "./ui/Badge";
@@ -88,6 +89,7 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
   });
   const [errorMsg,   setErrorMsg]   = useState("");
   const [syncResult, setSyncResult] = useState(() => buildSyncResultFromDefect(defect, integrationConfig));
+  const [linkedExpanded, setLinkedExpanded] = useState(false);
   const lastAutoSyncKeyRef = useRef("");
 
   useEffect(() => {
@@ -118,6 +120,7 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
     if (defect?.clickUpTaskId) {
       setPhase("linked");
       setSyncResult(buildSyncResultFromDefect(defect, integrationConfig));
+      setLinkedExpanded(false);
       setSelectedListId(defect.clickUpListId || "");
       setSelectedCustomItemId(defect.clickUpCustomItemId || "");
       setSelectedTask(defect.clickUpParentTaskId || "");
@@ -126,6 +129,7 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
 
     setPhase("idle");
     setSyncResult(null);
+    setLinkedExpanded(false);
   }, [
     defect?.id,
     defect?.clickUpTaskId,
@@ -331,6 +335,7 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
         customItem: nextLink.clickUpCustomItemName,
         syncedAt: new Date(),
       });
+      setLinkedExpanded(false);
       onLinkChange?.(nextLink);
       onDefectUpdate?.(defectId, {
         ...nextLink,
@@ -477,86 +482,106 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
   if (phase === "linked" && syncResult) {
     return (
       <div className="collab-card collab-card--integration">
-        <div className="collab-card-title">ClickUp</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <div className="integration-field-row">
-            <span className="integration-field-label">Status</span>
-            <span className="clickup-linked-badge">&#x25CF; Linked</span>
-          </div>
-          <div className="integration-field-row">
-            <span className="integration-field-label">Sync Type</span>
-            <span className="integration-field-value">{syncResult.syncType}</span>
-          </div>
-          <div className="integration-field-row">
-            <span className="integration-field-label">Task ID</span>
-            <span className="integration-field-value clickup-task-id">{syncResult.taskId}</span>
-          </div>
-          {syncResult.parentTask && (
-            <div className="integration-field-row">
-              <span className="integration-field-label">Parent Task</span>
-              <span className="integration-field-value clickup-truncate">{syncResult.parentTask}</span>
+        <button
+          type="button"
+          className="clickup-collapse-toggle"
+          onClick={() => setLinkedExpanded((current) => !current)}
+          aria-expanded={linkedExpanded}
+        >
+          <div className="clickup-collapse-copy">
+            <div className="collab-card-title clickup-collapse-title">
+              ClickUp {!linkedExpanded && (
+                <span className="clickup-linked-badge">&#x25CF; Linked</span>
+              )}
             </div>
-          )}
-          <div className="integration-field-row">
-            <span className="integration-field-label">Workspace</span>
-            <span className="integration-field-value clickup-truncate">{syncResult.workspace}</span>
           </div>
-          <div className="integration-field-row">
-            <span className="integration-field-label">Space</span>
-            <span className="integration-field-value clickup-truncate">{syncResult.space}</span>
-          </div>
-          {syncResult.folder && (
-            <div className="integration-field-row">
-              <span className="integration-field-label">Folder</span>
-              <span className="integration-field-value clickup-truncate">{syncResult.folder}</span>
-            </div>
-          )}
-          <div className="integration-field-row">
-            <span className="integration-field-label">List</span>
-            <span className="integration-field-value clickup-truncate">{syncResult.list}</span>
-          </div>
-          {syncResult.customItem && (
-            <div className="integration-field-row">
-              <span className="integration-field-label">Task Type</span>
-              <span className="integration-field-value clickup-truncate">{syncResult.customItem}</span>
-            </div>
-          )}
-          <div className="integration-field-row">
-            <span className="integration-field-label">Last Sync</span>
-            <span className="integration-field-value">{formatSyncTime(syncResult.syncedAt)}</span>
-          </div>
-        </div>
+          <span className="clickup-collapse-icon" aria-hidden="true">
+            {linkedExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </span>
+        </button>
         {errorMsg && <div className="clickup-error-msg">{errorMsg}</div>}
-        <div className="clickup-btn-row">
-          <button
-            type="button"
-            className="integration-secondary-btn clickup-btn-half"
-            onClick={handleUnlink}
-            disabled={loading.syncing}
-          >
-            Unlink
-          </button>
-          <button
-            type="button"
-            className="integration-secondary-btn clickup-btn-half"
-            onClick={() => {
-              if (syncResult.taskUrl) {
-                window.open(syncResult.taskUrl, "_blank", "noopener,noreferrer");
-              }
-            }}
-            disabled={!syncResult.taskUrl}
-          >
-            Open in ClickUp
-          </button>
-          <button
-            type="button"
-            className="integration-primary-btn clickup-btn-half"
-            onClick={handleSyncNow}
-            disabled={loading.syncing}
-          >
-            {loading.syncing ? "Syncing…" : "Sync Now"}
-          </button>
-        </div>
+        {linkedExpanded && (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div className="integration-field-row">
+                <span className="integration-field-label">Status</span>
+                <span className="clickup-linked-badge">&#x25CF; Linked</span>
+              </div>
+              <div className="integration-field-row">
+                <span className="integration-field-label">Sync Type</span>
+                <span className="integration-field-value">{syncResult.syncType}</span>
+              </div>
+              <div className="integration-field-row">
+                <span className="integration-field-label">Task ID</span>
+                <span className="integration-field-value clickup-task-id">{syncResult.taskId}</span>
+              </div>
+              {syncResult.parentTask && (
+                <div className="integration-field-row">
+                  <span className="integration-field-label">Parent Task</span>
+                  <span className="integration-field-value clickup-truncate">{syncResult.parentTask}</span>
+                </div>
+              )}
+              <div className="integration-field-row">
+                <span className="integration-field-label">Workspace</span>
+                <span className="integration-field-value clickup-truncate">{syncResult.workspace}</span>
+              </div>
+              <div className="integration-field-row">
+                <span className="integration-field-label">Space</span>
+                <span className="integration-field-value clickup-truncate">{syncResult.space}</span>
+              </div>
+              {syncResult.folder && (
+                <div className="integration-field-row">
+                  <span className="integration-field-label">Folder</span>
+                  <span className="integration-field-value clickup-truncate">{syncResult.folder}</span>
+                </div>
+              )}
+              <div className="integration-field-row">
+                <span className="integration-field-label">List</span>
+                <span className="integration-field-value clickup-truncate">{syncResult.list}</span>
+              </div>
+              {syncResult.customItem && (
+                <div className="integration-field-row">
+                  <span className="integration-field-label">Task Type</span>
+                  <span className="integration-field-value clickup-truncate">{syncResult.customItem}</span>
+                </div>
+              )}
+              <div className="integration-field-row">
+                <span className="integration-field-label">Last Sync</span>
+                <span className="integration-field-value">{formatSyncTime(syncResult.syncedAt)}</span>
+              </div>
+            </div>
+            <div className="clickup-btn-row">
+              <button
+                type="button"
+                className="integration-secondary-btn clickup-btn-half"
+                onClick={handleUnlink}
+                disabled={loading.syncing}
+              >
+                Unlink
+              </button>
+              <button
+                type="button"
+                className="integration-secondary-btn clickup-btn-half"
+                onClick={() => {
+                  if (syncResult.taskUrl) {
+                    window.open(syncResult.taskUrl, "_blank", "noopener,noreferrer");
+                  }
+                }}
+                disabled={!syncResult.taskUrl}
+              >
+                Open in ClickUp
+              </button>
+              <button
+                type="button"
+                className="integration-primary-btn clickup-btn-half"
+                onClick={handleSyncNow}
+                disabled={loading.syncing}
+              >
+                {loading.syncing ? "Syncing…" : "Sync Now"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
