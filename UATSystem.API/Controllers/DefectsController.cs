@@ -194,6 +194,7 @@ public class DefectsController : ControllerBase
             ActualResult = dto.ActualResult,
             Priority = dto.Priority,
             Status = "New",
+            StatusUpdatedAt = now,
             RaisedBy = dto.RaisedBy,
             AssignedTo = dto.AssignedTo,
             DateRaised = now,
@@ -228,6 +229,7 @@ public class DefectsController : ControllerBase
         if (defect == null) return NotFound();
 
         var changedBy = GetChangedBy();
+        var hasStatusChanged = !string.Equals(defect.Status, dto.Status, StringComparison.OrdinalIgnoreCase);
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
 
         var now = DateTime.UtcNow;
@@ -247,6 +249,10 @@ public class DefectsController : ControllerBase
 
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(defect.CloseDateTime), changedBy);
         defect.Status = dto.Status;
+        if (hasStatusChanged)
+        {
+            defect.StatusUpdatedAt = now;
+        }
 
         await _db.SaveChangesAsync();
         return Ok(defect);
@@ -285,6 +291,7 @@ public class DefectsController : ControllerBase
         }
 
         var changedBy = GetChangedBy();
+        var hasStatusChanged = !string.Equals(defect.Status, dto.Status, StringComparison.OrdinalIgnoreCase);
 
         AddAudit(defect, "RunNumber", defect.RunNumber, entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-", changedBy);
         AddAudit(defect, "TcNumber", defect.TcNumber, entry?.TestCase.TcNumber ?? "-", changedBy);
@@ -321,6 +328,10 @@ public class DefectsController : ControllerBase
         defect.CloseDateTime = newClose;
         defect.TargetFixDate = dto.TargetFixDate;
         defect.Status = dto.Status;
+        if (hasStatusChanged)
+        {
+            defect.StatusUpdatedAt = DateTime.UtcNow;
+        }
 
         if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), (defect.AssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(defect.AssignedTo))
