@@ -144,18 +144,87 @@ public class DefectsController : ControllerBase
         });
     }
 
+    private async Task<Defect?> GetHydratedDefectAsync(int defectId)
+    {
+        var defect = await _db.Defects
+            .Include(d => d.Comments)
+            .FirstOrDefaultAsync(d => d.Id == defectId);
+
+        if (defect == null)
+        {
+            return null;
+        }
+
+        var links = await _db.TestCaseDefects
+            .Where(link => link.DefectId == defectId)
+            .Include(link => link.TestCase)
+            .OrderBy(link => link.Id)
+            .ToListAsync();
+
+        defect.LinkedTestCases = links.Select(link => new LinkedTestCaseSummaryDto
+        {
+            Id = link.TestCaseId,
+            TestCaseNumber = link.TestCase?.TcNumber ?? $"TC #{link.TestCaseId}",
+            Title = link.TestCase?.Name ?? string.Empty,
+        }).ToList();
+
+        return defect;
+    }
+
     [HttpGet]
-    public async Task<IActionResult> GetAll() =>
-        Ok(await _db.Defects
+    public async Task<IActionResult> GetAll()
+    {
+        var defects = await _db.Defects
             .Include(d => d.Comments)
             .OrderByDescending(d => d.CreatedAt)
-            .ToListAsync());
+            .ToListAsync();
+
+        var defectIds = defects.Select(d => d.Id).ToList();
+        if (defectIds.Count > 0)
+        {
+            var links = await _db.TestCaseDefects
+                .Where(link => defectIds.Contains(link.DefectId))
+                .Include(link => link.TestCase)
+                .OrderBy(link => link.Id)
+                .ToListAsync();
+
+            var linksByDefectId = links
+                .GroupBy(link => link.DefectId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Select(link => new LinkedTestCaseSummaryDto
+                    {
+                        Id = link.TestCaseId,
+                        TestCaseNumber = link.TestCase?.TcNumber ?? $"TC #{link.TestCaseId}",
+                        Title = link.TestCase?.Name ?? string.Empty,
+                    }).ToList());
+
+            foreach (var defect in defects)
+            {
+                defect.LinkedTestCases = linksByDefectId.TryGetValue(defect.Id, out var linked)
+                    ? linked
+                    : new List<LinkedTestCaseSummaryDto>();
+            }
+        }
+
+        return Ok(defects);
+    }
 
     [HttpPost]
     [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> Create(CreateDefectDto dto)
     {
-        if (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
+        var linkedTestCaseIds = (dto.LinkedTestCaseIds ?? new List<int>())
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList();
+
+        if (linkedTestCaseIds.Count == 0 && dto.TestCaseId.HasValue)
+        {
+            linkedTestCaseIds.Add(dto.TestCaseId.Value);
+        }
+
+        if (!dto.TestRunId.HasValue && (dto.TestCaseId.HasValue || linkedTestCaseIds.Count > 0))
         {
             return BadRequest("TestCaseId cannot be provided without TestRunId.");
         }
@@ -167,26 +236,37 @@ public class DefectsController : ControllerBase
             if (run == null) return NotFound("Test run not found.");
         }
 
-        TestRunEntry? entry = null;
-        if (dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
+        List<TestRunEntry> linkedEntries = new();
+        if (dto.TestRunId.HasValue && linkedTestCaseIds.Count > 0)
         {
-            entry = await _db.TestRunEntries
+            linkedEntries = await _db.TestRunEntries
                 .Include(e => e.TestCase)
                 .Include(e => e.TestRun)
-                .FirstOrDefaultAsync(e => e.TestRunId == dto.TestRunId.Value && e.TestCaseId == dto.TestCaseId.Value);
+                .Where(e => e.TestRunId == dto.TestRunId.Value && linkedTestCaseIds.Contains(e.TestCaseId))
+                .ToListAsync();
 
-            if (entry == null) return NotFound("Test run entry not found.");
+            if (linkedEntries.Count != linkedTestCaseIds.Count)
+            {
+                return NotFound("One or more linked test cases were not found in the selected test run.");
+            }
         }
+
+        var primaryLinkedTestCaseId = linkedTestCaseIds.FirstOrDefault();
+        var primaryEntry = primaryLinkedTestCaseId > 0
+            ? linkedEntries.FirstOrDefault(e => e.TestCaseId == primaryLinkedTestCaseId)
+            : null;
 
         var count = await _db.Defects.CountAsync();
         var now = DateTime.UtcNow;
         var defect = new Defect
         {
             DefectNumber = $"DEF-{(count + 1):D3}",
-            TestRunEntryId = entry?.Id,
+            TestRunId = dto.TestRunId,
+            TestCaseId = primaryLinkedTestCaseId > 0 ? primaryLinkedTestCaseId : null,
+            TestRunEntryId = primaryEntry?.Id,
             TestPlanId = dto.TestPlanId,
-            RunNumber = entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-",
-            TcNumber = entry?.TestCase.TcNumber ?? "-",
+            RunNumber = primaryEntry?.TestRun.RunNumber ?? run?.RunNumber ?? "-",
+            TcNumber = primaryEntry?.TestCase.TcNumber ?? "-",
             Market = dto.Market,
             Description = dto.Description,
             IssueType = dto.IssueType,
@@ -207,6 +287,35 @@ public class DefectsController : ControllerBase
         _db.Defects.Add(defect);
         await _db.SaveChangesAsync();
 
+        if (linkedTestCaseIds.Count > 0)
+        {
+            var changedBy = GetChangedBy();
+            var linkRows = linkedTestCaseIds.Select(testCaseId => new TestCaseDefect
+            {
+                DefectId = defect.Id,
+                TestCaseId = testCaseId,
+                CreatedBy = changedBy,
+                CreatedDate = DateTime.UtcNow,
+            });
+            _db.TestCaseDefects.AddRange(linkRows);
+            await _db.SaveChangesAsync();
+
+            var testCaseLookup = await _db.TestCases
+                .Where(tc => linkedTestCaseIds.Contains(tc.Id))
+                .ToDictionaryAsync(tc => tc.Id);
+
+            defect.LinkedTestCases = linkedTestCaseIds.Select(testCaseId => new LinkedTestCaseSummaryDto
+            {
+                Id = testCaseId,
+                TestCaseNumber = testCaseLookup.TryGetValue(testCaseId, out var tc)
+                    ? (tc.TcNumber ?? $"TC #{testCaseId}")
+                    : $"TC #{testCaseId}",
+                Title = testCaseLookup.TryGetValue(testCaseId, out tc)
+                    ? (tc.Name ?? string.Empty)
+                    : string.Empty,
+            }).ToList();
+        }
+
         if (!string.IsNullOrWhiteSpace(defect.AssignedTo))
         {
             var actorDisplayName = await GetCurrentUserDisplayNameAsync();
@@ -218,7 +327,8 @@ public class DefectsController : ControllerBase
             await _db.SaveChangesAsync();
         }
 
-        return Ok(defect);
+        var hydratedDefect = await GetHydratedDefectAsync(defect.Id);
+        return Ok(hydratedDefect ?? defect);
     }
 
     [HttpPatch("{id}/status")]
@@ -255,7 +365,8 @@ public class DefectsController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
-        return Ok(defect);
+        var hydratedDefect = await GetHydratedDefectAsync(defect.Id);
+        return Ok(hydratedDefect ?? defect);
     }
 
     [HttpPut("{id}")]
@@ -267,7 +378,17 @@ public class DefectsController : ControllerBase
 
         var oldAssignedTo = defect.AssignedTo;
 
-        if (!dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
+        var linkedTestCaseIds = (dto.LinkedTestCaseIds ?? new List<int>())
+            .Where(testCaseId => testCaseId > 0)
+            .Distinct()
+            .ToList();
+
+        if (linkedTestCaseIds.Count == 0 && dto.TestCaseId.HasValue)
+        {
+            linkedTestCaseIds.Add(dto.TestCaseId.Value);
+        }
+
+        if (!dto.TestRunId.HasValue && (dto.TestCaseId.HasValue || linkedTestCaseIds.Count > 0))
         {
             return BadRequest("TestCaseId cannot be provided without TestRunId.");
         }
@@ -279,22 +400,31 @@ public class DefectsController : ControllerBase
             if (run == null) return NotFound("Test run not found.");
         }
 
-        TestRunEntry? entry = null;
-        if (dto.TestRunId.HasValue && dto.TestCaseId.HasValue)
+        List<TestRunEntry> linkedEntries = new();
+        if (dto.TestRunId.HasValue && linkedTestCaseIds.Count > 0)
         {
-            entry = await _db.TestRunEntries
+            linkedEntries = await _db.TestRunEntries
                 .Include(e => e.TestCase)
                 .Include(e => e.TestRun)
-                .FirstOrDefaultAsync(e => e.TestRunId == dto.TestRunId.Value && e.TestCaseId == dto.TestCaseId.Value);
+                .Where(e => e.TestRunId == dto.TestRunId.Value && linkedTestCaseIds.Contains(e.TestCaseId))
+                .ToListAsync();
 
-            if (entry == null) return NotFound("Test run entry not found.");
+            if (linkedEntries.Count != linkedTestCaseIds.Count)
+            {
+                return NotFound("One or more linked test cases were not found in the selected test run.");
+            }
         }
+
+        var primaryLinkedTestCaseId = linkedTestCaseIds.FirstOrDefault();
+        var primaryEntry = primaryLinkedTestCaseId > 0
+            ? linkedEntries.FirstOrDefault(e => e.TestCaseId == primaryLinkedTestCaseId)
+            : null;
 
         var changedBy = GetChangedBy();
         var hasStatusChanged = !string.Equals(defect.Status, dto.Status, StringComparison.OrdinalIgnoreCase);
 
-        AddAudit(defect, "RunNumber", defect.RunNumber, entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-", changedBy);
-        AddAudit(defect, "TcNumber", defect.TcNumber, entry?.TestCase.TcNumber ?? "-", changedBy);
+        AddAudit(defect, "RunNumber", defect.RunNumber, primaryEntry?.TestRun.RunNumber ?? run?.RunNumber ?? "-", changedBy);
+        AddAudit(defect, "TcNumber", defect.TcNumber, primaryEntry?.TestCase.TcNumber ?? "-", changedBy);
         AddAudit(defect, "Market", defect.Market, dto.Market, changedBy);
         AddAudit(defect, "Description", defect.Description, dto.Description, changedBy);
         AddAudit(defect, "ExpectedResult", defect.ExpectedResult, dto.ExpectedResult, changedBy);
@@ -313,10 +443,12 @@ public class DefectsController : ControllerBase
         DateTime? newClose = dto.Status == "Closed" ? DateTime.UtcNow : null;
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(newClose), changedBy);
 
-        defect.TestRunEntryId = entry?.Id;
+        defect.TestRunId = dto.TestRunId;
+        defect.TestCaseId = primaryLinkedTestCaseId > 0 ? primaryLinkedTestCaseId : null;
+        defect.TestRunEntryId = primaryEntry?.Id;
         defect.TestPlanId = dto.TestPlanId;
-        defect.RunNumber = entry?.TestRun.RunNumber ?? run?.RunNumber ?? "-";
-        defect.TcNumber = entry?.TestCase.TcNumber ?? "-";
+        defect.RunNumber = primaryEntry?.TestRun.RunNumber ?? run?.RunNumber ?? "-";
+        defect.TcNumber = primaryEntry?.TestCase.TcNumber ?? "-";
         defect.Market = dto.Market;
         defect.Description = dto.Description;
         defect.ExpectedResult = dto.ExpectedResult;
@@ -344,8 +476,51 @@ public class DefectsController : ControllerBase
             );
         }
 
+        var existingLinks = await _db.TestCaseDefects
+            .Where(link => link.DefectId == defect.Id)
+            .ToListAsync();
+        if (existingLinks.Count > 0)
+        {
+            _db.TestCaseDefects.RemoveRange(existingLinks);
+        }
+
+        if (linkedTestCaseIds.Count > 0)
+        {
+            _db.TestCaseDefects.AddRange(linkedTestCaseIds.Select(testCaseId => new TestCaseDefect
+            {
+                DefectId = defect.Id,
+                TestCaseId = testCaseId,
+                CreatedBy = changedBy,
+                CreatedDate = DateTime.UtcNow,
+            }));
+        }
+
         await _db.SaveChangesAsync();
-        return Ok(defect);
+
+        if (linkedTestCaseIds.Count > 0)
+        {
+            var testCaseLookup = await _db.TestCases
+                .Where(tc => linkedTestCaseIds.Contains(tc.Id))
+                .ToDictionaryAsync(tc => tc.Id);
+
+            defect.LinkedTestCases = linkedTestCaseIds.Select(testCaseId => new LinkedTestCaseSummaryDto
+            {
+                Id = testCaseId,
+                TestCaseNumber = testCaseLookup.TryGetValue(testCaseId, out var tc)
+                    ? (tc.TcNumber ?? $"TC #{testCaseId}")
+                    : $"TC #{testCaseId}",
+                Title = testCaseLookup.TryGetValue(testCaseId, out tc)
+                    ? (tc.Name ?? string.Empty)
+                    : string.Empty,
+            }).ToList();
+        }
+        else
+        {
+            defect.LinkedTestCases = new List<LinkedTestCaseSummaryDto>();
+        }
+
+        var hydratedDefect = await GetHydratedDefectAsync(defect.Id);
+        return Ok(hydratedDefect ?? defect);
     }
 
     [HttpPatch("{id}/assignee")]
@@ -377,7 +552,8 @@ public class DefectsController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
-        return Ok(defect);
+        var hydratedDefect = await GetHydratedDefectAsync(defect.Id);
+        return Ok(hydratedDefect ?? defect);
     }
 
     [HttpDelete("{id}")]
@@ -553,7 +729,8 @@ public record CreateDefectDto(
     string Market, string Description, string IssueType,
     string ExpectedResult, string ActualResult,
     string Priority, string RaisedBy, string AssignedTo,
-    DateTime? TargetFixDate, string Remarks);
+    DateTime? TargetFixDate, string Remarks,
+    List<int>? LinkedTestCaseIds = null);
 
 public record UpdateStatusDto(string Status);
 
@@ -570,7 +747,8 @@ public record UpdateDefectDto(
     string AssignedTo,
     DateTime DateRaised,
     DateTime? TargetFixDate,
-    string Status);
+    string Status,
+    List<int>? LinkedTestCaseIds = null);
 
 public record UpdateAssigneeDto(string AssignedTo);
 
