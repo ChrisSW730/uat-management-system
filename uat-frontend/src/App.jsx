@@ -1094,6 +1094,7 @@ export default function App() {
     const openDefs = filteredDefects.filter(d => d.status !== "Closed" && d.status !== "Rejected").length;
     // Dashboard trend range: custom date range when provided, otherwise last 7 days.
     const msPerDay = 24 * 60 * 60 * 1000;
+    const getDefectCreatedDate = (def) => (def.dateRaised || def.createdAt || def.openDateTime || "").slice(0, 10);
     const today = new Date();
     today.setHours(12, 0, 0, 0);
     const parsedStart = dashDateStart ? new Date(dashDateStart + "T12:00:00") : null;
@@ -1158,7 +1159,7 @@ export default function App() {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
       return {
         label,
-        newCount: filteredDefects.filter(d => (d.openDateTime || d.dateRaised || d.createdAt || "").slice(0, 10) === dateStr).length,
+        newCount: filteredDefects.filter(d => getDefectCreatedDate(d) === dateStr).length,
         closedCount: filteredDefects.filter(d => d.closeDateTime?.slice(0, 10) === dateStr).length,
       };
     });
@@ -1208,7 +1209,7 @@ export default function App() {
     });
 
     const defectOpenDates = filteredDefects
-      .map(def => (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10))
+      .map(def => getDefectCreatedDate(def))
       .filter(Boolean)
       .sort();
     const firstDefectDate = defectOpenDates.length > 0 ? defectOpenDates[0] : null;
@@ -1217,11 +1218,11 @@ export default function App() {
     const defectBurndownDays = last7.reduce((acc, dateStr, index) => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const scopeAtDate = filteredDefects.filter(def => {
-        const opened = (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10);
+        const opened = getDefectCreatedDate(def);
         return !!opened && opened <= dateStr;
       }).length;
       const remaining = filteredDefects.filter(def => {
-        const opened = (def.openDateTime || def.dateRaised || def.createdAt || "").slice(0, 10);
+        const opened = getDefectCreatedDate(def);
         if (!opened || opened > dateStr) return false;
 
         const isClosed = ["Closed", "Rejected"].includes(def.status);
