@@ -1507,7 +1507,9 @@ export default function App() {
       });
 
       if (newTCAttachments.length > 0) {
-        const uploaded = await api.uploadTestCaseAttachments(tc.id, newTCAttachments, getCurrentUserName());
+        const tcImageToken = getTestCaseImageToken(tc.id, tc.tcNumber);
+        const renamedNew = renameImageFiles(newTCAttachments, tcImageToken, 1);
+        const uploaded = await api.uploadTestCaseAttachments(tc.id, renamedNew, getCurrentUserName());
         setTestCaseAttachments(p => ({ ...p, [tc.id]: uploaded }));
       }
 
@@ -2934,6 +2936,21 @@ export default function App() {
     });
   }
 
+  function getTestCaseImageToken(testCaseId, testCaseNumber) {
+    const tcNumberText = String(testCaseNumber || "").trim();
+    const tcNumberMatch = tcNumberText.match(/^TC-(\d+)$/i);
+    if (tcNumberMatch?.[1]) {
+      return tcNumberMatch[1];
+    }
+
+    const numericId = Number(testCaseId);
+    if (Number.isFinite(numericId) && numericId > 0) {
+      return String(Math.trunc(numericId)).padStart(3, "0");
+    }
+
+    return String(testCaseId || "").trim() || "000";
+  }
+
   async function uploadDefectFiles(defectId, files) {
     const selected = Array.from(files || []).filter(f => f && f.size > 0);
     if (selected.length === 0) return;
@@ -2984,7 +3001,11 @@ export default function App() {
 
     try {
       setUploadingTestCaseId(testCaseId);
-      const uploaded = await api.uploadTestCaseAttachments(testCaseId, selected, getCurrentUserName());
+      const existingCount = (testCaseAttachments[testCaseId] || []).length;
+      const testCase = allTestCaseById[testCaseId] || testCases.find(tc => Number(tc.id) === Number(testCaseId));
+      const tcImageToken = getTestCaseImageToken(testCaseId, testCase?.tcNumber);
+      const renamed = renameImageFiles(selected, tcImageToken, existingCount + 1);
+      const uploaded = await api.uploadTestCaseAttachments(testCaseId, renamed, getCurrentUserName());
       setTestCaseAttachments(p => ({
         ...p,
         [testCaseId]: [...(p[testCaseId] || []), ...uploaded],
