@@ -219,6 +219,17 @@ public class DefectsController : ControllerBase
             .Distinct()
             .ToList();
 
+        if (dto.ProjectId <= 0)
+        {
+            return BadRequest("Project is required.");
+        }
+
+        var projectExists = await _db.Projects.AnyAsync(project => project.Id == dto.ProjectId);
+        if (!projectExists)
+        {
+            return NotFound("Project not found.");
+        }
+
         if (linkedTestCaseIds.Count == 0 && dto.TestCaseId.HasValue)
         {
             linkedTestCaseIds.Add(dto.TestCaseId.Value);
@@ -256,11 +267,11 @@ public class DefectsController : ControllerBase
             ? linkedEntries.FirstOrDefault(e => e.TestCaseId == primaryLinkedTestCaseId)
             : null;
 
-        var count = await _db.Defects.CountAsync();
         var now = DateTime.UtcNow;
         var defect = new Defect
         {
-            DefectNumber = $"DEF-{(count + 1):D3}",
+            DefectNumber = $"TMP-{Guid.NewGuid():N}",
+            ProjectId = dto.ProjectId,
             TestRunId = dto.TestRunId,
             TestCaseId = primaryLinkedTestCaseId > 0 ? primaryLinkedTestCaseId : null,
             TestRunEntryId = primaryEntry?.Id,
@@ -285,6 +296,9 @@ public class DefectsController : ControllerBase
             CreatedAt = now,
         };
         _db.Defects.Add(defect);
+        await _db.SaveChangesAsync();
+
+        defect.DefectNumber = $"DEF-{defect.Id:D6}";
         await _db.SaveChangesAsync();
 
         if (linkedTestCaseIds.Count > 0)
@@ -725,7 +739,7 @@ public class DefectsController : ControllerBase
 }
 
 public record CreateDefectDto(
-    int? TestRunId, int? TestCaseId, int? TestPlanId,
+    int ProjectId, int? TestRunId, int? TestCaseId, int? TestPlanId,
     string Market, string Description, string IssueType,
     string ExpectedResult, string ActualResult,
     string Priority, string RaisedBy, string AssignedTo,
