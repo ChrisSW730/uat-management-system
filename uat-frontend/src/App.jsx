@@ -3139,7 +3139,7 @@ export default function App() {
       ["How to Use", "Details"],
       ["Step 1", "Fill in row 2 onward in the Test Cases sheet."],
       ["Step 2", "Upload the file using Import > Import Excel."],
-      ["Where to find values", "Use the Test Plan Scope Lookup sheet in this template, or check values in the Projects tab."],
+      ["Where to find values", "Use the Test Plan Scope Lookup sheet in this template (respects current Project/Test Plan filters), or check values in the Projects tab."],
       ["", ""],
       ["Column", "Accepted Values / Rules"],
       ["Name", "Required. Any non-empty text."],
@@ -3151,9 +3151,26 @@ export default function App() {
     ]);
     XLSX.utils.book_append_sheet(workbook, guide, "Instructions");
 
+    const projectFilter = String(selectedProjectId || "").trim();
+    const testPlanFilter = String(selectedTestPlanId || "").trim();
+    const hasProjectFilter = !!projectFilter;
+    const hasTestPlanFilter = !!testPlanFilter;
+
     const lookupRows = [["Project", "Test Plan", "Test Scope"]];
-    (projects || []).forEach(project => {
-      const plans = project.testPlans || [];
+    (projects || [])
+      .filter(project => {
+        if (hasTestPlanFilter) {
+          return (project.testPlans || []).some(plan => String(plan.id) === testPlanFilter);
+        }
+
+        if (hasProjectFilter) {
+          return String(project.id) === projectFilter;
+        }
+
+        return true;
+      })
+      .forEach(project => {
+      const plans = (project.testPlans || []).filter(plan => !hasTestPlanFilter || String(plan.id) === testPlanFilter);
       if (plans.length === 0) return;
 
       plans.forEach(plan => {
