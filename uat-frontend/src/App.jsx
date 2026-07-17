@@ -164,8 +164,10 @@ export default function App() {
   const [authUser, setAuthUser] = useState(() => readStoredAuth()?.user || null);
   const [defStatusFilter, setDefStatusFilter] = useState([]);
   const [defPriFilter, setDefPriFilter] = useState("All");
+  const [defProjectFilter, setDefProjectFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState(DEF_MARKET_FILTER_ANY);
   const [defPlanFilter, setDefPlanFilter] = useState("All");
+  const [defRunFilter, setDefRunFilter] = useState("All");
   const [defOpenRule, setDefOpenRule] = useState("Any");
   const [dashProjectId, setDashProjectId] = useState("");
   const [dashPlanId, setDashPlanId] = useState("");
@@ -1049,10 +1051,12 @@ export default function App() {
       && (!Array.isArray(defStatusFilter) || defStatusFilter.length === 0 || defStatusFilter.includes(def.status))
       && (defPriFilter === "All" || def.priority === defPriFilter)
       && (defMarketFilter === DEF_MARKET_FILTER_ANY || def.market === defMarketFilter)
+      && (defProjectFilter === "All" || projects.some(project => String(project.id) === defProjectFilter && (project.testPlans || []).some(plan => plan.id === def.testPlanId)))
       && (defPlanFilter === "All" || String(def.testPlanId) === defPlanFilter)
+      && (defRunFilter === "All" || String(def.testRunId || def.testRunEntry?.testRunId) === defRunFilter)
       && matchesOpenRule
       && matchesCloseRule;
-  }), [defects, defSearch, defStatusFilter, defPriFilter, defMarketFilter, defPlanFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate, DEF_MARKET_FILTER_ANY]);
+  }), [defects, defSearch, defStatusFilter, defPriFilter, defProjectFilter, defMarketFilter, defPlanFilter, defRunFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate, projects, DEF_MARKET_FILTER_ANY]);
 
   const dashboardStats = useMemo(() => {
     const filteredProjects = dashProjectId
@@ -1072,9 +1076,10 @@ export default function App() {
     const runTcCount = assignedTcIds.size;
     const execByStatus = Object.fromEntries(Object.keys(EXEC_STATUS).map(s => [s, 0]));
     filteredEntries.forEach(e => { const s = e.execStatus || "Not Run"; if (s in execByStatus) execByStatus[s]++; });
-    const filteredDefects = dashProjectId
-      ? defects.filter(d => d.testPlanId != null && activePlanIds.has(d.testPlanId))
-      : defects;
+    const filteredDefects = defects.filter(d =>
+      (!dashProjectId || (d.testPlanId != null && activePlanIds.has(d.testPlanId)))
+      && (!dashRunId || String(d.testRunId || d.testRunEntry?.testRunId) === dashRunId)
+    );
     const defByStatus = Object.fromEntries(Object.keys(DEFECT_STATUS).map(s => [s, 0]));
     filteredDefects.forEach(d => { if (d.status in defByStatus) defByStatus[d.status]++; });
     const defByPriority = Object.fromEntries([...Object.keys(PRIORITY_META), "Other"].map(p => [p, 0]));
@@ -1280,6 +1285,21 @@ export default function App() {
     () => applySort(filteredDefects, defSortCol, defSortDir),
     [filteredDefects, defSortCol, defSortDir]
   );
+
+  function openDefectsForPriority(priority) {
+    setDefSearch("");
+    setDefStatusFilter([]);
+    setDefPriFilter(priority);
+    setDefProjectFilter(dashProjectId || "All");
+    setDefMarketFilter(DEF_MARKET_FILTER_ANY);
+    setDefPlanFilter(dashPlanId || "All");
+    setDefRunFilter(dashRunId || "All");
+    setDefOpenRule("Any");
+    setDefOpenDate("");
+    setDefCloseRule("Any");
+    setDefCloseDate("");
+    setActiveTab("defects");
+  }
 
   function applySort(arr, col, dir) {
     if (!col) return arr;
@@ -4145,10 +4165,14 @@ linear-gradient(
               setDefStatusFilter={setDefStatusFilter}
               defPriFilter={defPriFilter}
               setDefPriFilter={setDefPriFilter}
+              defProjectFilter={defProjectFilter}
+              setDefProjectFilter={setDefProjectFilter}
               defMarketFilter={defMarketFilter}
               setDefMarketFilter={setDefMarketFilter}
               defPlanFilter={defPlanFilter}
               setDefPlanFilter={setDefPlanFilter}
+              defRunFilter={defRunFilter}
+              setDefRunFilter={setDefRunFilter}
               defects={defects}
               projects={projects}
               setDefOpenRule={setDefOpenRule}
@@ -4212,6 +4236,7 @@ linear-gradient(
               dashboardRef={dashboardRef}
               inp={inp}
               openRunDetails={openRunDetails}
+              onPriorityClick={openDefectsForPriority}
             />
           )}
 

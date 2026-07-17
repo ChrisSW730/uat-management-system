@@ -2,12 +2,11 @@ import { useRef, useState, useEffect } from "react";
 import {
   Search,
   X,
-  Plus, Download, Upload, Trash2 as Bin, RotateCcw, CheckCheck, ArrowUp, ArrowDown, ArrowUpDown
+  Plus, Download, Upload, Trash2 as Bin, RotateCcw, CheckCheck, ArrowUp, ArrowDown, ArrowUpDown, Funnel
 } from "lucide-react";
 import { TEST_CASE_PRIORITIES } from "../constants";
 import { PriBadge } from "./ui/Badge";
 import "../styles/Projects.css";
-import FilterDropdown from "./ui/FilterDropdown";
 import Pagination from "./ui/Pagination";
 
 
@@ -77,10 +76,23 @@ export default function TestCases(props) {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [headerFilterOpen, setHeaderFilterOpen] = useState(null);
+  const headerFilterRef = useRef(null);
   const pagedTestCases = sortedFilteredTC.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
+
+  useEffect(() => {
+    const handleClickOutside = event => {
+      if (headerFilterRef.current && !headerFilterRef.current.contains(event.target)) {
+        setHeaderFilterOpen(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -99,6 +111,21 @@ export default function TestCases(props) {
       return tcSortDir === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />;
     }
     return <ArrowUpDown size={13} />;
+  };
+
+  const toggleHeaderFilter = (type, event) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const panelWidth = {
+      category: 220,
+      priority: 180,
+      project: 260,
+      plan: 360,
+    }[type] || 220;
+    const left = Math.max(8, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 8));
+    const top = Math.min(rect.bottom + 6, window.innerHeight - 180);
+
+    setHeaderFilterOpen(open => (open?.type === type ? null : { type, top, left }));
   };
 
   return (
@@ -151,85 +178,6 @@ export default function TestCases(props) {
               </button>
             )}
           </div>
-          <div className="filter-wrapper">
-            <FilterDropdown
-              width={220}
-              value={tcCatFilter}
-              onChange={value => setTcCatFilter(value)}
-              placeholder="All Categories"
-              options={[
-                { value: "All", label: "All Categories" },
-                ...categories.map(c => ({
-                  value: c,
-                  label: c,
-                })),
-              ]}
-            />
-          </div>
-          <div className="filter-wrapper">
-            <FilterDropdown
-              width={150}
-              value={tcPriFilter}
-              onChange={value => setTcPriFilter(value)}
-              placeholder="All Priorities"
-              options={[
-                { value: "All", label: "All Priorities" },
-                ...TEST_CASE_PRIORITIES.map(p => ({
-                  value: p,
-                  label: p,
-                })),
-              ]}
-            />
-          </div>
-          <div className="filter-wrapper">
-            <FilterDropdown
-              width={190}
-              value={selectedProjectId}
-              placeholder="Select Project"
-              options={projects.map(p => ({
-                value: String(p.id),
-                label: p.name,
-              }))}
-              onChange={pid => {
-                setSelectedProjectId(pid);
-
-                const project = projects.find(
-                  x => String(x.id) === String(pid)
-                );
-
-                const firstPlan = (project?.testPlans || [])[0];
-
-                setSelectedTestPlanId(
-                  firstPlan ? String(firstPlan.id) : ""
-                );
-
-                setNewTC(prev => ({
-                  ...prev,
-                  testScopeId: "",
-                }));
-              }}
-            />
-          </div>
-          <div className="filter-wrapper">
-            <FilterDropdown
-              width={450}
-              value={selectedTestPlanId}
-              placeholder="Select Test Plan"
-              options={selectedProjectPlans.map(tp => ({
-                value: String(tp.id),
-                label: tp.name,
-              }))}
-              onChange={value => {
-                setSelectedTestPlanId(value);
-
-                setNewTC(prev => ({
-                  ...prev,
-                  testScopeId: "",
-                }));
-              }}
-            />
-          </div>
-
           <button
             onClick={() => {
               setTcSearch("");
@@ -244,58 +192,52 @@ export default function TestCases(props) {
             Reset
           </button>
           {filteredTC.length > 0 && (
-            <button
-              onClick={() => {
-                const pageIds = pagedTestCases.map(tc => tc.id);
+            <>
+              <button
+                onClick={() => {
+                  const pageIds = pagedTestCases.map(tc => tc.id);
 
-                const allSelected = pageIds.every(id =>
-                  selectedTcIds.includes(id)
-                );
-
-                if (allSelected) {
-                  // Unselect only current page
-                  setSelectedTcIds(prev =>
-                    prev.filter(id => !pageIds.includes(id))
+                  const allSelected = pageIds.every(id =>
+                    selectedTcIds.includes(id)
                   );
-                } else {
-                  // Select only current page
-                  setSelectedTcIds(prev => [
-                    ...new Set([
-                      ...prev,
-                      ...pageIds
-                    ])
-                  ]);
-                }
-              }}
-              className="reset-btn">
-              <CheckCheck size={15} />
-              {pagedTestCases.every(tc => selectedTcIds.includes(tc.id))
-                ? "Clear Selection"
-                : "Select All"}
-              {selectedTcIds.length > 0 && (
-                <span
-                  style={{
-                    marginLeft: 6,
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                    background: "#eef2ff",
-                    color: "#4f46e5",
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
-                >
-                  {selectedTcIds.length}
-                </span>
-              )}
-            </button>
-          )}
-        </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40 }}>
-            {canWrite && <button onClick={() => setShowAddTC(true)} className="primary-btn"><Plus size={16} />Add Test Case</button>}
-            {selectedTcIds.length > 0 && canDelete && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  if (allSelected) {
+                    // Unselect only current page
+                    setSelectedTcIds(prev =>
+                      prev.filter(id => !pageIds.includes(id))
+                    );
+                  } else {
+                    // Select only current page
+                    setSelectedTcIds(prev => [
+                      ...new Set([
+                        ...prev,
+                        ...pageIds
+                      ])
+                    ]);
+                  }
+                }}
+                className="reset-btn">
+                <CheckCheck size={15} />
+                {pagedTestCases.every(tc => selectedTcIds.includes(tc.id))
+                  ? "Clear Selection"
+                  : "Select All"}
+                {selectedTcIds.length > 0 && (
+                  <span
+                    style={{
+                      marginLeft: 6,
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      background: "#eef2ff",
+                      color: "#4f46e5",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {selectedTcIds.length}
+                  </span>
+                )}
+              </button>
+              {selectedTcIds.length > 0 && canDelete && (
                 <button
                   onClick={() => {
                     if (window.confirm(`Delete ${selectedTcIds.length} test case(s)?`)) {
@@ -327,16 +269,16 @@ export default function TestCases(props) {
                 >
                   <Bin size={16} /> Delete Selected
                 </button>
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }} onClick={e => e.stopPropagation()}>
-            <button className="primary-btn" onClick={exportTestCases} disabled={sortedFilteredTC.length === 0}><Download size={16} />Export</button>
+              )}
+            </>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative", marginLeft: "auto" }} onClick={e => e.stopPropagation()}>
+            {canWrite && <button onClick={() => setShowAddTC(true)} className="primary-btn"><Plus size={16} />Add Test Case</button>}
+            <button className="secondary-btn" onClick={exportTestCases} disabled={sortedFilteredTC.length === 0}><Download size={16} />Export</button>
             {canWrite && (
               <>
                 <button
-                  className="secondary-btn"
+                  className="primary-btn"
                   onClick={() => setShowImportMenu(v => !v)}
                 >
                   <Upload size={16} />
@@ -411,6 +353,112 @@ export default function TestCases(props) {
                     {label}
                     {col ? renderSortIcon(col) : null}
                   </span>
+                  {label === "Category" && (
+                    <div ref={headerFilterOpen?.type === "category" ? headerFilterRef : null} onClick={e => e.stopPropagation()} style={{ display: "inline-flex", marginLeft: 8, verticalAlign: "middle" }}>
+                      <button
+                        type="button"
+                        onClick={event => toggleHeaderFilter("category", event)}
+                        title="Filter category"
+                        style={{ border: "1px solid #cbd5e1", background: tcCatFilter !== "All" ? "#eff6ff" : "#fff", color: tcCatFilter !== "All" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <Funnel size={12} />
+                      </button>
+                      {headerFilterOpen?.type === "category" && (
+                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 220, maxHeight: 260, overflowY: "auto", fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                          {[{ value: "All", label: "All Categories" }, ...categories.map(c => ({ value: c, label: c }))].map(option => (
+                            <div key={option.value} className="dropdown-item" onClick={() => { setTcCatFilter(option.value); setHeaderFilterOpen(null); }}>{option.label}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {label === "Priority" && (
+                    <div ref={headerFilterOpen?.type === "priority" ? headerFilterRef : null} onClick={e => e.stopPropagation()} style={{ display: "inline-flex", marginLeft: 8, verticalAlign: "middle" }}>
+                      <button
+                        type="button"
+                        onClick={event => toggleHeaderFilter("priority", event)}
+                        title="Filter priority"
+                        style={{ border: "1px solid #cbd5e1", background: tcPriFilter !== "All" ? "#eff6ff" : "#fff", color: tcPriFilter !== "All" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <Funnel size={12} />
+                      </button>
+                      {headerFilterOpen?.type === "priority" && (
+                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 180, fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                          {[{ value: "All", label: "All Priorities" }, ...TEST_CASE_PRIORITIES.map(p => ({ value: p, label: p }))].map(option => (
+                            <div key={option.value} className="dropdown-item" onClick={() => { setTcPriFilter(option.value); setHeaderFilterOpen(null); }}>{option.label}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {label === "Project" && (
+                    <div ref={headerFilterOpen?.type === "project" ? headerFilterRef : null} onClick={e => e.stopPropagation()} style={{ display: "inline-flex", marginLeft: 8, verticalAlign: "middle" }}>
+                      <button
+                        type="button"
+                        onClick={event => toggleHeaderFilter("project", event)}
+                        title="Filter project"
+                        style={{ border: "1px solid #cbd5e1", background: selectedProjectId ? "#eff6ff" : "#fff", color: selectedProjectId ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <Funnel size={12} />
+                      </button>
+                      {headerFilterOpen?.type === "project" && (
+                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 260, maxHeight: 320, overflowY: "auto", fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                          {[{ value: "", label: "All Projects" }, ...projects.map(p => ({ value: String(p.id), label: p.name }))].map(option => (
+                            <div
+                              key={option.value || "all-projects"}
+                              className="dropdown-item"
+                              onClick={() => {
+                                const pid = option.value;
+                                setSelectedProjectId(pid);
+                                const project = projects.find(x => String(x.id) === String(pid));
+                                const firstPlan = (project?.testPlans || [])[0];
+                                setSelectedTestPlanId(firstPlan ? String(firstPlan.id) : "");
+                                setNewTC(prev => ({
+                                  ...prev,
+                                  testScopeId: "",
+                                }));
+                                setHeaderFilterOpen(null);
+                              }}
+                            >
+                              {option.label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {label === "Test Plan" && (
+                    <div ref={headerFilterOpen?.type === "plan" ? headerFilterRef : null} onClick={e => e.stopPropagation()} style={{ display: "inline-flex", marginLeft: 8, verticalAlign: "middle" }}>
+                      <button
+                        type="button"
+                        onClick={event => toggleHeaderFilter("plan", event)}
+                        title="Filter test plan"
+                        style={{ border: "1px solid #cbd5e1", background: selectedTestPlanId ? "#eff6ff" : "#fff", color: selectedTestPlanId ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <Funnel size={12} />
+                      </button>
+                      {headerFilterOpen?.type === "plan" && (
+                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 360, maxHeight: 320, overflowY: "auto", fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                          {[{ value: "", label: "All Test Plans" }, ...selectedProjectPlans.map(tp => ({ value: String(tp.id), label: tp.name }))].map(option => (
+                            <div
+                              key={option.value || "all-test-plans"}
+                              className="dropdown-item"
+                              onClick={() => {
+                                setSelectedTestPlanId(option.value);
+                                setNewTC(prev => ({
+                                  ...prev,
+                                  testScopeId: "",
+                                }));
+                                setHeaderFilterOpen(null);
+                              }}
+                            >
+                              {option.label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>

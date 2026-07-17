@@ -47,39 +47,9 @@ export default function TestRuns(props) {
 	return (
 		<div style={{ padding: "20px 2.5%" }}>
 			<div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
-				<div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-					<div className="search-box">
-						<Search size={18} />
-
-						<input
-							value={runSearch}
-							onChange={e => setRunSearch(e.target.value)}
-							placeholder="Search runs..."
-						/>
-
-						{runSearch && (
-							<button
-								onClick={() => setRunSearch("")}
-								title="Clear search"
-								style={{
-									position: "absolute",
-									right: 10,
-									top: "50%",
-									transform: "translateY(-50%)",
-									border: "none",
-									background: "transparent",
-									cursor: "pointer",
-									padding: 0,
-									display: "flex",
-									alignItems: "center",
-									color: "#94a3b8",
-								}}
-							>
-								<X size={14} />
-							</button>
-						)}
-					</div>
-					<div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", position: "relative" }}>
+				<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+						<div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", position: "relative" }}>
 						<div className="filter-wrapper">
 							<FilterDropdown
 								width={220}
@@ -138,89 +108,123 @@ export default function TestRuns(props) {
 							<Filter size={15} />
 							Date Filter
 						</button>
-					</div>
-					<button
-						onClick={() => {
-							setRunSearch("");
-							setRunProjectId("");
-							setRunPlanId("");
-							setRunDateRule("Any");
-							setRunDateValue("");
-						}}
-						className="reset-btn"
-					>
-						<RotateCcw size={15} />
-						Reset
-					</button>
-					{sortedRuns.length > 0 && (
+						</div>
 						<button
 							onClick={() => {
-								if (selectedRunIds.length === filteredRuns.length) {
-									setSelectedRunIds([]);
-								} else {
-									setSelectedRunIds(filteredRuns.map(r => r.id));
-								}
+								setRunSearch("");
+								setRunProjectId("");
+								setRunPlanId("");
+								setRunDateRule("Any");
+								setRunDateValue("");
 							}}
 							className="reset-btn"
 						>
-							<CheckCheck size={15} />
-							{selectedRunIds.length === filteredRuns.length ? "Clear Selection" : "Select All"}
-							{selectedRunIds.length > 0 && (
-								<span
-									style={{
-										marginLeft: 6,
-										padding: "2px 8px",
-										borderRadius: 999,
-										background: "#eef2ff",
-										color: "#4f46e5",
-										fontSize: 12,
-										fontWeight: 700,
-									}}
-								>
-									{selectedRunIds.length}
-								</span>
-							)}
+							<RotateCcw size={15} />
+							Reset
 						</button>
-					)}
-					{selectedRunIds.length > 0 && canDelete && (
-						<button
-							onClick={() => {
-								if (window.confirm(`Delete ${selectedRunIds.length} test run(s)?`)) {
-									deleteRuns(selectedRunIds);
-								}
-							}}
-							style={{
-								display: "flex",
-								alignItems: "center",
-								gap: 8,
-								background: "#fff1f2",
-								color: "#be123c",
-								border: "1.5px solid #fecdd3",
-								borderRadius: 8,
-								padding: "8px 16px",
-								fontSize: 15,
-								fontWeight: 700,
-								cursor: "pointer",
-								transition: "all .15s ease",
-							}}
-							onMouseEnter={e => {
-								e.currentTarget.style.background = "#ffe4e6";
-								e.currentTarget.style.borderColor = "#fb7185";
-							}}
-							onMouseLeave={e => {
-								e.currentTarget.style.background = "#fff1f2";
-								e.currentTarget.style.borderColor = "#fecdd3";
-							}}
-						>
-							<Bin size={16} /> Delete Selected
-						</button>
-					)}
-				</div>
-				<div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+						{sortedRuns.length > 0 && (
+							<button
+								onClick={() => {
+									if (selectedRunIds.length === filteredRuns.length) {
+										setSelectedRunIds([]);
+									} else {
+										setSelectedRunIds(filteredRuns.map(r => r.id));
+									}
+								}}
+								className="reset-btn"
+							>
+								<CheckCheck size={15} />
+								{selectedRunIds.length === filteredRuns.length ? "Clear Selection" : "Select All"}
+								{selectedRunIds.length > 0 && (
+									<span
+										style={{
+											marginLeft: 6,
+											padding: "2px 8px",
+											borderRadius: 999,
+											background: "#eef2ff",
+											color: "#4f46e5",
+											fontSize: 12,
+											fontWeight: 700,
+										}}
+									>
+										{selectedRunIds.length}
+									</span>
+								)}
+							</button>
+						)}
+						{selectedRunIds.length > 0 && canDelete && (
+							<button
+								onClick={() => {
+									if (window.confirm(`Delete ${selectedRunIds.length} test run(s)?`)) {
+										deleteRuns(selectedRunIds);
+									}
+								}}
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: 8,
+									background: "#fff1f2",
+									color: "#be123c",
+									border: "1.5px solid #fecdd3",
+									borderRadius: 8,
+									padding: "8px 16px",
+									fontSize: 15,
+									fontWeight: 700,
+									cursor: "pointer",
+									transition: "all .15s ease",
+								}}
+								onMouseEnter={e => {
+									e.currentTarget.style.background = "#ffe4e6";
+									e.currentTarget.style.borderColor = "#fb7185";
+								}}
+								onMouseLeave={e => {
+									e.currentTarget.style.background = "#fff1f2";
+									e.currentTarget.style.borderColor = "#fecdd3";
+								}}
+							>
+								<Bin size={16} /> Delete Selected
+							</button>
+						)}
+					</div>
+					<div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
 					{canWrite && <button className="primary-btn" onClick={() => setShowAddRun(true)}><Plus size={16} /> New Test Run</button>}
 					<button className="secondary-btn" onClick={exportRuns} disabled={filteredRuns.length === 0}>
 						<Download size={16} />Export
 					</button>
+				</div>
+				</div>
+				<div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+					<div className="search-box">
+						<Search size={18} />
+
+						<input
+							value={runSearch}
+							onChange={e => setRunSearch(e.target.value)}
+							placeholder="Search runs..."
+						/>
+
+						{runSearch && (
+							<button
+								onClick={() => setRunSearch("")}
+								title="Clear search"
+								style={{
+									position: "absolute",
+									right: 10,
+									top: "50%",
+									transform: "translateY(-50%)",
+									border: "none",
+									background: "transparent",
+									cursor: "pointer",
+									padding: 0,
+									display: "flex",
+									alignItems: "center",
+									color: "#94a3b8",
+								}}
+							>
+								<X size={14} />
+							</button>
+						)}
+					</div>
 				</div>
 			</div>
 			{sortedRuns.length === 0 && <div style={{ textAlign: "center", padding: 60, color: "#cbd5e1" }}>No test runs yet. Create your first one!</div>}

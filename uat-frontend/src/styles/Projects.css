@@ -227,55 +227,65 @@
    SEARCH
 ========================= */
 
-.search-box{
+.search-box {
+    min-width: 520px;
+    max-width: 550px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 
-    width:400px;
+    background: #FCFDFF;
+    border: 1px solid #E9EEF7;
+    border-radius: 12px;
 
-    display:flex;
+    padding: 12px 16px;
 
-    align-items:center;
-
-    gap:10px;
-
-    background:white;
-
-    border:1px solid #e2e8f0;
-
-    border-radius:14px;
-
-    padding:12px 16px;
-
-    transition:.25s;
-
+    transition: border-color .2s ease,
+                box-shadow .2s ease,
+                background-color .2s ease;
 }
 
-.search-box:focus-within{
-
-    border-color:#6366f1;
-
-    box-shadow:0 0 0 4px rgba(99,102,241,.12);
-
+.search-box:hover {
+    border-color: #D8E0EE;
 }
 
-.search-box input{
+.search-box:focus-within {
+    border-color: #6366F1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.10);
+}
 
-    flex:1;
+.search-box input {
+    flex: 1;
 
-    border:none;
+    border: none;
+    outline: none;
 
-    outline:none;
+    background: transparent;
 
-    font-size:14px;
+    font-size: 14px;
+    color: #1E293B;
+}
 
-    background:transparent;
+.search-box input::placeholder {
+    color: #94A3B8;
+}
+.search-box svg,
+.search-box i {
+    color: #94A3B8;
+    transition: color .2s ease;
+}
 
+.search-box:focus-within svg,
+.search-box:focus-within i {
+    color: #6366F1;
 }
 
 .view-toggle {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px;
+    padding: 0px;
     border: 1px solid #dbe4f0;
     border-radius: 12px;
     background: #ffffff;
@@ -283,18 +293,24 @@
 }
 
 .view-toggle-btn {
-    border: none;
-    background: transparent;
-    color: #475569;
-    border-radius: 9px;
-    padding: 8px 12px;
-    font-size: 13px;
-    font-weight: 700;
+    background:white;
+
+    border:none;
+
+    padding:11px 22px;
+
+    border-radius:14px;
+
+    font-weight:700;
+
+    cursor:pointer;
+
+    transition:.25s;
+
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    transition: all .2s ease;
+    gap: 8px;
+    width: 180px;
 }
 
 .view-toggle-btn:hover {

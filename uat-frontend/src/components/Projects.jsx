@@ -132,6 +132,19 @@ export default function Projects(props) {
 
                 {/* Left Side */}
                 <div className="toolbar-left">
+                    <div className="view-toggle" role="tablist" aria-label="Projects view mode">
+                        <button
+                            type="button"
+                            className={`view-toggle-btn ${showTimelineModal ? "active" : ""}`}
+                            role="tab"
+                            aria-selected={showTimelineModal}
+                            title="View all Projects & Test Plans on a timeline"
+                            onClick={openTimeline}
+                        >
+                            <CalendarDays size={15} />
+                            Timeline View
+                        </button>
+                    </div>
                     <div className="filter-wrapper">
                         <FilterDropdown
                             value={statusFilter}
@@ -149,21 +162,6 @@ export default function Projects(props) {
                             onChange={(e) => setSearchText(e.target.value)}
                         />
                     </div>
-
-                    <div className="view-toggle" role="tablist" aria-label="Projects view mode">
-                        <button
-                            type="button"
-                            className={`view-toggle-btn ${showTimelineModal ? "active" : ""}`}
-                            role="tab"
-                            aria-selected={showTimelineModal}
-                            title="View all Projects & Test Plans on a timeline"
-                            onClick={openTimeline}
-                        >
-                            <CalendarDays size={15} />
-                            Timeline View
-                        </button>
-                    </div>
-
 
                 </div>
 

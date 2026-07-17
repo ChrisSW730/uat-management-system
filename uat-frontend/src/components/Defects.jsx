@@ -14,10 +14,14 @@ export default function Defects({
   setDefStatusFilter,
   defPriFilter,
   setDefPriFilter,
+  defProjectFilter,
+  setDefProjectFilter,
   defMarketFilter,
   setDefMarketFilter,
   defPlanFilter,
   setDefPlanFilter,
+  defRunFilter,
+  setDefRunFilter,
   defects,
   projects,
   setDefOpenRule,
@@ -58,20 +62,20 @@ export default function Defects({
   canUpdateDefectPriority,
 }) {
   const DEF_MARKET_FILTER_ANY = "__ANY_MARKET__";
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const statusDropdownRef = useRef(null);
+  const [headerFilterOpen, setHeaderFilterOpen] = useState(null);
+  const headerFilterRef = useRef(null);
   const selectedStatuses = Array.isArray(defStatusFilter) ? defStatusFilter : [];
-  const statusLabel = selectedStatuses.length === 0
-    ? "All Status"
-    : (selectedStatuses.length === 1 ? selectedStatuses[0] : `${selectedStatuses.length} statuses`);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const availablePlans = defProjectFilter === "All"
+    ? projects.flatMap(project => (project.testPlans || []).map(plan => ({ ...plan, projectName: project.name })))
+    : (projects.find(project => String(project.id) === defProjectFilter)?.testPlans || []).map(plan => ({ ...plan, projectName: "" }));
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
-        setStatusDropdownOpen(false);
+      if (headerFilterRef.current && !headerFilterRef.current.contains(event.target)) {
+        setHeaderFilterOpen(null);
       }
     };
 
@@ -90,8 +94,10 @@ export default function Defects({
     defSearch,
     defStatusFilter,
     defPriFilter,
+    defProjectFilter,
     defMarketFilter,
     defPlanFilter,
+    defRunFilter,
     defSortCol,
     defSortDir
   ]);
@@ -118,9 +124,173 @@ export default function Defects({
     return parsed.toLocaleString();
   };
 
+  const toggleHeaderFilter = (type, event) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const panelWidth = type === "priority" ? 160 : 180;
+    const left = Math.max(8, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 8));
+    const top = Math.min(rect.bottom + 6, window.innerHeight - 150);
+
+    setHeaderFilterOpen(open => open?.type === type ? null : { type, top, left });
+  };
+
   return (
     <div style={{ padding: "20px 2.5%" }}>
       <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div className="filter-wrapper">
+              <FilterDropdown
+                width={220}
+                value={defProjectFilter}
+                placeholder="All Projects"
+                options={[
+                  { value: "All", label: "All Projects" },
+                  ...projects.map(project => ({ value: String(project.id), label: project.name })),
+                ]}
+                onChange={value => {
+                  setDefProjectFilter(value);
+                  setDefPlanFilter("All");
+                }}
+              />
+            </div>
+            <div className="filter-wrapper">
+              <FilterDropdown
+                width={450}
+                value={defPlanFilter}
+                placeholder="All Test Plans"
+                options={[
+                  {
+                    value: "All",
+                    label: "All Test Plans",
+                  },
+                  ...availablePlans.map(tp => ({
+                    value: String(tp.id),
+                    label: tp.projectName ? `${tp.projectName} - ${tp.name}` : tp.name,
+                  })),
+                ]}
+                onChange={value => setDefPlanFilter(value)}
+              />
+            </div>
+            <div className="filter-wrapper">
+              <FilterDropdown
+                width={240}
+                value={defRunFilter}
+                placeholder="All Test Runs"
+                options={[
+                  { value: "All", label: "All Test Runs" },
+                  ...runs.map(run => ({ value: String(run.id), label: run.name })),
+                ]}
+                onChange={value => setDefRunFilter(value)}
+              />
+            </div>
+            <button
+              onClick={() => {
+                setDefSearch("");
+                setDefStatusFilter([]);
+                setDefPriFilter("All");
+                setDefProjectFilter("All");
+                setDefMarketFilter(DEF_MARKET_FILTER_ANY);
+                setDefPlanFilter("All");
+                setDefRunFilter("All");
+                setDefOpenRule("Any");
+                setDefOpenDate("");
+                setDefCloseRule("Any");
+                setDefCloseDate("");
+              }}
+              className="reset-btn"
+            >
+              <RotateCcw size={15} />
+              Reset
+            </button>
+            {filteredDefects.length > 0 && (
+              <>
+                <button
+                  onClick={() => {
+                    const pageIds = pagedDefects.map(def => def.id);
+
+                    const allSelected = pageIds.every(id =>
+                      selectedDefectIds.includes(id)
+                    );
+
+                    if (allSelected) {
+                      setSelectedDefectIds(prev =>
+                        prev.filter(id => !pageIds.includes(id))
+                      );
+                    } else {
+                      setSelectedDefectIds(prev => [
+                        ...new Set([
+                          ...prev,
+                          ...pageIds
+                        ])
+                      ]);
+                    }
+                  }}
+                  className="reset-btn"
+                >
+                  <CheckCheck size={15} />
+                  {pagedDefects.every(def => selectedDefectIds.includes(def.id))
+                    ? "Clear Selection"
+                    : "Select All"}
+                  {selectedDefectIds.length > 0 && (
+                    <span
+                      style={{
+                        marginLeft: 6,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                        background: "#eef2ff",
+                        color: "#4f46e5",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {selectedDefectIds.length}
+                    </span>
+                  )}
+                </button>
+                {selectedDefectIds.length > 0 && canDelete && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
+                        deleteDefects(selectedDefectIds);
+                      }
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      background: "#fff1f2",
+                      color: "#be123c",
+                      border: "1.5px solid #fecdd3",
+                      borderRadius: 8,
+                      padding: "8px 16px",
+                      fontSize: 15,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      transition: "all .15s ease",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "#ffe4e6";
+                      e.currentTarget.style.borderColor = "#fb7185";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "#fff1f2";
+                      e.currentTarget.style.borderColor = "#fecdd3";
+                    }}
+                  >
+                    <Bin size={16} /> Delete Selected
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {canWrite && <button className="primary-btn" onClick={createStandaloneDefect}><Plus size={16} /> Add Defect</button>}
+            <button className="secondary-btn" onClick={exportDefects} disabled={sortedFilteredDefects.length === 0}><Download size={16} /> Export</button>
+          </div>
+        </div>
+
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <div className="search-box">
             <Search size={18} />
@@ -152,215 +322,6 @@ export default function Defects({
                 <X size={14} />
               </button>
             )}
-          </div>
-          <div className="filter-wrapper" ref={statusDropdownRef}>
-            <div className="dropdown" style={{ width: 180 }}>
-              <button
-                type="button"
-                className="dropdown-btn"
-                onClick={() => setStatusDropdownOpen(p => !p)}
-              >
-                <span title={statusLabel}>{statusLabel}</span>
-                <ArrowDown size={16} />
-              </button>
-
-              {statusDropdownOpen && (
-                <div className="dropdown-menu" style={{ maxHeight: 260, overflowY: "auto" }}>
-                  <label className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedStatuses.length === 0}
-                      onChange={() => setDefStatusFilter([])}
-                    />
-                    <span>All Status</span>
-                  </label>
-
-                  {Object.keys(DEFECT_STATUS).map(status => {
-                    const checked = selectedStatuses.includes(status);
-                    return (
-                      <label key={status} className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            setDefStatusFilter((prev) => {
-                              const current = Array.isArray(prev) ? prev : [];
-                              return current.includes(status)
-                                ? current.filter(item => item !== status)
-                                : [...current, status];
-                            });
-                          }}
-                        />
-                        <span>{status}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="filter-wrapper">
-            <FilterDropdown
-              width={150}
-              value={defPriFilter}
-              placeholder="All"
-              options={[
-                { value: "All", label: "All Priority" },
-                ...Object.keys(PRIORITY_META).map(p => ({
-                  value: p,
-                  label: p,
-                })),
-              ]}
-              onChange={value => setDefPriFilter(value)}
-            /></div>
-          <div className="filter-wrapper">
-            <FilterDropdown
-              width={120}
-              value={defMarketFilter}
-              placeholder="All"
-              options={[
-                { value: DEF_MARKET_FILTER_ANY, label: "Any Market" },
-                ...Array.from(
-                  new Set(
-                    defects
-                      .map(d => d.market)
-                      .filter(Boolean)
-                  )
-                )
-                  .sort()
-                  .map(m => ({
-                    value: m,
-                    label: m,
-                  })),
-              ]}
-              onChange={value => setDefMarketFilter(value)}
-            /></div>
-          <div className="filter-wrapper">
-            <FilterDropdown
-              width={450}
-              value={defPlanFilter}
-              placeholder="All Test Plans"
-              options={[
-                {
-                  value: "All",
-                  label: "All Test Plans",
-                },
-                ...projects.flatMap(p =>
-                  (p.testPlans || []).map(tp => ({
-                    value: String(tp.id),
-                    label: `${p.name} - ${tp.name}`,
-                  }))
-                ),
-              ]}
-              onChange={value => setDefPlanFilter(value)}
-            /></div>
-
-          <button
-            onClick={() => {
-              setDefSearch("");
-              setDefStatusFilter([]);
-              setDefPriFilter("All");
-              setDefMarketFilter(DEF_MARKET_FILTER_ANY);
-              setDefPlanFilter("All");
-              setDefOpenRule("Any");
-              setDefOpenDate("");
-              setDefCloseRule("Any");
-              setDefCloseDate("");
-            }}
-            className="reset-btn"
-          >
-            <RotateCcw size={15} />
-            Reset
-          </button>
-          {filteredDefects.length > 0 && (
-            <button
-              onClick={() => {
-                const pageIds = pagedDefects.map(def => def.id);
-
-                const allSelected = pageIds.every(id =>
-                  selectedDefectIds.includes(id)
-                );
-
-                if (allSelected) {
-                  setSelectedDefectIds(prev =>
-                    prev.filter(id => !pageIds.includes(id))
-                  );
-                } else {
-                  setSelectedDefectIds(prev => [
-                    ...new Set([
-                      ...prev,
-                      ...pageIds
-                    ])
-                  ]);
-                }
-              }}
-              className="reset-btn"
-            >
-              <CheckCheck size={15} />
-              {pagedDefects.every(def => selectedDefectIds.includes(def.id))
-                ? "Clear Selection"
-                : "Select All"}
-              {selectedDefectIds.length > 0 && (
-                <span
-                  style={{
-                    marginLeft: 6,
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                    background: "#eef2ff",
-                    color: "#4f46e5",
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
-                >
-                  {selectedDefectIds.length}
-                </span>
-              )}
-            </button>
-          )}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40 }}>
-            {selectedDefectIds.length > 0 && canDelete && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Delete ${selectedDefectIds.length} defect(s)?`)) {
-                      deleteDefects(selectedDefectIds);
-                    }
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    background: "#fff1f2",
-                    color: "#be123c",
-                    border: "1.5px solid #fecdd3",
-                    borderRadius: 8,
-                    padding: "8px 16px",
-                    fontSize: 15,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "all .15s ease",
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = "#ffe4e6";
-                    e.currentTarget.style.borderColor = "#fb7185";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = "#fff1f2";
-                    e.currentTarget.style.borderColor = "#fecdd3";
-                  }}
-                >
-                  <Bin size={16} /> Delete Selected
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {canWrite && <button className="primary-btn" onClick={createStandaloneDefect}><Plus size={16} /> Add Defect</button>}
-            <button className="secondary-btn" onClick={exportDefects} disabled={sortedFilteredDefects.length === 0}><Download size={16} /> Export</button>
           </div>
         </div>
       </div>
@@ -402,6 +363,82 @@ export default function Defects({
                     {label}
                     {col ? renderSortIcon(col) : null}
                   </span>
+                  {label === "Market" && (
+                    <div ref={headerFilterOpen?.type === "market" ? headerFilterRef : null} onClick={e => e.stopPropagation()} style={{ display: "inline-flex", marginLeft: 8, verticalAlign: "middle" }}>
+                      <button
+                        type="button"
+                        onClick={event => toggleHeaderFilter("market", event)}
+                        title="Filter market"
+                        style={{ border: "1px solid #cbd5e1", background: defMarketFilter !== DEF_MARKET_FILTER_ANY ? "#eff6ff" : "#fff", color: defMarketFilter !== DEF_MARKET_FILTER_ANY ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <Funnel size={12} />
+                      </button>
+                      {headerFilterOpen?.type === "market" && (
+                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 180, maxHeight: 260, overflowY: "auto", fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                          {[{ value: DEF_MARKET_FILTER_ANY, label: "Any Market" }, ...Array.from(new Set(defects.map(defect => defect.market).filter(Boolean))).sort().map(market => ({ value: market, label: market }))].map(option => (
+                            <div key={option.value} className="dropdown-item" onClick={() => { setDefMarketFilter(option.value); setHeaderFilterOpen(null); }}>{option.label}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {label === "Priority" && (
+                    <div ref={headerFilterOpen?.type === "priority" ? headerFilterRef : null} onClick={e => e.stopPropagation()} style={{ display: "inline-flex", marginLeft: 8, verticalAlign: "middle" }}>
+                      <button
+                        type="button"
+                        onClick={event => toggleHeaderFilter("priority", event)}
+                        title="Filter priority"
+                        style={{ border: "1px solid #cbd5e1", background: defPriFilter !== "All" ? "#eff6ff" : "#fff", color: defPriFilter !== "All" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <Funnel size={12} />
+                      </button>
+                      {headerFilterOpen?.type === "priority" && (
+                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 160, fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                          {[{ value: "All", label: "All Priority" }, ...Object.keys(PRIORITY_META).map(priority => ({ value: priority, label: priority }))].map(option => (
+                            <div key={option.value} className="dropdown-item" onClick={() => { setDefPriFilter(option.value); setHeaderFilterOpen(null); }}>{option.label}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {label === "Status" && (
+                    <div ref={headerFilterOpen?.type === "status" ? headerFilterRef : null} onClick={e => e.stopPropagation()} style={{ display: "inline-flex", marginLeft: 8, verticalAlign: "middle" }}>
+                      <button
+                        type="button"
+                        onClick={event => toggleHeaderFilter("status", event)}
+                        title="Filter status"
+                        style={{ border: "1px solid #cbd5e1", background: selectedStatuses.length > 0 ? "#eff6ff" : "#fff", color: selectedStatuses.length > 0 ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <Funnel size={12} />
+                      </button>
+                      {headerFilterOpen?.type === "status" && (
+                          <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 180, maxHeight: 260, overflowY: "auto", fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                            <label className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <input type="checkbox" checked={selectedStatuses.length === 0} onChange={() => setDefStatusFilter([])} />
+                              <span>All Status</span>
+                            </label>
+                            {Object.keys(DEFECT_STATUS).map(status => {
+                              const checked = selectedStatuses.includes(status);
+                              return (
+                                <label key={status} className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => setDefStatusFilter(prev => {
+                                      const current = Array.isArray(prev) ? prev : [];
+                                      return current.includes(status)
+                                        ? current.filter(item => item !== status)
+                                        : [...current, status];
+                                    })}
+                                  />
+                                  <span>{status}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                    </div>
+                  )}
                 </th>
               ))}
               <th

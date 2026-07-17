@@ -39,7 +39,8 @@ export default function Dashboard({
     setDashDatePreset,
     dashboardRef,
     inp,
-    openRunDetails
+    openRunDetails,
+    onPriorityClick
 }) {
     const handleExport = async () => {
         if (!dashboardRef.current) return;
@@ -851,10 +852,24 @@ export default function Dashboard({
                             {Object.entries(DASHBOARD_PRIORITY_META).map(([pri, meta]) => {
                                 const count = defByPriority[pri] || 0;
                                 return (
-                                    <div key={pri} style={{ background: meta.bg + "18", border: `1.5px solid ${meta.bg}44`, borderRadius: 12, padding: "10px 6px", textAlign: "center" }}>
+                                    <button
+                                        key={pri}
+                                        type="button"
+                                        onClick={() => onPriorityClick(pri)}
+                                        onMouseEnter={e => {
+                                            e.currentTarget.style.transform = "translateY(-6px)";
+                                            e.currentTarget.style.boxShadow = "0 18px 40px rgba(15,23,42,.14)";
+                                        }}
+                                        onMouseLeave={e => {
+                                            e.currentTarget.style.transform = "translateY(0)";
+                                            e.currentTarget.style.boxShadow = "0 8px 24px rgba(15,23,42,.06)";
+                                        }}
+                                        title={`View ${pri} defects`}
+                                        style={{ background: meta.bg + "18", border: `1.5px solid ${meta.bg}44`, borderRadius: 12, padding: "10px 6px", textAlign: "center", cursor: "pointer", font: "inherit", transition: "all .25s ease", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}
+                                    >
                                         <div style={{ fontSize: 10, fontWeight: 700, color: meta.bg, marginBottom: 4, textTransform: "uppercase" }}>{pri}</div>
                                         <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{count}</div>
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
