@@ -163,7 +163,7 @@ export default function App() {
   const [pendingDefectLinkId, setPendingDefectLinkId] = useState(() => getInitialDefectLinkId());
   const [authUser, setAuthUser] = useState(() => readStoredAuth()?.user || null);
   const [defStatusFilter, setDefStatusFilter] = useState([]);
-  const [defPriFilter, setDefPriFilter] = useState("All");
+  const [defPriFilter, setDefPriFilter] = useState([]);
   const [defProjectFilter, setDefProjectFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState(DEF_MARKET_FILTER_ANY);
   const [defPlanFilter, setDefPlanFilter] = useState("All");
@@ -1049,7 +1049,7 @@ export default function App() {
 
     return matchesSearch
       && (!Array.isArray(defStatusFilter) || defStatusFilter.length === 0 || defStatusFilter.includes(def.status))
-      && (defPriFilter === "All" || def.priority === defPriFilter)
+      && (!Array.isArray(defPriFilter) || defPriFilter.length === 0 || defPriFilter.includes(def.priority))
       && (defMarketFilter === DEF_MARKET_FILTER_ANY || def.market === defMarketFilter)
       && (defProjectFilter === "All" || projects.some(project => String(project.id) === defProjectFilter && (project.testPlans || []).some(plan => plan.id === def.testPlanId)))
       && (defPlanFilter === "All" || String(def.testPlanId) === defPlanFilter)
@@ -1289,7 +1289,7 @@ export default function App() {
   function openDefectsForPriority(priority) {
     setDefSearch("");
     setDefStatusFilter([]);
-    setDefPriFilter(priority);
+    setDefPriFilter(priority ? [priority] : []);
     setDefProjectFilter(dashProjectId || "All");
     setDefMarketFilter(DEF_MARKET_FILTER_ANY);
     setDefPlanFilter(dashPlanId || "All");

@@ -65,6 +65,7 @@ export default function Defects({
   const [headerFilterOpen, setHeaderFilterOpen] = useState(null);
   const headerFilterRef = useRef(null);
   const selectedStatuses = Array.isArray(defStatusFilter) ? defStatusFilter : [];
+  const selectedPriorities = Array.isArray(defPriFilter) ? defPriFilter : [];
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -188,7 +189,7 @@ export default function Defects({
               onClick={() => {
                 setDefSearch("");
                 setDefStatusFilter([]);
-                setDefPriFilter("All");
+                setDefPriFilter([]);
                 setDefProjectFilter("All");
                 setDefMarketFilter(DEF_MARKET_FILTER_ANY);
                 setDefPlanFilter("All");
@@ -388,15 +389,34 @@ export default function Defects({
                         type="button"
                         onClick={event => toggleHeaderFilter("priority", event)}
                         title="Filter priority"
-                        style={{ border: "1px solid #cbd5e1", background: defPriFilter !== "All" ? "#eff6ff" : "#fff", color: defPriFilter !== "All" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                        style={{ border: "1px solid #cbd5e1", background: selectedPriorities.length > 0 ? "#eff6ff" : "#fff", color: selectedPriorities.length > 0 ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
                       >
                         <Funnel size={12} />
                       </button>
                       {headerFilterOpen?.type === "priority" && (
-                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 160, fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
-                          {[{ value: "All", label: "All Priority" }, ...Object.keys(PRIORITY_META).map(priority => ({ value: priority, label: priority }))].map(option => (
-                            <div key={option.value} className="dropdown-item" onClick={() => { setDefPriFilter(option.value); setHeaderFilterOpen(null); }}>{option.label}</div>
-                          ))}
+                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 180, maxHeight: 260, overflowY: "auto", fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                          <label className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input type="checkbox" checked={selectedPriorities.length === 0} onChange={() => setDefPriFilter([])} />
+                            <span>All Priority</span>
+                          </label>
+                          {Object.keys(PRIORITY_META).map(priority => {
+                            const checked = selectedPriorities.includes(priority);
+                            return (
+                              <label key={priority} className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => setDefPriFilter(prev => {
+                                    const current = Array.isArray(prev) ? prev : [];
+                                    return current.includes(priority)
+                                      ? current.filter(item => item !== priority)
+                                      : [...current, priority];
+                                  })}
+                                />
+                                <span>{priority}</span>
+                              </label>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
