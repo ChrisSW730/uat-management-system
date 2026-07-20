@@ -187,7 +187,7 @@ export default function TestRuns(props) {
 						)}
 					</div>
 					<div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-					{canWrite && <button className="primary-btn" onClick={() => setShowAddRun(true)}><Plus size={16} /> New Test Run</button>}
+					{canWrite && <button className="primary-btn" onClick={setShowAddRun}><Plus size={16} /> New Test Run</button>}
 					<button className="secondary-btn" onClick={exportRuns} disabled={filteredRuns.length === 0}>
 						<Download size={16} />Export
 					</button>

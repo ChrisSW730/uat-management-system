@@ -386,7 +386,7 @@ export default function App() {
   const [passwordChangeError, setPasswordChangeError] = useState("");
 
   const blankTC = { name: "", description: "", steps: "", expected: "", priority: "Medium", category: categories[0] || "User Authentication", remarks: "", testScopeId: "" };
-  const blankRun = { name: "", selectedTcIds: [], selectedTesters: [], testerSearch: "" };
+  const blankRun = { name: "", selectedTcIds: [], selectedTesters: [], testerSearch: "", testPlanId: "" };
   const defaultDefectTemplate = [
     "Marketing Company: ",
     "WE Date: ",
@@ -1364,6 +1364,21 @@ export default function App() {
     return filtered;
   }, [allTestCases, runProjectId, runPlanId, selectedRunProject]);
 
+  const newRunTestCases = useMemo(() => {
+    let filtered = allTestCases || [];
+
+    if (runProjectId) {
+      const projectPlanIds = new Set((selectedRunProject?.testPlans || []).map(tp => tp.id));
+      filtered = filtered.filter(tc => projectPlanIds.has(tc.testPlanId));
+    }
+
+    if (newRun.testPlanId) {
+      filtered = filtered.filter(tc => String(tc.testPlanId) === String(newRun.testPlanId));
+    }
+
+    return filtered;
+  }, [allTestCases, newRun.testPlanId, runProjectId, selectedRunProject]);
+
   const filteredRuns = useMemo(() => {
     const q = runSearch.trim().toLowerCase();
     const relevantTcIds = new Set((runProjectId || runPlanId) ? filteredRunTestCases.map(tc => tc.id) : []);
@@ -1710,6 +1725,25 @@ export default function App() {
       setTesterSearch("");
       setShowAddRun(false);
     } catch (e) { alert("Failed to create run: " + e.message); }
+  }
+
+  function resetNewRunForm() {
+    setNewRun(blankRun);
+    setTesterSearch("");
+  }
+
+  function openNewRunModal() {
+    setNewRun({
+      ...blankRun,
+      testPlanId: runPlanId || "",
+    });
+    setTesterSearch("");
+    setShowAddRun(true);
+  }
+
+  function closeNewRunModal() {
+    resetNewRunForm();
+    setShowAddRun(false);
   }
 
   async function saveRunEdits() {
@@ -4153,7 +4187,7 @@ linear-gradient(
               exportRuns={exportRuns}
               duplicateTestRun={duplicateTestRun}
               setContextMenu={setContextMenu}
-              setShowAddRun={setShowAddRun}
+              setShowAddRun={openNewRunModal}
               runStats={runStats}
               runStatusPriorityStats={runStatusPriorityStats}
               hoveredRunId={hoveredRunId}
@@ -5247,10 +5281,10 @@ linear-gradient(
 
           {/* ── MODAL: NEW RUN ── */}
           {showAddRun && (
-            <Modal onClose={() => { setShowAddRun(false); setTesterSearch(""); }} wide>
+            <Modal onClose={closeNewRunModal} wide>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
                 <div style={{ fontSize: 17, fontWeight: 800 }}>New Test Run</div>
-                <button onClick={() => { setShowAddRun(false); setTesterSearch(""); }} style={xBtn}>✕</button>
+                <button onClick={closeNewRunModal} style={xBtn}>✕</button>
               </div>
               <div style={{ display: "grid", gap: 14, marginBottom: 20 }}>
                 <div><label style={lbl}>Run Name *</label><input value={newRun.name} onChange={e => setNewRun(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="e.g. UAT 6.1 - SG Regression - Round 1" /></div>
@@ -5322,6 +5356,19 @@ linear-gradient(
                   )}
                 </div>
               </div>
+              <div>
+                <label style={lbl}>Test Plan</label>
+                <select
+                  value={newRun.testPlanId || ""}
+                  onChange={e => setNewRun(p => ({ ...p, testPlanId: e.target.value, selectedTcIds: [], tcSearch: "" }))}
+                  style={{ ...inp, marginBottom: 14 }}
+                >
+                  <option value="">All Test Plans</option>
+                  {runProjectPlans.map(plan => (
+                    <option key={plan.id} value={plan.id}>{plan.name}</option>
+                  ))}
+                </select>
+              </div>
               <div style={{ ...lbl, marginBottom: 10 }}>Select Test Cases</div>
               <input
                 value={newRun.tcSearch || ""}
@@ -5334,7 +5381,7 @@ linear-gradient(
                   <input
                     type="checkbox"
                     checked={(() => {
-                      const filtered = filteredRunTestCases.filter(tc => {
+                      const filtered = newRunTestCases.filter(tc => {
                         const q = (newRun.tcSearch || "").toLowerCase();
                         return (
                           tc.tcNumber.toLowerCase().includes(q) ||
@@ -5344,7 +5391,7 @@ linear-gradient(
                       return filtered.length > 0 && filtered.every(tc => newRun.selectedTcIds.includes(tc.id));
                     })()}
                     indeterminate={(() => {
-                      const filtered = filteredRunTestCases.filter(tc => {
+                      const filtered = newRunTestCases.filter(tc => {
                         const q = (newRun.tcSearch || "").toLowerCase();
                         return (
                           tc.tcNumber.toLowerCase().includes(q) ||
@@ -5355,7 +5402,7 @@ linear-gradient(
                       return checkedCount > 0 && checkedCount < filtered.length;
                     })()}
                     onChange={e => {
-                      const filtered = filteredRunTestCases.filter(tc => {
+                      const filtered = newRunTestCases.filter(tc => {
                         const q = (newRun.tcSearch || "").toLowerCase();
                         return (
                           tc.tcNumber.toLowerCase().includes(q) ||
@@ -5381,7 +5428,7 @@ linear-gradient(
                 <span style={{ fontSize: 12, color: "#94a3b8" }}>{newRun.selectedTcIds.length} selected</span>
               </div>
               <div style={{ border: "1.5px solid #f1f5f9", borderRadius: 10, overflow: "hidden", maxHeight: 340, overflowY: "auto" }}>
-                {filteredRunTestCases
+                {newRunTestCases
                   .filter(tc => {
                     const q = (newRun.tcSearch || "").toLowerCase();
                     return (
@@ -5405,7 +5452,7 @@ linear-gradient(
                   })}
               </div>
               <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-                <button onClick={() => { setShowAddRun(false); setTesterSearch(""); }} style={btnS}>Cancel</button>
+                <button onClick={closeNewRunModal} style={btnS}>Cancel</button>
                 <button onClick={addRun} style={{ ...btnP, opacity: (!newRun.name || newRun.selectedTcIds.length === 0) ? 0.5 : 1 }}
                   disabled={!newRun.name || newRun.selectedTcIds.length === 0}>
                   Create Run
