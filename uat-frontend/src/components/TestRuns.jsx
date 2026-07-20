@@ -308,11 +308,19 @@ export default function TestRuns(props) {
 										<button
 											onClick={e => {
 												e.stopPropagation();
+												const selectedTcIds = (run.entries || []).map(entry => entry.testCaseId).filter(Boolean);
+												const selectedPlanIds = Array.from(new Set((run.entries || [])
+													.map(entry => entry.testCase?.testPlanId)
+													.filter(Boolean)
+												));
 												setEditRun({
 													id: run.id,
 													name: run.name,
 													tester: run.tester,
 													selectedTesters: (run.tester || "").split(",").map(t => t.trim()).filter(Boolean),
+													selectedTcIds,
+													testPlanId: selectedPlanIds.length === 1 ? String(selectedPlanIds[0]) : "",
+													tcSearch: "",
 												});
 												setEditRunTesterSearch("");
 											}}

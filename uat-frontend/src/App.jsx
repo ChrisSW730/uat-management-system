@@ -1379,6 +1379,21 @@ export default function App() {
     return filtered;
   }, [allTestCases, newRun.testPlanId, runProjectId, selectedRunProject]);
 
+  const editRunTestCases = useMemo(() => {
+    let filtered = allTestCases || [];
+
+    if (runProjectId) {
+      const projectPlanIds = new Set((selectedRunProject?.testPlans || []).map(tp => tp.id));
+      filtered = filtered.filter(tc => projectPlanIds.has(tc.testPlanId));
+    }
+
+    if (editRun?.testPlanId) {
+      filtered = filtered.filter(tc => String(tc.testPlanId) === String(editRun.testPlanId));
+    }
+
+    return filtered;
+  }, [allTestCases, editRun?.testPlanId, runProjectId, selectedRunProject]);
+
   const filteredRuns = useMemo(() => {
     const q = runSearch.trim().toLowerCase();
     const relevantTcIds = new Set((runProjectId || runPlanId) ? filteredRunTestCases.map(tc => tc.id) : []);
@@ -1753,9 +1768,10 @@ export default function App() {
       const updated = await api.updateTestRun(editRun.id, {
         name: editRun.name,
         tester: selectedTesters.join(", "),
+        testCaseIds: editRun.selectedTcIds,
       });
-      setRuns(p => p.map(r => r.id === updated.id ? { ...r, name: updated.name, tester: updated.tester } : r));
-      setViewRun(r => r?.id === updated.id ? { ...r, name: updated.name, tester: updated.tester } : r);
+      setRuns(p => p.map(r => r.id === updated.id ? updated : r));
+      setViewRun(r => r?.id === updated.id ? updated : r);
       setEditRun(null);
       setEditRunTesterSearch("");
     } catch (e) { alert("Failed to update run: " + e.message); }
@@ -5192,7 +5208,7 @@ linear-gradient(
 
           {/* ── MODAL: EDIT RUN ── */}
           {editRun && (
-            <Modal onClose={() => { setEditRun(null); setEditRunTesterSearch(""); }}>
+            <Modal onClose={() => { setEditRun(null); setEditRunTesterSearch(""); }} wide>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
                 <div style={{ fontSize: 17, fontWeight: 800 }}>Edit Test Run</div>
                 <button onClick={() => { setEditRun(null); setEditRunTesterSearch(""); }} style={xBtn}>✕</button>
@@ -5270,9 +5286,104 @@ linear-gradient(
                   )}
                 </div>
               </div>
+              <div>
+                <label style={lbl}>Test Plan</label>
+                <select
+                  value={editRun.testPlanId || ""}
+                  onChange={e => setEditRun(p => ({ ...p, testPlanId: e.target.value, tcSearch: "" }))}
+                  style={{ ...inp, marginBottom: 14 }}
+                >
+                  <option value="">All Test Plans</option>
+                  {runProjectPlans.map(plan => (
+                    <option key={plan.id} value={plan.id}>{plan.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ ...lbl, marginBottom: 10 }}>Select Test Cases</div>
+              <input
+                value={editRun.tcSearch || ""}
+                onChange={e => setEditRun(p => ({ ...p, tcSearch: e.target.value }))}
+                style={{ ...inp, marginBottom: 8 }}
+                placeholder="Search test cases..."
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <label style={{ fontSize: 13, color: "#334155", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={(() => {
+                      const filtered = editRunTestCases.filter(tc => {
+                        const q = (editRun.tcSearch || "").toLowerCase();
+                        return (
+                          tc.tcNumber.toLowerCase().includes(q) ||
+                          tc.name.toLowerCase().includes(q)
+                        );
+                      });
+                      return filtered.length > 0 && filtered.every(tc => editRun.selectedTcIds.includes(tc.id));
+                    })()}
+                    indeterminate={(() => {
+                      const filtered = editRunTestCases.filter(tc => {
+                        const q = (editRun.tcSearch || "").toLowerCase();
+                        return (
+                          tc.tcNumber.toLowerCase().includes(q) ||
+                          tc.name.toLowerCase().includes(q)
+                        );
+                      });
+                      const checkedCount = filtered.filter(tc => editRun.selectedTcIds.includes(tc.id)).length;
+                      return checkedCount > 0 && checkedCount < filtered.length;
+                    })()}
+                    onChange={e => {
+                      const filtered = editRunTestCases.filter(tc => {
+                        const q = (editRun.tcSearch || "").toLowerCase();
+                        return (
+                          tc.tcNumber.toLowerCase().includes(q) ||
+                          tc.name.toLowerCase().includes(q)
+                        );
+                      });
+                      if (e.target.checked) {
+                        setEditRun(p => ({
+                          ...p,
+                          selectedTcIds: Array.from(new Set([...p.selectedTcIds, ...filtered.map(tc => tc.id)])),
+                        }));
+                      } else {
+                        setEditRun(p => ({
+                          ...p,
+                          selectedTcIds: p.selectedTcIds.filter(id => !filtered.some(tc => tc.id === id)),
+                        }));
+                      }
+                    }}
+                    style={{ marginRight: 6 }}
+                  />
+                  Select All
+                </label>
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>{editRun.selectedTcIds.length} selected</span>
+              </div>
+              <div style={{ border: "1.5px solid #f1f5f9", borderRadius: 10, overflow: "hidden", maxHeight: 340, overflowY: "auto", marginBottom: 20 }}>
+                {editRunTestCases
+                  .filter(tc => {
+                    const q = (editRun.tcSearch || "").toLowerCase();
+                    return (
+                      tc.tcNumber.toLowerCase().includes(q) ||
+                      tc.name.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((tc, i) => {
+                    const checked = editRun.selectedTcIds.includes(tc.id);
+                    return (
+                      <div key={tc.id} onClick={() => setEditRun(p => ({ ...p, selectedTcIds: checked ? p.selectedTcIds.filter(x => x !== tc.id) : [...p.selectedTcIds, tc.id] }))}
+                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", background: checked ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${checked ? "#6366f1" : "#e2e8f0"}`, background: checked ? "#6366f1" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {checked && <span style={{ color: "#fff", fontSize: 11, fontWeight: 900 }}>✓</span>}
+                        </div>
+                        <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "#6366f1", background: "#fff", padding: "1px 6px", borderRadius: 4, border: "1px solid #c7d2fe", flexShrink: 0 }}>{tc.tcNumber}</span>
+                        <span style={{ fontSize: 15, color: "#1e293b", fontWeight: 500 }}>{tc.name}</span>
+                        <span style={{ marginLeft: "auto", flexShrink: 0 }}><PriBadge label={tc.priority} /></span>
+                      </div>
+                    );
+                  })}
+              </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                 <button onClick={() => { setEditRun(null); setEditRunTesterSearch(""); }} style={btnS}>Cancel</button>
-                <button onClick={saveRunEdits} style={{ ...btnP, opacity: !editRun.name ? 0.5 : 1 }} disabled={!editRun.name}>
+                <button onClick={saveRunEdits} style={{ ...btnP, opacity: (!editRun.name || editRun.selectedTcIds.length === 0) ? 0.5 : 1 }} disabled={!editRun.name || editRun.selectedTcIds.length === 0}>
                   Save Changes
                 </button>
               </div>

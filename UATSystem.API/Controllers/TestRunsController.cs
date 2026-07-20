@@ -202,10 +202,55 @@ public class TestRunsController : ControllerBase
     [Authorize(Roles = "Admin,Test Lead,Tester")]
     public async Task<IActionResult> UpdateRun(int id, UpdateRunDto dto)
     {
-        var run = await _db.TestRuns.FindAsync(id);
+        var run = await _db.TestRuns
+            .Include(r => r.Entries)
+                .ThenInclude(e => e.TestCase)
+            .Include(r => r.Entries)
+                .ThenInclude(e => e.Defects)
+            .Include(r => r.Entries)
+                .ThenInclude(e => e.Comments)
+            .FirstOrDefaultAsync(r => r.Id == id);
         if (run == null) return NotFound();
+
         run.Name = dto.Name;
         run.Tester = dto.Tester;
+
+        if (dto.TestCaseIds is not null)
+        {
+            var requestedIds = dto.TestCaseIds
+                .Where(testCaseId => testCaseId > 0)
+                .Distinct()
+                .ToList();
+
+            var existingIds = run.Entries
+                .Select(entry => entry.TestCaseId)
+                .ToHashSet();
+
+            var entriesToRemove = run.Entries
+                .Where(entry => !requestedIds.Contains(entry.TestCaseId))
+                .ToList();
+
+            if (entriesToRemove.Count > 0)
+            {
+                _db.TestRunEntries.RemoveRange(entriesToRemove);
+            }
+
+            foreach (var testCaseId in requestedIds)
+            {
+                if (existingIds.Contains(testCaseId))
+                {
+                    continue;
+                }
+
+                run.Entries.Add(new TestRunEntry
+                {
+                    TestCaseId = testCaseId,
+                    ExecStatus = "Not Run",
+                    Comment = string.Empty,
+                });
+            }
+        }
+
         await _db.SaveChangesAsync();
         return Ok(run);
     }
@@ -285,6 +330,6 @@ public class TestRunsController : ControllerBase
 
 public record CreateRunDto(string Name, string Tester, List<int> TestCaseIds);
 public record AddEntryDto(int TestCaseId);
-public record UpdateRunDto(string Name, string Tester);
+public record UpdateRunDto(string Name, string Tester, List<int>? TestCaseIds = null);
 public record UpdateEntryDto(string ExecStatus, string Comment);
 public record AddEntryCommentDto(string Message);
