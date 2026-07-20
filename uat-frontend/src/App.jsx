@@ -135,8 +135,6 @@ const xBtn = { background: "#f1f5f9", border: "none", color: "#64748b", width: 3
    MAIN APP
 ----------------------------------------- */
 export default function App() {
-  const DEF_MARKET_FILTER_ANY = "__ANY_MARKET__";
-
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [projects, setProjects] = useState([]);
@@ -165,7 +163,7 @@ export default function App() {
   const [defStatusFilter, setDefStatusFilter] = useState([]);
   const [defPriFilter, setDefPriFilter] = useState([]);
   const [defProjectFilter, setDefProjectFilter] = useState("All");
-  const [defMarketFilter, setDefMarketFilter] = useState(DEF_MARKET_FILTER_ANY);
+  const [defMarketFilter, setDefMarketFilter] = useState([]);
   const [defPlanFilter, setDefPlanFilter] = useState("All");
   const [defRunFilter, setDefRunFilter] = useState("All");
   const [defOpenRule, setDefOpenRule] = useState("Any");
@@ -396,9 +394,14 @@ export default function App() {
     "BA / Owner ID: ",
     "Sample Serial Number: ",
   ].join("\n");
+
+  const normalizeDefectMarket = (market) => market === "All" ? "Any" : market;
+  const normalizeDefect = (defect) => defect ? { ...defect, market: normalizeDefectMarket(defect.market) } : defect;
+  const normalizeDefects = (defectList) => Array.isArray(defectList) ? defectList.map(normalizeDefect) : [];
+
   const blankDef = {
     projectId: "",
-    market: "All",
+    market: "Any",
     source: "Exploratory Testing",
     severity: "Medium",
     description: "",
@@ -784,9 +787,20 @@ export default function App() {
 
   function toInputDate(value) {
     if (!value) return "";
-    const d = new Date(value);
+
+    if (typeof value === "string") {
+      const raw = value.trim();
+      const datePartMatch = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (datePartMatch) return datePartMatch[1];
+    }
+
+    const d = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(d.getTime())) return "";
-    return d.toISOString().slice(0, 10);
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   function formatBrowserDateTime(value) {
@@ -917,7 +931,7 @@ export default function App() {
         setAllTestCases(tcs || []);
       }),
       api.getTestRuns().then(setRuns),
-      api.getDefects().then(setDefects),
+      api.getDefects().then(defs => setDefects(normalizeDefects(defs))),
       api.getMentionUsers().then(setMentionUsers).catch(err => console.error("Mention users error:", err)),
       isAdmin ? api.getUsers().then(setUsers).catch(err => console.error("Users Error:", err)) : Promise.resolve([]),
       api.getNotifications(false).then(setNotifications).catch(err => console.error("Notifications Error:", err)),
@@ -1050,13 +1064,13 @@ export default function App() {
     return matchesSearch
       && (!Array.isArray(defStatusFilter) || defStatusFilter.length === 0 || defStatusFilter.includes(def.status))
       && (!Array.isArray(defPriFilter) || defPriFilter.length === 0 || defPriFilter.includes(def.priority))
-      && (defMarketFilter === DEF_MARKET_FILTER_ANY || def.market === defMarketFilter)
+      && (!Array.isArray(defMarketFilter) || defMarketFilter.length === 0 || defMarketFilter.includes(def.market))
       && (defProjectFilter === "All" || projects.some(project => String(project.id) === defProjectFilter && (project.testPlans || []).some(plan => plan.id === def.testPlanId)))
       && (defPlanFilter === "All" || String(def.testPlanId) === defPlanFilter)
       && (defRunFilter === "All" || String(def.testRunId || def.testRunEntry?.testRunId) === defRunFilter)
       && matchesOpenRule
       && matchesCloseRule;
-  }), [defects, defSearch, defStatusFilter, defPriFilter, defProjectFilter, defMarketFilter, defPlanFilter, defRunFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate, projects, DEF_MARKET_FILTER_ANY]);
+  }), [defects, defSearch, defStatusFilter, defPriFilter, defProjectFilter, defMarketFilter, defPlanFilter, defRunFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate, projects]);
 
   const dashboardStats = useMemo(() => {
     const filteredProjects = dashProjectId
@@ -1291,7 +1305,7 @@ export default function App() {
     setDefStatusFilter([]);
     setDefPriFilter(priority ? [priority] : []);
     setDefProjectFilter(dashProjectId || "All");
-    setDefMarketFilter(DEF_MARKET_FILTER_ANY);
+    setDefMarketFilter([]);
     setDefPlanFilter(dashPlanId || "All");
     setDefRunFilter(dashRunId || "All");
     setDefOpenRule("Any");
@@ -2006,8 +2020,9 @@ export default function App() {
         let targetDefect = (defects || []).find(d => d.id === defectId);
         if (!targetDefect) {
           const refreshedDefects = await api.getDefects();
-          setDefects(refreshedDefects || []);
-          targetDefect = (refreshedDefects || []).find(d => d.id === defectId);
+          const normalizedDefects = normalizeDefects(refreshedDefects || []);
+          setDefects(normalizedDefects);
+          targetDefect = normalizedDefects.find(d => d.id === defectId);
         }
 
         if (targetDefect) {
@@ -2272,7 +2287,7 @@ export default function App() {
         targetFixDate: def.targetFixDate || null,
         remarks: def.remarks,
       });
-      setDefects(p => [...p, duped]);
+      setDefects(p => [...p, normalizeDefect(duped)]);
       setContextMenu(null);
     } catch (e) { alert("Failed to duplicate: " + e.message); }
   }
@@ -2478,11 +2493,12 @@ export default function App() {
       filteredPlanMeta && String(filteredPlanMeta.projectId) === String(defaultProjectId)
         ? filteredPlanId
         : "";
+    const selectedDefectMarkets = Array.isArray(defMarketFilter) ? defMarketFilter : [];
 
     setNewDef({
       ...blankDef,
       issueType: DEFECT_ISSUE_TYPES[0],
-      market: defMarketFilter !== DEF_MARKET_FILTER_ANY ? defMarketFilter : blankDef.market,
+      market: selectedDefectMarkets.length === 1 ? selectedDefectMarkets[0] : blankDef.market,
       source: "Exploratory Testing",
       projectId: defaultProjectId,
       raisedBy: getCurrentUserDisplayName(),
@@ -2623,8 +2639,9 @@ export default function App() {
         setDefectAttachments(p => ({ ...p, [defect.id]: uploaded }));
       }
 
-      setDefects(p => [...p, defect]);
-      syncDefectRunEntryState(defect);
+      const normalizedDefect = normalizeDefect(defect);
+      setDefects(p => [...p, normalizedDefect]);
+      syncDefectRunEntryState(normalizedDefect);
       setNewDef(blankDef);
       setNewDefAttachments([]);
       setShowAddDef(null);
@@ -2656,34 +2673,35 @@ export default function App() {
     if (!canUpdateDefectStatus) return;
     try {
       const updated = await api.updateDefectStatus(id, v, getCurrentUserName());
-      setDefects(p => p.map(d => d.id === id ? updated : d));
-      setViewDef(d => d?.id === id ? updated : d);
+      const normalizedUpdated = normalizeDefect(updated);
+      setDefects(p => p.map(d => d.id === id ? normalizedUpdated : d));
+      setViewDef(d => d?.id === id ? normalizedUpdated : d);
 
-      const linkedTaskId = updated?.clickUpTaskId || "";
+      const linkedTaskId = normalizedUpdated?.clickUpTaskId || "";
       const shouldSyncClickUpDefect = Boolean(clickUpEnabled && String(linkedTaskId).trim());
       if (shouldSyncClickUpDefect) {
         void (async () => {
           try {
             const syncPayload = {
-              listId: updated.clickUpListId || null,
-              customItemId: updated.clickUpCustomItemId || null,
-              parentTaskId: updated.clickUpParentTaskId || null,
+              listId: normalizedUpdated.clickUpListId || null,
+              customItemId: normalizedUpdated.clickUpCustomItemId || null,
+              parentTaskId: normalizedUpdated.clickUpParentTaskId || null,
             };
             const syncResult = await syncDefectToClickUp(id, syncPayload);
 
             updateDefectClickUpLinkState(id, {
               clickUpTaskId: syncResult?.taskId || linkedTaskId,
-              clickUpTaskUrl: syncResult?.taskUrl || updated?.clickUpTaskUrl || "",
-              clickUpListId: updated?.clickUpListId || "",
-              clickUpListName: syncResult?.listName || updated?.clickUpListName || "",
-              clickUpParentTaskId: updated?.clickUpParentTaskId || "",
-              clickUpParentTaskName: updated?.clickUpParentTaskName || "",
-              clickUpCustomItemId: updated?.clickUpCustomItemId || "",
-              clickUpCustomItemName: updated?.clickUpCustomItemName || "",
+              clickUpTaskUrl: syncResult?.taskUrl || normalizedUpdated?.clickUpTaskUrl || "",
+              clickUpListId: normalizedUpdated?.clickUpListId || "",
+              clickUpListName: syncResult?.listName || normalizedUpdated?.clickUpListName || "",
+              clickUpParentTaskId: normalizedUpdated?.clickUpParentTaskId || "",
+              clickUpParentTaskName: normalizedUpdated?.clickUpParentTaskName || "",
+              clickUpCustomItemId: normalizedUpdated?.clickUpCustomItemId || "",
+              clickUpCustomItemName: normalizedUpdated?.clickUpCustomItemName || "",
               clickUpLinkedAt: new Date().toISOString(),
             });
 
-            if (syncResult?.status && syncResult.status !== updated.status) {
+            if (syncResult?.status && syncResult.status !== normalizedUpdated.status) {
               updateDefectState(id, { status: syncResult.status });
             }
           } catch (syncError) {
@@ -2699,10 +2717,11 @@ export default function App() {
 
     try {
       const updated = await api.updateDefectAssignee(def.id, assignedTo, getCurrentUserName());
+      const normalizedUpdated = normalizeDefect(updated);
 
-      setDefects(p => p.map(d => d.id === def.id ? updated : d));
-      setViewDef(d => d?.id === def.id ? updated : d);
-      setEditDef(d => d?.id === def.id ? updated : d);
+      setDefects(p => p.map(d => d.id === def.id ? normalizedUpdated : d));
+      setViewDef(d => d?.id === def.id ? normalizedUpdated : d);
+      setEditDef(d => d?.id === def.id ? normalizedUpdated : d);
     } catch (e) {
       alert("Failed to update assignee: " + e.message);
     }
@@ -2712,9 +2731,10 @@ export default function App() {
     if (!canUpdateDefectPriority) return;
     try {
       const updated = await api.updateDefectPriority(id, priority);
-      setDefects(p => p.map(d => d.id === id ? updated : d));
-      setViewDef(d => d?.id === id ? updated : d);
-      setEditDef(d => d?.id === id ? updated : d);
+      const normalizedUpdated = normalizeDefect(updated);
+      setDefects(p => p.map(d => d.id === id ? normalizedUpdated : d));
+      setViewDef(d => d?.id === id ? normalizedUpdated : d);
+      setEditDef(d => d?.id === id ? normalizedUpdated : d);
     } catch (e) {
       console.error("Failed to update defect priority:", e);
     }
@@ -2825,9 +2845,10 @@ export default function App() {
         status: editDef.status,
       }, getCurrentUserName());
 
-      setDefects(p => p.map(d => d.id === updated.id ? updated : d));
-      setViewDef(d => d?.id === updated.id ? updated : d);
-      syncDefectRunEntryState(updated);
+      const normalizedUpdated = normalizeDefect(updated);
+      setDefects(p => p.map(d => d.id === normalizedUpdated.id ? normalizedUpdated : d));
+      setViewDef(d => d?.id === normalizedUpdated.id ? normalizedUpdated : d);
+      syncDefectRunEntryState(normalizedUpdated);
 
       if (newDefAttachments.length > 0) {
         try {
@@ -2844,12 +2865,12 @@ export default function App() {
         setNewDefAttachments([]);
       }
 
-      const linkedTaskId = updated?.clickUpTaskId || "";
+      const linkedTaskId = normalizedUpdated?.clickUpTaskId || "";
       const shouldSyncClickUpDefect = Boolean(clickUpEnabled && String(linkedTaskId).trim());
       const syncPayload = {
-        listId: updated?.clickUpListId || editDef?.clickUpListId || null,
-        customItemId: updated?.clickUpCustomItemId || editDef?.clickUpCustomItemId || null,
-        parentTaskId: updated?.clickUpParentTaskId || editDef?.clickUpParentTaskId || null,
+        listId: normalizedUpdated?.clickUpListId || editDef?.clickUpListId || null,
+        customItemId: normalizedUpdated?.clickUpCustomItemId || editDef?.clickUpCustomItemId || null,
+        parentTaskId: normalizedUpdated?.clickUpParentTaskId || editDef?.clickUpParentTaskId || null,
       };
 
       setEditDef(null);

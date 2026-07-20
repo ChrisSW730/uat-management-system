@@ -734,7 +734,8 @@ export default function DefectModals({
   onClickUpLinkChange,
   onDefectUpdate,
 }) {
-  const marketOptions = ["All", "SG", "HK", "MY", "KR", "US", "ID", "TW"];
+  const marketOptions = ["Any", "SG", "HK", "MY", "KR", "US", "ID", "TW"];
+  const normalizeMarketDisplay = (market) => market === "All" ? "Any" : market;
   const sourceOptions = DEFECT_SOURCES;
   const severityOptions = DEFECT_SEVERITIES;
   const [testCaseSearch, setTestCaseSearch] = useState("");
@@ -927,7 +928,7 @@ export default function DefectModals({
               <div>
                 <label style={lbl}>Market</label>
                 <input className="defect-textarea"
-                  value={viewDef.market || ""}
+                  value={normalizeMarketDisplay(viewDef.market) || ""}
                   readOnly
                 />
               </div>
@@ -1271,7 +1272,7 @@ export default function DefectModals({
               <div>
                 <label style={lbl}>Market</label>
                 <select
-                  value={editDef.market || "All"}
+                  value={normalizeMarketDisplay(editDef.market) || "Any"}
                   onChange={e => setEditDef(p => ({ ...p, market: e.target.value }))}
                   style={inp}
                 >
@@ -1694,7 +1695,7 @@ export default function DefectModals({
               <div>
                 <label style={lbl}>Market</label>
                 <select
-                  value={newDef.market || "All"}
+                  value={normalizeMarketDisplay(newDef.market) || "Any"}
                   onChange={e => setNewDef(p => ({ ...p, market: e.target.value }))}
                   style={inp}
                 >

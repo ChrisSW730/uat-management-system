@@ -61,11 +61,12 @@ export default function Defects({
   updateDefPriority,
   canUpdateDefectPriority,
 }) {
-  const DEF_MARKET_FILTER_ANY = "__ANY_MARKET__";
   const [headerFilterOpen, setHeaderFilterOpen] = useState(null);
   const headerFilterRef = useRef(null);
   const selectedStatuses = Array.isArray(defStatusFilter) ? defStatusFilter : [];
   const selectedPriorities = Array.isArray(defPriFilter) ? defPriFilter : [];
+  const selectedMarkets = Array.isArray(defMarketFilter) ? defMarketFilter : [];
+  const marketOptions = Array.from(new Set(defects.map(defect => defect.market).filter(Boolean))).sort();
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -191,7 +192,7 @@ export default function Defects({
                 setDefStatusFilter([]);
                 setDefPriFilter([]);
                 setDefProjectFilter("All");
-                setDefMarketFilter(DEF_MARKET_FILTER_ANY);
+                setDefMarketFilter([]);
                 setDefPlanFilter("All");
                 setDefRunFilter("All");
                 setDefOpenRule("Any");
@@ -370,15 +371,34 @@ export default function Defects({
                         type="button"
                         onClick={event => toggleHeaderFilter("market", event)}
                         title="Filter market"
-                        style={{ border: "1px solid #cbd5e1", background: defMarketFilter !== DEF_MARKET_FILTER_ANY ? "#eff6ff" : "#fff", color: defMarketFilter !== DEF_MARKET_FILTER_ANY ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                        style={{ border: "1px solid #cbd5e1", background: selectedMarkets.length > 0 ? "#eff6ff" : "#fff", color: selectedMarkets.length > 0 ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
                       >
                         <Funnel size={12} />
                       </button>
                       {headerFilterOpen?.type === "market" && (
                         <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 180, maxHeight: 260, overflowY: "auto", fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
-                          {[{ value: DEF_MARKET_FILTER_ANY, label: "Any Market" }, ...Array.from(new Set(defects.map(defect => defect.market).filter(Boolean))).sort().map(market => ({ value: market, label: market }))].map(option => (
-                            <div key={option.value} className="dropdown-item" onClick={() => { setDefMarketFilter(option.value); setHeaderFilterOpen(null); }}>{option.label}</div>
-                          ))}
+                          <label className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input type="checkbox" checked={selectedMarkets.length === 0} onChange={() => setDefMarketFilter([])} />
+                            <span>All Market</span>
+                          </label>
+                          {marketOptions.map(market => {
+                            const checked = selectedMarkets.includes(market);
+                            return (
+                              <label key={market} className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => setDefMarketFilter(prev => {
+                                    const current = Array.isArray(prev) ? prev : [];
+                                    return current.includes(market)
+                                      ? current.filter(item => item !== market)
+                                      : [...current, market];
+                                  })}
+                                />
+                                <span>{market === "All" ? "Any" : market}</span>
+                              </label>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -604,7 +624,7 @@ export default function Defects({
                     <span style={{ fontWeight: 800, color: "#ef4444", fontSize: 14, fontFamily: "monospace", background: "#fff1f2", padding: "2px 7px", borderRadius: 5, display: "inline-block", whiteSpace: "nowrap" }}>{def.defectNumber}</span>
                   </td>
                   <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
-                    <span style={{ fontSize: 14, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{def.market}</span>
+                    <span style={{ fontSize: 14, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>{def.market === "All" ? "Any" : def.market}</span>
                   </td>
                   <td style={{ padding: "13px 16px", maxWidth: 240 }} onClick={() => setViewDef(def)}>
                     <div style={{ color: "#1e293b", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
