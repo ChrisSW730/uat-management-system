@@ -2616,7 +2616,7 @@ export default function App() {
         ...entry,
         defects: hasDefect
           ? (entry.defects || []).map(existing => existing.id === defect.id ? defect : existing)
-          : [...(entry.defects || []), defect],
+          : [defect, ...(entry.defects || [])],
       };
     });
 
@@ -2690,7 +2690,7 @@ export default function App() {
       }
 
       const normalizedDefect = normalizeDefect(defect);
-      setDefects(p => [...p, normalizedDefect]);
+  setDefects(p => [normalizedDefect, ...p]);
       syncDefectRunEntryState(normalizedDefect);
       setNewDef(blankDef);
       setNewDefAttachments([]);
@@ -4794,7 +4794,10 @@ linear-gradient(
                                   )}
                                 {entryDefects.map(d => (
                                   <span key={d.id} style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", background: "#fff1f2", border: "1px solid #fecdd3", padding: "3px 10px", borderRadius: 20, cursor: "pointer" }}
-                                    onClick={() => setViewDef(d)}>
+                                    onClick={() => {
+                                      const hydratedDefect = (defects || []).find(def => def.id === d.id);
+                                      setViewDef(hydratedDefect || d);
+                                    }}>
                                     🔗 {d.defectNumber}
                                   </span>
                                 ))}
