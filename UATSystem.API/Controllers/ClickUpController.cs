@@ -1029,11 +1029,12 @@ public class ClickUpController : ControllerBase
     {
         var mappedName = ResolveConfiguredPeekQaFieldValue(defect, configuredFieldMappings, "name");
         var mappedDescription = ResolveConfiguredPeekQaFieldValue(defect, configuredFieldMappings, "description");
+        var resolvedDescription = mappedDescription ?? defect.Description ?? string.Empty;
 
         var payload = new JsonObject
         {
             ["name"] = string.IsNullOrWhiteSpace(mappedName) ? (string.IsNullOrWhiteSpace(defect.Title) ? defect.DefectNumber : defect.Title) : mappedName,
-            ["description"] = mappedDescription ?? string.Empty,
+            ["description"] = resolvedDescription,
             ["check_required_custom_fields"] = true,
         };
 
