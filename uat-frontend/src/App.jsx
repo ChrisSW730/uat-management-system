@@ -2751,8 +2751,11 @@ export default function App() {
               clickUpLinkedAt: new Date().toISOString(),
             });
 
-            if (syncResult?.status && syncResult.status !== normalizedUpdated.status) {
-              updateDefectState(id, { status: syncResult.status });
+            const syncPatch = {};
+            if (typeof syncResult?.status === "string") syncPatch.status = syncResult.status;
+            if (typeof syncResult?.assignedTo === "string") syncPatch.assignedTo = syncResult.assignedTo;
+            if (Object.keys(syncPatch).length > 0) {
+              updateDefectState(id, syncPatch);
             }
           } catch (syncError) {
             alert("Status saved but ClickUp sync failed: " + syncError.message);
@@ -2772,6 +2775,38 @@ export default function App() {
       setDefects(p => p.map(d => d.id === def.id ? normalizedUpdated : d));
       setViewDef(d => d?.id === def.id ? normalizedUpdated : d);
       setEditDef(d => d?.id === def.id ? normalizedUpdated : d);
+
+      const linkedTaskId = normalizedUpdated?.clickUpTaskId || def?.clickUpTaskId || "";
+      if (clickUpEnabled && String(linkedTaskId).trim()) {
+        try {
+          const syncResult = await syncDefectToClickUp(def.id, {
+            listId: normalizedUpdated?.clickUpListId || def?.clickUpListId || null,
+            customItemId: normalizedUpdated?.clickUpCustomItemId || def?.clickUpCustomItemId || null,
+            parentTaskId: normalizedUpdated?.clickUpParentTaskId || def?.clickUpParentTaskId || null,
+          });
+
+          updateDefectClickUpLinkState(def.id, {
+            clickUpTaskId: syncResult?.taskId || linkedTaskId,
+            clickUpTaskUrl: syncResult?.taskUrl || normalizedUpdated?.clickUpTaskUrl || def?.clickUpTaskUrl || "",
+            clickUpListId: normalizedUpdated?.clickUpListId || def?.clickUpListId || "",
+            clickUpListName: syncResult?.listName || normalizedUpdated?.clickUpListName || def?.clickUpListName || "",
+            clickUpParentTaskId: normalizedUpdated?.clickUpParentTaskId || def?.clickUpParentTaskId || "",
+            clickUpParentTaskName: normalizedUpdated?.clickUpParentTaskName || def?.clickUpParentTaskName || "",
+            clickUpCustomItemId: normalizedUpdated?.clickUpCustomItemId || def?.clickUpCustomItemId || "",
+            clickUpCustomItemName: normalizedUpdated?.clickUpCustomItemName || def?.clickUpCustomItemName || "",
+            clickUpLinkedAt: new Date().toISOString(),
+          });
+
+          const syncPatch = {};
+          if (typeof syncResult?.status === "string") syncPatch.status = syncResult.status;
+          if (typeof syncResult?.assignedTo === "string") syncPatch.assignedTo = syncResult.assignedTo;
+          if (Object.keys(syncPatch).length > 0) {
+            updateDefectState(def.id, syncPatch);
+          }
+        } catch (syncError) {
+          alert("Assignee saved but ClickUp sync failed: " + syncError.message);
+        }
+      }
     } catch (e) {
       alert("Failed to update assignee: " + e.message);
     }
@@ -2941,6 +2976,13 @@ export default function App() {
               clickUpCustomItemName: updated?.clickUpCustomItemName || editDef?.clickUpCustomItemName || "",
               clickUpLinkedAt: new Date().toISOString(),
             });
+
+            const syncPatch = {};
+            if (typeof syncResult?.status === "string") syncPatch.status = syncResult.status;
+            if (typeof syncResult?.assignedTo === "string") syncPatch.assignedTo = syncResult.assignedTo;
+            if (Object.keys(syncPatch).length > 0) {
+              updateDefectState(updated.id, syncPatch);
+            }
           } catch (syncError) {
             alert("Defect saved but ClickUp sync failed: " + syncError.message);
           }

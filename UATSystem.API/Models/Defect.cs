@@ -40,6 +40,7 @@ public class Defect
     public string ClickUpCustomItemName { get; set; } = string.Empty;
     public DateTime? ClickUpLinkedAt { get; set; }
     public DateTime? StatusUpdatedAt { get; set; }
+    public DateTime? AssignedToUpdatedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Project Project { get; set; } = null!;

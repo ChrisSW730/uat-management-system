@@ -61,6 +61,9 @@ namespace UATSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("AssignedToUpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("ClickUpCustomItemId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");

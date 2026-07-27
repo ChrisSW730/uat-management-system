@@ -435,6 +435,11 @@ public class ClickUpController : ControllerBase
                         await _db.SaveChangesAsync();
                     }
                 }
+
+                if (clickUpdatedAt.HasValue)
+                {
+                    await SyncAssignedToFromClickUpTaskAsync(defect, currentTaskJson, clickUpdatedAt.Value);
+                }
             }
 
             var updatedPersistedTask = await UpdateExistingClickUpTaskAsync(defect.ClickUpTaskId, createTaskPayload, token);
@@ -447,7 +452,7 @@ public class ClickUpController : ControllerBase
             var persistedCustomItemName = string.IsNullOrWhiteSpace(defect.ClickUpCustomItemName) ? selectedCustomItemName : defect.ClickUpCustomItemName;
             ApplyClickUpLink(defect, defect.ClickUpTaskId, updatedPersistedTask.Url, defect.ClickUpListId, defect.ClickUpListName, defect.ClickUpParentTaskId, defect.ClickUpParentTaskName, persistedCustomItemId, persistedCustomItemName);
             await _db.SaveChangesAsync();
-            return Ok(new ClickUpDefectSyncResponse(defect.ClickUpTaskId, updatedPersistedTask.Url, defect.ClickUpListId, defect.ClickUpListName, string.IsNullOrWhiteSpace(defect.ClickUpParentTaskId) ? null : defect.ClickUpParentTaskId, true, Status: defect.Status));
+            return Ok(new ClickUpDefectSyncResponse(defect.ClickUpTaskId, updatedPersistedTask.Url, defect.ClickUpListId, defect.ClickUpListName, string.IsNullOrWhiteSpace(defect.ClickUpParentTaskId) ? null : defect.ClickUpParentTaskId, true, Status: defect.Status, AssignedTo: defect.AssignedTo));
         }
 
         var existingTask = await FindTaskByExactNameAsync(targetList.Id, targetTaskName, normalizedParentTaskId, token);
@@ -484,6 +489,11 @@ public class ClickUpController : ControllerBase
                         await _db.SaveChangesAsync();
                     }
                 }
+
+                if (clickUpdatedAt.HasValue)
+                {
+                    await SyncAssignedToFromClickUpTaskAsync(defect, currentTaskJson, clickUpdatedAt.Value);
+                }
             }
 
             var updatedExistingTask = await UpdateExistingClickUpTaskAsync(existingTask.Id, createTaskPayload, token);
@@ -494,7 +504,7 @@ public class ClickUpController : ControllerBase
 
             ApplyClickUpLink(defect, existingTask.Id, updatedExistingTask.Url ?? existingTask.Url, targetList.Id, selectedListName, normalizedParentTaskId, existingTask.ParentTaskName, effectiveCustomItemId, selectedCustomItemName);
             await _db.SaveChangesAsync();
-            return Ok(new ClickUpDefectSyncResponse(existingTask.Id, updatedExistingTask.Url ?? existingTask.Url, targetList.Id, selectedListName, normalizedParentTaskId, true, Status: defect.Status));
+            return Ok(new ClickUpDefectSyncResponse(existingTask.Id, updatedExistingTask.Url ?? existingTask.Url, targetList.Id, selectedListName, normalizedParentTaskId, true, Status: defect.Status, AssignedTo: defect.AssignedTo));
         }
 
         var createResponse = await CallClickUpAsync($"/list/{targetList.Id}/task", token, HttpMethod.Post, createTaskPayload.ToJsonString());
@@ -511,7 +521,7 @@ public class ClickUpController : ControllerBase
         var parentTaskName = await ResolveParentTaskNameAsync(targetList.Id, normalizedParentTaskId, token);
         ApplyClickUpLink(defect, taskId, taskUrl, targetList.Id, listName, normalizedParentTaskId, parentTaskName, effectiveCustomItemId, selectedCustomItemName);
         await _db.SaveChangesAsync();
-        return Ok(new ClickUpDefectSyncResponse(taskId, taskUrl, targetList.Id, listName, normalizedParentTaskId, false, Status: defect.Status));
+        return Ok(new ClickUpDefectSyncResponse(taskId, taskUrl, targetList.Id, listName, normalizedParentTaskId, false, Status: defect.Status, AssignedTo: defect.AssignedTo));
     }
 
     [HttpPost("defects/{defectId:int}/unlink")]
@@ -1212,6 +1222,83 @@ public class ClickUpController : ControllerBase
         }
 
         return ids;
+    }
+
+    private async Task SyncAssignedToFromClickUpTaskAsync(Defect defect, JsonElement clickUpTask, DateTime clickUpdatedAt)
+    {
+        var localUpdatedAt = defect.AssignedToUpdatedAt ?? defect.CreatedAt;
+        if (clickUpdatedAt <= localUpdatedAt)
+        {
+            return;
+        }
+
+        var resolvedAssignedTo = await ResolvePeekQaAssignedToFromClickUpTaskAsync(clickUpTask);
+        var currentAssignedTo = (defect.AssignedTo ?? string.Empty).Trim();
+        if (!string.Equals(currentAssignedTo, resolvedAssignedTo, StringComparison.OrdinalIgnoreCase))
+        {
+            _db.DefectAuditLogs.Add(new DefectAuditLog
+            {
+                DefectId = defect.Id,
+                FieldName = "AssignedTo",
+                OldValue = defect.AssignedTo,
+                NewValue = resolvedAssignedTo,
+                ChangedBy = "ClickUp",
+                ChangedAt = clickUpdatedAt,
+            });
+
+            defect.AssignedTo = resolvedAssignedTo;
+        }
+
+        defect.AssignedToUpdatedAt = clickUpdatedAt;
+        await _db.SaveChangesAsync();
+    }
+
+    private async Task<string> ResolvePeekQaAssignedToFromClickUpTaskAsync(JsonElement clickUpTask)
+    {
+        if (!clickUpTask.TryGetProperty("assignees", out var assigneesElement)
+            || assigneesElement.ValueKind != JsonValueKind.Array)
+        {
+            return string.Empty;
+        }
+
+        var activeUsers = await _db.Users
+            .AsNoTracking()
+            .Where(u => u.IsActive)
+            .Select(u => new { u.Username, u.DisplayName })
+            .ToListAsync();
+
+        foreach (var assignee in assigneesElement.EnumerateArray())
+        {
+            var assigneeUser = assignee;
+            if (assignee.TryGetProperty("user", out var nestedUser) && nestedUser.ValueKind == JsonValueKind.Object)
+            {
+                assigneeUser = nestedUser;
+            }
+
+            var email = GetString(assigneeUser, "email");
+            var username = GetString(assigneeUser, "username");
+            var fullName = GetString(assigneeUser, "name");
+            var id = GetString(assigneeUser, "id", "userid", "user_id");
+
+            var matchedUser = activeUsers.FirstOrDefault(user =>
+                (!string.IsNullOrWhiteSpace(email) && string.Equals(user.Username, email, StringComparison.OrdinalIgnoreCase))
+                || (!string.IsNullOrWhiteSpace(username) && string.Equals(user.DisplayName, username, StringComparison.OrdinalIgnoreCase))
+                || (!string.IsNullOrWhiteSpace(fullName) && string.Equals(user.DisplayName, fullName, StringComparison.OrdinalIgnoreCase))
+                || (!string.IsNullOrWhiteSpace(username) && string.Equals(user.Username, username, StringComparison.OrdinalIgnoreCase)));
+
+            if (!string.IsNullOrWhiteSpace(matchedUser?.DisplayName))
+            {
+                return matchedUser.DisplayName.Trim();
+            }
+
+            var fallback = fullName ?? username ?? email ?? id ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(fallback))
+            {
+                return fallback.Trim();
+            }
+        }
+
+        return string.Empty;
     }
 
     private static string? ResolvePeekQaFieldValue(Defect defect, string peekQaField)
@@ -2122,4 +2209,4 @@ public record ClickUpConfigurationParseResult(
     Dictionary<string, Dictionary<string, string>> CustomFieldValueMappings,
     bool SyncStatus);
 public record ClickUpDefectSyncRequest(string? ParentTaskId, string? ListId = null, string? CustomItemId = null);
-public record ClickUpDefectSyncResponse(string TaskId, string? TaskUrl, string ListId, string ListName, string? ParentTaskId, bool LinkedExisting = false, string? Status = null);
+public record ClickUpDefectSyncResponse(string TaskId, string? TaskUrl, string ListId, string ListName, string? ParentTaskId, bool LinkedExisting = false, string? Status = null, string? AssignedTo = null);

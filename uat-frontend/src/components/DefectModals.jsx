@@ -339,7 +339,8 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
       onLinkChange?.(nextLink);
       onDefectUpdate?.(defectId, {
         ...nextLink,
-        ...(result?.status ? { status: result.status } : {}),
+        ...(typeof result?.status === "string" ? { status: result.status } : {}),
+        ...(typeof result?.assignedTo === "string" ? { assignedTo: result.assignedTo } : {}),
       });
       setPhase("linked");
     } catch (err) {
@@ -385,7 +386,8 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
       onLinkChange?.(nextLink);
       onDefectUpdate?.(defectId, {
         ...nextLink,
-        ...(result?.status ? { status: result.status } : {}),
+        ...(typeof result?.status === "string" ? { status: result.status } : {}),
+        ...(typeof result?.assignedTo === "string" ? { assignedTo: result.assignedTo } : {}),
       });
     } catch (err) {
       setErrorMsg(err?.message || "Sync failed. Please try again.");

@@ -271,28 +271,32 @@ public class DefectsController : ControllerBase
         var defect = new Defect
         {
             DefectNumber = $"TMP-{Guid.NewGuid():N}",
+            Title = (dto.Title ?? string.Empty).Trim(),
             ProjectId = dto.ProjectId,
             TestRunId = dto.TestRunId,
             TestCaseId = primaryLinkedTestCaseId > 0 ? primaryLinkedTestCaseId : null,
             TestRunEntryId = primaryEntry?.Id,
             TestPlanId = dto.TestPlanId,
+            Source = string.IsNullOrWhiteSpace(dto.Source) ? "Exploratory Testing" : dto.Source.Trim(),
+            Severity = string.IsNullOrWhiteSpace(dto.Severity) ? "Medium" : dto.Severity.Trim(),
             RunNumber = primaryEntry?.TestRun.RunNumber ?? run?.RunNumber ?? "-",
             TcNumber = primaryEntry?.TestCase.TcNumber ?? "-",
-            Market = dto.Market,
-            Description = dto.Description,
-            IssueType = dto.IssueType,
-            ExpectedResult = dto.ExpectedResult,
-            ActualResult = dto.ActualResult,
-            Priority = dto.Priority,
-            Status = "New",
+            Market = dto.Market ?? string.Empty,
+            Description = dto.Description ?? string.Empty,
+            IssueType = dto.IssueType ?? string.Empty,
+            ExpectedResult = dto.ExpectedResult ?? string.Empty,
+            ActualResult = dto.ActualResult ?? string.Empty,
+            Priority = dto.Priority ?? "Medium",
+            Status = string.IsNullOrWhiteSpace(dto.Status) ? "New" : dto.Status,
             StatusUpdatedAt = now,
-            RaisedBy = dto.RaisedBy,
-            AssignedTo = dto.AssignedTo,
+            AssignedToUpdatedAt = now,
+            RaisedBy = dto.RaisedBy ?? string.Empty,
+            AssignedTo = dto.AssignedTo ?? string.Empty,
             DateRaised = now,
             OpenDateTime = now,
             CloseDateTime = null,
             TargetFixDate = dto.TargetFixDate,
-            Remarks = dto.Remarks,
+            Remarks = dto.Remarks ?? string.Empty,
             CreatedAt = now,
         };
         _db.Defects.Add(defect);
@@ -436,17 +440,25 @@ public class DefectsController : ControllerBase
 
         var changedBy = GetChangedBy();
         var hasStatusChanged = !string.Equals(defect.Status, dto.Status, StringComparison.OrdinalIgnoreCase);
+        var hasAssignedToChanged = !string.Equals((defect.AssignedTo ?? string.Empty).Trim(), (dto.AssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
 
+        AddAudit(defect, "ProjectId", defect.ProjectId.ToString(), dto.ProjectId.ToString(), changedBy);
+        AddAudit(defect, "Title", defect.Title, dto.Title, changedBy);
+        AddAudit(defect, "Source", defect.Source, dto.Source, changedBy);
+        AddAudit(defect, "Severity", defect.Severity, dto.Severity, changedBy);
         AddAudit(defect, "RunNumber", defect.RunNumber, primaryEntry?.TestRun.RunNumber ?? run?.RunNumber ?? "-", changedBy);
         AddAudit(defect, "TcNumber", defect.TcNumber, primaryEntry?.TestCase.TcNumber ?? "-", changedBy);
         AddAudit(defect, "Market", defect.Market, dto.Market, changedBy);
         AddAudit(defect, "Description", defect.Description, dto.Description, changedBy);
+        AddAudit(defect, "IssueType", defect.IssueType, dto.IssueType, changedBy);
         AddAudit(defect, "ExpectedResult", defect.ExpectedResult, dto.ExpectedResult, changedBy);
         AddAudit(defect, "ActualResult", defect.ActualResult, dto.ActualResult, changedBy);
         AddAudit(defect, "Priority", defect.Priority, dto.Priority, changedBy);
         AddAudit(defect, "RaisedBy", defect.RaisedBy, dto.RaisedBy, changedBy);
-        AddAudit(defect, "AssignedTo", defect.AssignedTo, dto.AssignedTo, changedBy);
+        AddAudit(defect, "AssignedTo", defect.AssignedTo ?? string.Empty, dto.AssignedTo ?? string.Empty, changedBy);
+        AddAudit(defect, "DateRaised", AuditDate(defect.DateRaised), AuditDate(dto.DateRaised), changedBy);
         AddAudit(defect, "TargetFixDate", AuditDate(defect.TargetFixDate), AuditDate(dto.TargetFixDate), changedBy);
+        AddAudit(defect, "Remarks", defect.Remarks, dto.Remarks, changedBy);
         AddAudit(defect, "Status", defect.Status, dto.Status, changedBy);
 
         var oldOpen = defect.OpenDateTime;
@@ -457,6 +469,10 @@ public class DefectsController : ControllerBase
         DateTime? newClose = dto.Status == "Closed" ? DateTime.UtcNow : null;
         AddAudit(defect, "CloseDateTime", AuditDate(oldClose), AuditDate(newClose), changedBy);
 
+        defect.ProjectId = dto.ProjectId;
+        defect.Title = dto.Title ?? string.Empty;
+        defect.Source = string.IsNullOrWhiteSpace(dto.Source) ? "Exploratory Testing" : dto.Source.Trim();
+        defect.Severity = string.IsNullOrWhiteSpace(dto.Severity) ? "Medium" : dto.Severity.Trim();
         defect.TestRunId = dto.TestRunId;
         defect.TestCaseId = primaryLinkedTestCaseId > 0 ? primaryLinkedTestCaseId : null;
         defect.TestRunEntryId = primaryEntry?.Id;
@@ -465,18 +481,25 @@ public class DefectsController : ControllerBase
         defect.TcNumber = primaryEntry?.TestCase.TcNumber ?? "-";
         defect.Market = dto.Market;
         defect.Description = dto.Description;
+        defect.IssueType = dto.IssueType ?? string.Empty;
         defect.ExpectedResult = dto.ExpectedResult;
         defect.ActualResult = dto.ActualResult;
         defect.Priority = dto.Priority;
         defect.RaisedBy = dto.RaisedBy;
-        defect.AssignedTo = dto.AssignedTo;
+        defect.AssignedTo = dto.AssignedTo ?? string.Empty;
+        defect.DateRaised = dto.DateRaised;
         defect.OpenDateTime = newOpen;
         defect.CloseDateTime = newClose;
         defect.TargetFixDate = dto.TargetFixDate;
+        defect.Remarks = dto.Remarks ?? string.Empty;
         defect.Status = dto.Status;
         if (hasStatusChanged)
         {
             defect.StatusUpdatedAt = DateTime.UtcNow;
+        }
+        if (hasAssignedToChanged)
+        {
+            defect.AssignedToUpdatedAt = DateTime.UtcNow;
         }
 
         if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), (defect.AssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
@@ -553,6 +576,10 @@ public class DefectsController : ControllerBase
         defect.OpenDateTime = DateTime.UtcNow;
         AddAudit(defect, "OpenDateTime", AuditDate(oldOpen), AuditDate(defect.OpenDateTime), changedBy);
         defect.AssignedTo = newAssignedTo;
+        if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), newAssignedTo, StringComparison.OrdinalIgnoreCase))
+        {
+            defect.AssignedToUpdatedAt = DateTime.UtcNow;
+        }
 
         if (!string.Equals((oldAssignedTo ?? string.Empty).Trim(), (newAssignedTo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(newAssignedTo))
@@ -740,20 +767,25 @@ public class DefectsController : ControllerBase
 
 public record CreateDefectDto(
     int ProjectId, int? TestRunId, int? TestCaseId, int? TestPlanId,
-    string Market, string Description, string IssueType,
+    string Source, string Severity, string Market, string Title, string Description, string IssueType,
     string ExpectedResult, string ActualResult,
-    string Priority, string RaisedBy, string AssignedTo,
+    string Priority, string? Status, string RaisedBy, string AssignedTo,
     DateTime? TargetFixDate, string Remarks,
     List<int>? LinkedTestCaseIds = null);
 
 public record UpdateStatusDto(string Status);
 
 public record UpdateDefectDto(
+    int ProjectId,
     int? TestRunId,
     int? TestCaseId,
     int? TestPlanId,
+    string Source,
+    string Severity,
+    string Title,
     string Market,
     string Description,
+    string IssueType,
     string ExpectedResult,
     string ActualResult,
     string Priority,
@@ -761,6 +793,7 @@ public record UpdateDefectDto(
     string AssignedTo,
     DateTime DateRaised,
     DateTime? TargetFixDate,
+    string Remarks,
     string Status,
     List<int>? LinkedTestCaseIds = null);
 
