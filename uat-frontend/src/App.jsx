@@ -2859,6 +2859,38 @@ export default function App() {
       setDefects(p => p.map(d => d.id === id ? normalizedUpdated : d));
       setViewDef(d => d?.id === id ? normalizedUpdated : d);
       setEditDef(d => d?.id === id ? normalizedUpdated : d);
+
+      const linkedTaskId = normalizedUpdated?.clickUpTaskId || "";
+      if (clickUpEnabled) {
+        try {
+          const syncResult = await syncDefectToClickUp(id, {
+            listId: normalizedUpdated?.clickUpListId || null,
+            customItemId: normalizedUpdated?.clickUpCustomItemId || null,
+            parentTaskId: normalizedUpdated?.clickUpParentTaskId || null,
+          });
+
+          updateDefectClickUpLinkState(id, {
+            clickUpTaskId: syncResult?.taskId || linkedTaskId,
+            clickUpTaskUrl: syncResult?.taskUrl || normalizedUpdated?.clickUpTaskUrl || "",
+            clickUpListId: normalizedUpdated?.clickUpListId || "",
+            clickUpListName: syncResult?.listName || normalizedUpdated?.clickUpListName || "",
+            clickUpParentTaskId: normalizedUpdated?.clickUpParentTaskId || "",
+            clickUpParentTaskName: normalizedUpdated?.clickUpParentTaskName || "",
+            clickUpCustomItemId: normalizedUpdated?.clickUpCustomItemId || "",
+            clickUpCustomItemName: normalizedUpdated?.clickUpCustomItemName || "",
+            clickUpLinkedAt: new Date().toISOString(),
+          });
+
+          const syncPatch = {};
+          if (typeof syncResult?.status === "string") syncPatch.status = syncResult.status;
+          if (typeof syncResult?.assignedTo === "string") syncPatch.assignedTo = syncResult.assignedTo;
+          if (Object.keys(syncPatch).length > 0) {
+            updateDefectState(id, syncPatch);
+          }
+        } catch (syncError) {
+          alert("Priority saved but ClickUp sync failed: " + syncError.message);
+        }
+      }
     } catch (e) {
       console.error("Failed to update defect priority:", e);
     }

@@ -394,17 +394,37 @@ export const api = {
 
     return await response.json();
   },
-  updateDefectStatus: (id, status, changedBy) => fetch(`${BASE}/defects/${id}/status`, {
-    method: "PATCH", headers: {
-      "Content-Type": "application/json",
-      "X-User-Name": changedBy || "Unknown"
-    },
-    body: JSON.stringify({ status })
-  }).then(r => r.json()),
-  updateDefectPriority: (id, priority) => fetch(`${BASE}/defects/${id}/priority`, {
-    method: "PATCH", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ priority })
-  }).then(r => r.json()),
+  async updateDefectStatus(id, status, changedBy) {
+    const response = await fetch(`${BASE}/defects/${id}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Name": changedBy || "Unknown"
+      },
+      body: JSON.stringify({ status })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to update status");
+    }
+
+    return await response.json();
+  },
+  async updateDefectPriority(id, priority) {
+    const response = await fetch(`${BASE}/defects/${id}/priority`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priority })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to update priority");
+    }
+
+    return await response.json();
+  },
   async updateDefectAssignee(id, assignedTo, changedBy) {
     const response = await fetch(`${BASE}/defects/${id}/assignee`, {
       method: "PATCH",

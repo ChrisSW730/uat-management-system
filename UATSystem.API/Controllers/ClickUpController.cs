@@ -854,20 +854,54 @@ public class ClickUpController : ControllerBase
             return true;
         }
 
-        var payload = new JsonObject();
+        // Preferred payload shape follows ClickUp's documented assignee update structure.
+        var structuredPayload = new JsonObject
+        {
+            ["assignees"] = new JsonObject
+            {
+                ["add"] = BuildAssigneeArray(addAssignees),
+                ["rem"] = BuildAssigneeArray(removeAssignees),
+            },
+        };
 
+        if (await TryUpdateTaskAssigneesAsync(taskId, token, structuredPayload, desired))
+        {
+            return true;
+        }
+
+        // Fallback for legacy payload variants used by some integrations.
+        var legacyPayload = new JsonObject();
         if (addAssignees.Count > 0)
         {
-            payload["add_assignees"] = BuildAssigneeArray(addAssignees);
+            legacyPayload["add_assignees"] = BuildAssigneeArray(addAssignees);
         }
 
         if (removeAssignees.Count > 0)
         {
-            payload["rem_assignees"] = BuildAssigneeArray(removeAssignees);
+            legacyPayload["rem_assignees"] = BuildAssigneeArray(removeAssignees);
         }
 
+        return await TryUpdateTaskAssigneesAsync(taskId, token, legacyPayload, desired);
+    }
+
+    private async Task<bool> TryUpdateTaskAssigneesAsync(string taskId, string token, JsonObject payload, HashSet<string> desiredAssignees)
+    {
         var updateAssigneesResponse = await CallClickUpAsync($"/task/{taskId}", token, HttpMethod.Put, payload.ToJsonString());
-        return updateAssigneesResponse.IsSuccessStatusCode;
+        if (!updateAssigneesResponse.IsSuccessStatusCode)
+        {
+            return false;
+        }
+
+        // Verify the task now has the intended assignee set.
+        var verifyResponse = await CallClickUpAsync($"/task/{taskId}", token);
+        if (!verifyResponse.IsSuccessStatusCode)
+        {
+            return false;
+        }
+
+        var verifyTask = await verifyResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var actualAssignees = new HashSet<string>(GetCurrentTaskAssigneeIds(verifyTask), StringComparer.OrdinalIgnoreCase);
+        return actualAssignees.SetEquals(desiredAssignees);
     }
 
     private static JsonArray BuildAssigneeArray(IEnumerable<string> ids)
@@ -1133,9 +1167,17 @@ public class ClickUpController : ControllerBase
 
         var configuredPriority = ResolveConfiguredPeekQaFieldValue(defect, configuredFieldMappings, "priority") ?? defect.Priority;
         var normalizedPriority = NormalizePeekQaPriority(configuredPriority);
-        if (!string.IsNullOrWhiteSpace(normalizedPriority)
-            && config.PriorityMappings.TryGetValue(normalizedPriority, out var mappedPriority)
-            && !string.IsNullOrWhiteSpace(mappedPriority))
+        var mappedPriority = string.Empty;
+        var hasMappedPriority = !string.IsNullOrWhiteSpace(normalizedPriority)
+            && config.PriorityMappings.TryGetValue(normalizedPriority, out mappedPriority)
+            && !string.IsNullOrWhiteSpace(mappedPriority);
+
+        if (!hasMappedPriority && !string.IsNullOrWhiteSpace(normalizedPriority))
+        {
+            hasMappedPriority = TryResolveDefaultClickUpPriority(normalizedPriority, out mappedPriority);
+        }
+
+        if (hasMappedPriority && !string.IsNullOrWhiteSpace(mappedPriority))
         {
             payload["priority"] = mappedPriority;
         }
@@ -1218,14 +1260,28 @@ public class ClickUpController : ControllerBase
     private async Task<List<string>> ResolveAssigneesAsync(string? assignedIdentity, string? workspaceId, string token)
     {
         var ids = new List<string>();
-        if (string.IsNullOrWhiteSpace(assignedIdentity) || string.IsNullOrWhiteSpace(workspaceId))
+        if (string.IsNullOrWhiteSpace(assignedIdentity))
         {
             return ids;
         }
 
         var assignedDisplayName = assignedIdentity.Trim();
         var assignedUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.IsActive && (u.DisplayName == assignedDisplayName || u.Username == assignedDisplayName));
-        if (assignedUser == null || string.IsNullOrWhiteSpace(assignedUser.Username))
+        var assignedEmail = ResolvePreferredAssigneeEmail(assignedDisplayName, assignedUser?.Username);
+        var identityCandidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        identityCandidates.Add(assignedDisplayName);
+
+        if (!string.IsNullOrWhiteSpace(assignedUser?.Username))
+        {
+            identityCandidates.Add(assignedUser.Username.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(assignedUser?.DisplayName))
+        {
+            identityCandidates.Add(assignedUser.DisplayName.Trim());
+        }
+
+        if (identityCandidates.Count == 0)
         {
             return ids;
         }
@@ -1245,17 +1301,16 @@ public class ClickUpController : ControllerBase
                 return ids;
             }
 
-            foreach (var team in teams.EnumerateArray())
-            {
-                var teamId = GetString(team, "id");
-                if (!string.Equals(teamId, workspaceId, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+            var teamsToSearch = teams.EnumerateArray().ToList();
+            var preferredTeams = string.IsNullOrWhiteSpace(workspaceId)
+                ? teamsToSearch
+                : teamsToSearch.Where(team => string.Equals(GetString(team, "id"), workspaceId, StringComparison.OrdinalIgnoreCase)).ToList();
 
+            foreach (var team in preferredTeams)
+            {
                 if (!team.TryGetProperty("members", out var members) || members.ValueKind != JsonValueKind.Array)
                 {
-                    break;
+                    continue;
                 }
 
                 foreach (var member in members.EnumerateArray())
@@ -1265,8 +1320,18 @@ public class ClickUpController : ControllerBase
                         continue;
                     }
 
-                    var email = GetString(userElement, "email", "username");
-                    if (!string.Equals(email, assignedUser.Username, StringComparison.OrdinalIgnoreCase))
+                    var email = GetString(userElement, "email");
+                    var username = GetString(userElement, "username");
+                    var fullName = GetString(userElement, "name");
+
+                    var isMatchedIdentity = !string.IsNullOrWhiteSpace(assignedEmail)
+                        ? string.Equals(email?.Trim(), assignedEmail, StringComparison.OrdinalIgnoreCase)
+                        : IsIdentityMatch(identityCandidates, email)
+                            || IsIdentityMatch(identityCandidates, username)
+                            || IsIdentityMatch(identityCandidates, fullName)
+                            || IsIdentityMatch(identityCandidates, GetEmailLocalPart(email));
+
+                    if (!isMatchedIdentity)
                     {
                         continue;
                     }
@@ -1280,6 +1345,50 @@ public class ClickUpController : ControllerBase
                     return ids;
                 }
             }
+
+            // Workspace can be stale or not aligned with the selected list; fallback to all teams.
+            if (ids.Count == 0 && preferredTeams.Count != teamsToSearch.Count)
+            {
+                foreach (var team in teamsToSearch)
+                {
+                    if (!team.TryGetProperty("members", out var members) || members.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var member in members.EnumerateArray())
+                    {
+                        if (!member.TryGetProperty("user", out var userElement) || userElement.ValueKind != JsonValueKind.Object)
+                        {
+                            continue;
+                        }
+
+                        var email = GetString(userElement, "email");
+                        var username = GetString(userElement, "username");
+                        var fullName = GetString(userElement, "name");
+
+                        var isMatchedIdentity = !string.IsNullOrWhiteSpace(assignedEmail)
+                            ? string.Equals(email?.Trim(), assignedEmail, StringComparison.OrdinalIgnoreCase)
+                            : IsIdentityMatch(identityCandidates, email)
+                                || IsIdentityMatch(identityCandidates, username)
+                                || IsIdentityMatch(identityCandidates, fullName)
+                                || IsIdentityMatch(identityCandidates, GetEmailLocalPart(email));
+
+                        if (!isMatchedIdentity)
+                        {
+                            continue;
+                        }
+
+                        var memberId = GetString(userElement, "id", "userid", "user_id");
+                        if (!string.IsNullOrWhiteSpace(memberId))
+                        {
+                            ids.Add(memberId);
+                        }
+
+                        return ids;
+                    }
+                }
+            }
         }
         catch
         {
@@ -1287,6 +1396,87 @@ public class ClickUpController : ControllerBase
         }
 
         return ids;
+    }
+
+    private static bool IsIdentityMatch(IEnumerable<string> candidates, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var normalizedValue = NormalizeIdentity(value);
+        foreach (var candidate in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
+            }
+
+            if (string.Equals(candidate, value, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var normalizedCandidate = NormalizeIdentity(candidate);
+            if (!string.IsNullOrWhiteSpace(normalizedCandidate)
+                && !string.IsNullOrWhiteSpace(normalizedValue)
+                && (string.Equals(normalizedCandidate, normalizedValue, StringComparison.Ordinal)
+                    || normalizedCandidate.Contains(normalizedValue, StringComparison.Ordinal)
+                    || normalizedValue.Contains(normalizedCandidate, StringComparison.Ordinal)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizeIdentity(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var ch in value)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                builder.Append(char.ToLowerInvariant(ch));
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static string? ResolvePreferredAssigneeEmail(string assignedIdentity, string? username)
+    {
+        static bool LooksLikeEmail(string value) => !string.IsNullOrWhiteSpace(value) && value.Contains('@');
+
+        if (LooksLikeEmail(assignedIdentity))
+        {
+            return assignedIdentity.Trim();
+        }
+
+        if (LooksLikeEmail(username ?? string.Empty))
+        {
+            return username!.Trim();
+        }
+
+        return null;
+    }
+
+    private static string GetEmailLocalPart(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return string.Empty;
+        }
+
+        var atIndex = email.IndexOf('@');
+        if (atIndex <= 0)
+        {
+            return email.Trim();
+        }
+
+        return email[..atIndex].Trim();
     }
 
     private async Task SyncAssignedToFromClickUpTaskAsync(Defect defect, JsonElement clickUpTask, DateTime clickUpdatedAt)
@@ -1419,6 +1609,20 @@ public class ClickUpController : ControllerBase
             "Showstopper" => "Critical",
             _ => value,
         };
+    }
+
+    private static bool TryResolveDefaultClickUpPriority(string normalizedPriority, out string mappedPriority)
+    {
+        mappedPriority = normalizedPriority switch
+        {
+            "Low" => "low",
+            "Medium" => "normal",
+            "High" => "high",
+            "Critical" => "urgent",
+            _ => string.Empty,
+        };
+
+        return !string.IsNullOrWhiteSpace(mappedPriority);
     }
 
     private async Task<UserAccount?> GetCurrentUserAsync()

@@ -560,6 +560,32 @@ public class DefectsController : ControllerBase
         return Ok(hydratedDefect ?? defect);
     }
 
+    [HttpPatch("{id}/priority")]
+    [Authorize(Roles = "Admin,Test Lead,Tester,Developer")]
+    public async Task<IActionResult> UpdatePriority(int id, UpdatePriorityDto dto)
+    {
+        var defect = await _db.Defects.FindAsync(id);
+        if (defect == null) return NotFound();
+
+        var changedBy = GetChangedBy();
+        var newPriority = (dto.Priority ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(newPriority))
+        {
+            return BadRequest("Priority is required.");
+        }
+
+        AddAudit(defect, "Priority", defect.Priority, newPriority, changedBy);
+        var oldOpen = defect.OpenDateTime;
+        defect.OpenDateTime = DateTime.UtcNow;
+        AddAudit(defect, "OpenDateTime", AuditDate(oldOpen), AuditDate(defect.OpenDateTime), changedBy);
+
+        defect.Priority = newPriority;
+        await _db.SaveChangesAsync();
+
+        var hydratedDefect = await GetHydratedDefectAsync(defect.Id);
+        return Ok(hydratedDefect ?? defect);
+    }
+
     [HttpPatch("{id}/assignee")]
     [Authorize(Roles = "Admin,Test Lead,Tester,Developer")]
     public async Task<IActionResult> UpdateAssignee(int id, UpdateAssigneeDto dto)
@@ -798,6 +824,8 @@ public record UpdateDefectDto(
     List<int>? LinkedTestCaseIds = null);
 
 public record UpdateAssigneeDto(string AssignedTo);
+
+public record UpdatePriorityDto(string Priority);
 
 public record DefectAttachmentDto(
     int Id,
