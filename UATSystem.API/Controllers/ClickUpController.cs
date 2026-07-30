@@ -541,6 +541,66 @@ public class ClickUpController : ControllerBase
         return Ok(defect);
     }
 
+    [HttpPost("defects/sync-open-linked")]
+    public async Task<IActionResult> SyncOpenLinkedDefectsFromClickUp()
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null) return Unauthorized();
+
+        if (!user.ClickUpIntegrationEnabled)
+        {
+            return BadRequest("ClickUp integration is disabled.");
+        }
+
+        var defectCandidates = await _db.Defects
+            .AsNoTracking()
+            .Where(d => !string.IsNullOrWhiteSpace(d.ClickUpTaskId)
+                && !string.IsNullOrWhiteSpace(d.Status)
+                && d.Status.Trim().ToUpper() != "CLOSED")
+            .OrderByDescending(d => d.CreatedAt)
+            .Select(d => new { d.Id, d.DefectNumber })
+            .ToListAsync();
+
+        var syncedDefectIds = new List<int>();
+        var failures = new List<ClickUpBulkDefectSyncFailureDto>();
+
+        foreach (var defectCandidate in defectCandidates)
+        {
+            var result = await SyncDefectToClickUp(defectCandidate.Id, new ClickUpDefectSyncRequest(null));
+            if (result is OkObjectResult)
+            {
+                syncedDefectIds.Add(defectCandidate.Id);
+                continue;
+            }
+
+            failures.Add(new ClickUpBulkDefectSyncFailureDto(
+                defectCandidate.Id,
+                defectCandidate.DefectNumber,
+                ExtractActionResultMessage(result)));
+        }
+
+        return Ok(new ClickUpBulkDefectSyncBatchResponse(
+            defectCandidates.Count,
+            syncedDefectIds.Count,
+            failures.Count,
+            syncedDefectIds,
+            failures));
+    }
+
+    private static string ExtractActionResultMessage(IActionResult actionResult)
+    {
+        return actionResult switch
+        {
+            ObjectResult objectResult when objectResult.Value is string message && !string.IsNullOrWhiteSpace(message)
+                => message,
+            ObjectResult objectResult when objectResult.Value is not null
+                => objectResult.Value.ToString() ?? $"ClickUp sync failed with status code {objectResult.StatusCode ?? 500}.",
+            StatusCodeResult statusCodeResult
+                => $"ClickUp sync failed with status code {statusCodeResult.StatusCode}.",
+            _ => "ClickUp sync failed.",
+        };
+    }
+
     private sealed record ClickUpTaskLookupDto(string Id, string Name, string? Url, string? ParentTaskId, string? ParentTaskName);
 
     private sealed record ClickUpTaskUpdateResult(string? Url);
@@ -2211,3 +2271,5 @@ public record ClickUpConfigurationParseResult(
     bool SyncStatus);
 public record ClickUpDefectSyncRequest(string? ParentTaskId, string? ListId = null, string? CustomItemId = null);
 public record ClickUpDefectSyncResponse(string TaskId, string? TaskUrl, string ListId, string ListName, string? ParentTaskId, bool LinkedExisting = false, string? Status = null, string? AssignedTo = null);
+public record ClickUpBulkDefectSyncFailureDto(int DefectId, string DefectNumber, string Message);
+public record ClickUpBulkDefectSyncBatchResponse(int AttemptedCount, int SyncedCount, int FailedCount, List<int> SyncedDefectIds, List<ClickUpBulkDefectSyncFailureDto> Failures);

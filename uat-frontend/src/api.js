@@ -451,6 +451,18 @@ export const api = {
   }).then(async r => {
     if (!r.ok) throw new Error(await r.text());
   }),
+  syncOpenLinkedDefectsFromClickUp: async () => {
+    const response = await fetch(`${BASE}/clickup/defects/sync-open-linked`, {
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to sync linked defects from ClickUp");
+    }
+
+    return await response.json();
+  },
 
   // User password management
   sendInitialPasswordEmail: (userId, email, initialPassword, createdBy) => fetch(`${BASE}/users/${userId}/send-initial-password`, {

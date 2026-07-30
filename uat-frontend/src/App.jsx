@@ -131,6 +131,10 @@ const btnS = { background: "#fff", color: "#64748b", border: "1.5px solid #e2e8f
 const btnD = { background: "#fff1f2", color: "#be123c", border: "1.5px solid #fecdd3", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" };
 const xBtn = { background: "#f1f5f9", border: "none", color: "#64748b", width: 32, height: 32, borderRadius: 8, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
 
+function getDefaultDefectStatusFilter() {
+  return Object.keys(DEFECT_STATUS).filter((status) => status.trim().toLowerCase() !== "closed");
+}
+
 /* -----------------------------------------
    MAIN APP
 ----------------------------------------- */
@@ -160,7 +164,7 @@ export default function App() {
   const [importingTestCases, setImportingTestCases] = useState(false);
   const [pendingDefectLinkId, setPendingDefectLinkId] = useState(() => getInitialDefectLinkId());
   const [authUser, setAuthUser] = useState(() => readStoredAuth()?.user || null);
-  const [defStatusFilter, setDefStatusFilter] = useState([]);
+  const [defStatusFilter, setDefStatusFilter] = useState(() => getDefaultDefectStatusFilter());
   const [defPriFilter, setDefPriFilter] = useState([]);
   const [defProjectFilter, setDefProjectFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState([]);
@@ -562,6 +566,8 @@ export default function App() {
   const mentionInputRefs = useRef({});
   const dashboardRef = useRef(null);
   const ctxMenuRef = useRef(null);
+  const defectLogAutoSyncAttemptedRef = useRef(false);
+  const defectLogAutoSyncInFlightRef = useRef(false);
 
   useLayoutEffect(() => {
     if (!ctxMenuRef.current || !contextMenu) return;
@@ -982,6 +988,39 @@ export default function App() {
   }, [authUser, loading, pendingDefectLinkId, defects]);
 
   useEffect(() => {
+    if (activeTab !== "defects") {
+      defectLogAutoSyncAttemptedRef.current = false;
+      return;
+    }
+
+    if (!authUser || !clickUpEnabled || defectLogAutoSyncAttemptedRef.current || defectLogAutoSyncInFlightRef.current) {
+      return;
+    }
+
+    defectLogAutoSyncAttemptedRef.current = true;
+    defectLogAutoSyncInFlightRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await api.syncOpenLinkedDefectsFromClickUp();
+        const refreshedDefects = await api.getDefects();
+        if (!cancelled) {
+          setDefects(normalizeDefects(refreshedDefects));
+        }
+      } catch (error) {
+        console.error("Failed to auto-sync linked defects from ClickUp:", error);
+      } finally {
+        defectLogAutoSyncInFlightRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, authUser, clickUpEnabled]);
+
+  useEffect(() => {
     if (!authUser) return;
 
     api.getTestCases(selectedTestPlanId || undefined)
@@ -1302,7 +1341,7 @@ export default function App() {
 
   function openDefectsForPriority(priority) {
     setDefSearch("");
-    setDefStatusFilter([]);
+    setDefStatusFilter(getDefaultDefectStatusFilter());
     setDefPriFilter(priority ? [priority] : []);
     setDefProjectFilter(dashProjectId || "All");
     setDefMarketFilter([]);
@@ -2728,7 +2767,7 @@ export default function App() {
       setViewDef(d => d?.id === id ? normalizedUpdated : d);
 
       const linkedTaskId = normalizedUpdated?.clickUpTaskId || "";
-      const shouldSyncClickUpDefect = Boolean(clickUpEnabled && String(linkedTaskId).trim());
+      const shouldSyncClickUpDefect = Boolean(clickUpEnabled);
       if (shouldSyncClickUpDefect) {
         void (async () => {
           try {
@@ -2777,7 +2816,7 @@ export default function App() {
       setEditDef(d => d?.id === def.id ? normalizedUpdated : d);
 
       const linkedTaskId = normalizedUpdated?.clickUpTaskId || def?.clickUpTaskId || "";
-      if (clickUpEnabled && String(linkedTaskId).trim()) {
+      if (clickUpEnabled) {
         try {
           const syncResult = await syncDefectToClickUp(def.id, {
             listId: normalizedUpdated?.clickUpListId || def?.clickUpListId || null,
