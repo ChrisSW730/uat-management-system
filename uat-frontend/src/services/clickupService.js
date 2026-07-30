@@ -93,6 +93,7 @@ export const DEFAULT_CLICKUP_STATUS_MAPPINGS = {
   Reopened: "in_review",
   Rejected: "done",
   "Change Request": "in_progress",
+  "Pending Deployment": "pending_deployment",
   Closed: "done",
 };
 

@@ -231,6 +231,7 @@ export default function ClickUpIntegrationModal({ config, onClose, onSave }) {
       { value: "in_progress", label: "In Progress" },
       { value: "ready_for_test", label: "Ready for Test" },
       { value: "in_review", label: "In Review" },
+      { value: "pending_deployment", label: "Pending Deployment" },
       { value: "done", label: "Done" },
     ];
   }, [form.availableStatuses]);

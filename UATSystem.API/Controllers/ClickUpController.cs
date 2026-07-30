@@ -382,6 +382,8 @@ public class ClickUpController : ControllerBase
             return NotFound("Defect not found.");
         }
 
+        var (syncSucceeded, statusWasUpdatedFromClickUp) = await SyncDefectDetailsFromClickUpAsync(defect, config, token);
+
         var targetCustomItemId = NormalizeToken(request.CustomItemId)
             ?? NormalizeToken(config.CustomItem?.Id)
             ?? NormalizeToken(defect.ClickUpCustomItemId);
@@ -404,42 +406,10 @@ public class ClickUpController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(defect.ClickUpTaskId))
         {
-            // Fetch current ClickUp task to resolve status conflicts based on timestamps
-            var currentTaskResponse = await CallClickUpAsync($"/task/{defect.ClickUpTaskId}", token);
-            if (currentTaskResponse.IsSuccessStatusCode)
+            var (_, statusWasUpdatedFromCurrentTask) = await SyncDefectDetailsFromClickUpAsync(defect, config, token);
+            if (statusWasUpdatedFromCurrentTask)
             {
-                var currentTaskJson = await currentTaskResponse.Content.ReadFromJsonAsync<JsonElement>();
-                var clickStatus = GetTaskStatusFromTask(currentTaskJson);
-                var clickUpdatedAt = GetTaskLastUpdatedUtc(currentTaskJson);
-
-                if (!string.IsNullOrWhiteSpace(clickStatus) && clickUpdatedAt.HasValue && (defect.StatusUpdatedAt == null || clickUpdatedAt > defect.StatusUpdatedAt))
-                {
-                    // reverse-map ClickUp status back to PeekQA status
-                    var mappedPeekQaStatus = config.StatusMappings.FirstOrDefault(kvp => string.Equals(kvp.Value, clickStatus, StringComparison.OrdinalIgnoreCase)).Key;
-                    if (!string.IsNullOrWhiteSpace(mappedPeekQaStatus))
-                    {
-                        _db.DefectAuditLogs.Add(new DefectAuditLog
-                        {
-                            DefectId = defect.Id,
-                            FieldName = "Status",
-                            OldValue = defect.Status,
-                            NewValue = mappedPeekQaStatus,
-                            ChangedBy = "ClickUp",
-                            ChangedAt = clickUpdatedAt.Value,
-                        });
-
-                        defect.Status = mappedPeekQaStatus;
-                        defect.StatusUpdatedAt = clickUpdatedAt;
-                        // avoid overwriting ClickUp status
-                        createTaskPayload.Remove("status");
-                        await _db.SaveChangesAsync();
-                    }
-                }
-
-                if (clickUpdatedAt.HasValue)
-                {
-                    await SyncAssignedToFromClickUpTaskAsync(defect, currentTaskJson, clickUpdatedAt.Value);
-                }
+                createTaskPayload.Remove("status");
             }
 
             var updatedPersistedTask = await UpdateExistingClickUpTaskAsync(defect.ClickUpTaskId, createTaskPayload, token);
@@ -459,41 +429,10 @@ public class ClickUpController : ControllerBase
 
         if (existingTask != null)
         {
-            // Fetch current ClickUp task to resolve status conflicts based on timestamps
-            var currentTaskResponse = await CallClickUpAsync($"/task/{existingTask.Id}", token);
-            if (currentTaskResponse.IsSuccessStatusCode)
+            var (_, statusWasUpdatedFromCurrentTask) = await SyncDefectDetailsFromClickUpAsync(defect, config, token);
+            if (statusWasUpdatedFromCurrentTask)
             {
-                var currentTaskJson = await currentTaskResponse.Content.ReadFromJsonAsync<JsonElement>();
-                var clickStatus = GetTaskStatusFromTask(currentTaskJson);
-                var clickUpdatedAt = GetTaskLastUpdatedUtc(currentTaskJson);
-
-                if (!string.IsNullOrWhiteSpace(clickStatus) && clickUpdatedAt.HasValue && (defect.StatusUpdatedAt == null || clickUpdatedAt > defect.StatusUpdatedAt))
-                {
-                    var mappedPeekQaStatus = config.StatusMappings.FirstOrDefault(kvp => string.Equals(kvp.Value, clickStatus, StringComparison.OrdinalIgnoreCase)).Key;
-                    if (!string.IsNullOrWhiteSpace(mappedPeekQaStatus))
-                    {
-                        _db.DefectAuditLogs.Add(new DefectAuditLog
-                        {
-                            DefectId = defect.Id,
-                            FieldName = "Status",
-                            OldValue = defect.Status,
-                            NewValue = mappedPeekQaStatus,
-                            ChangedBy = "ClickUp",
-                            ChangedAt = clickUpdatedAt.Value,
-                        });
-
-                        defect.Status = mappedPeekQaStatus;
-                        defect.StatusUpdatedAt = clickUpdatedAt;
-                        // avoid overwriting ClickUp status
-                        createTaskPayload.Remove("status");
-                        await _db.SaveChangesAsync();
-                    }
-                }
-
-                if (clickUpdatedAt.HasValue)
-                {
-                    await SyncAssignedToFromClickUpTaskAsync(defect, currentTaskJson, clickUpdatedAt.Value);
-                }
+                createTaskPayload.Remove("status");
             }
 
             var updatedExistingTask = await UpdateExistingClickUpTaskAsync(existingTask.Id, createTaskPayload, token);
@@ -552,6 +491,14 @@ public class ClickUpController : ControllerBase
             return BadRequest("ClickUp integration is disabled.");
         }
 
+        var token = GetStoredToken(user);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest("No ClickUp token is configured for this user.");
+        }
+
+        var config = ParseConfiguration(user.ClickUpMappingsJson);
+
         var defectCandidates = await _db.Defects
             .AsNoTracking()
             .Where(d => !string.IsNullOrWhiteSpace(d.ClickUpTaskId)
@@ -566,8 +513,18 @@ public class ClickUpController : ControllerBase
 
         foreach (var defectCandidate in defectCandidates)
         {
-            var result = await SyncDefectToClickUp(defectCandidate.Id, new ClickUpDefectSyncRequest(null));
-            if (result is OkObjectResult)
+            var defect = await _db.Defects.FirstOrDefaultAsync(d => d.Id == defectCandidate.Id);
+            if (defect == null)
+            {
+                failures.Add(new ClickUpBulkDefectSyncFailureDto(
+                    defectCandidate.Id,
+                    defectCandidate.DefectNumber,
+                    "Defect not found."));
+                continue;
+            }
+
+            var (synced, _) = await SyncDefectDetailsFromClickUpAsync(defect, config, token);
+            if (synced)
             {
                 syncedDefectIds.Add(defectCandidate.Id);
                 continue;
@@ -576,7 +533,7 @@ public class ClickUpController : ControllerBase
             failures.Add(new ClickUpBulkDefectSyncFailureDto(
                 defectCandidate.Id,
                 defectCandidate.DefectNumber,
-                ExtractActionResultMessage(result)));
+                "We could not refresh the linked ClickUp task details for this defect."));
         }
 
         return Ok(new ClickUpBulkDefectSyncBatchResponse(
@@ -585,6 +542,53 @@ public class ClickUpController : ControllerBase
             failures.Count,
             syncedDefectIds,
             failures));
+    }
+
+    private async Task<(bool Success, bool StatusWasUpdated)> SyncDefectDetailsFromClickUpAsync(Defect defect, ClickUpConfigurationParseResult config, string token)
+    {
+        if (string.IsNullOrWhiteSpace(defect.ClickUpTaskId))
+        {
+            return (false, false);
+        }
+
+        var currentTaskResponse = await CallClickUpAsync($"/task/{defect.ClickUpTaskId}", token);
+        if (!currentTaskResponse.IsSuccessStatusCode)
+        {
+            return (false, false);
+        }
+
+        var currentTaskJson = await currentTaskResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var clickStatus = GetTaskStatusFromTask(currentTaskJson);
+        var clickUpdatedAt = GetTaskLastUpdatedUtc(currentTaskJson);
+
+        if (!string.IsNullOrWhiteSpace(clickStatus) && clickUpdatedAt.HasValue && (defect.StatusUpdatedAt == null || clickUpdatedAt > defect.StatusUpdatedAt))
+        {
+            var mappedPeekQaStatus = config.StatusMappings.FirstOrDefault(kvp => string.Equals(kvp.Value, clickStatus, StringComparison.OrdinalIgnoreCase)).Key;
+            if (!string.IsNullOrWhiteSpace(mappedPeekQaStatus))
+            {
+                _db.DefectAuditLogs.Add(new DefectAuditLog
+                {
+                    DefectId = defect.Id,
+                    FieldName = "Status",
+                    OldValue = defect.Status,
+                    NewValue = mappedPeekQaStatus,
+                    ChangedBy = "ClickUp",
+                    ChangedAt = clickUpdatedAt.Value,
+                });
+
+                defect.Status = mappedPeekQaStatus;
+                defect.StatusUpdatedAt = clickUpdatedAt;
+                await _db.SaveChangesAsync();
+                return (true, true);
+            }
+        }
+
+        if (clickUpdatedAt.HasValue)
+        {
+            await SyncAssignedToFromClickUpTaskAsync(defect, currentTaskJson, clickUpdatedAt.Value);
+        }
+
+        return (true, false);
     }
 
     private static string ExtractActionResultMessage(IActionResult actionResult)
@@ -1681,6 +1685,7 @@ public class ClickUpController : ControllerBase
             new("in_progress", "In Progress"),
             new("ready_for_test", "Ready for Test"),
             new("in_review", "In Review"),
+            new("pending_deployment", "Pending Deployment"),
             new("done", "Done"),
         };
     }

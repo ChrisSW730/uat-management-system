@@ -112,6 +112,13 @@ export const DEFECT_STATUS = {
     dot: "#8b5cf6",
   },
 
+  "Pending Deployment": {
+    bg: "#ecfeff",
+    text: "#0f766e",
+    border: "#a7f3d0",
+    dot: "#14b8a6",
+  },
+
   Closed: {
     bg: "#f1f5f9",
     text: "#64748b",
