@@ -329,6 +329,105 @@
     cursor: not-allowed;
 }
 
+.clickup-multi-select {
+    position: relative;
+}
+
+.clickup-multi-select-trigger {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 12px;
+    background: #f8fafc;
+    color: #0f172a;
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    text-align: left;
+}
+
+.clickup-multi-select-trigger:focus,
+.clickup-multi-select-trigger:focus-visible {
+    border-color: #7c3aed;
+}
+
+.clickup-multi-select-trigger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.clickup-multi-select-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.clickup-multi-select-label--placeholder {
+    color: #64748b;
+}
+
+.clickup-multi-select-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.clickup-multi-select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+    padding: 6px;
+}
+
+.clickup-multi-select-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #0f172a;
+    font-size: 12px;
+}
+
+.clickup-multi-select-option:hover {
+    background: #f8fafc;
+}
+
+.clickup-multi-select-option input {
+    margin: 2px 0 0;
+    accent-color: #7c3aed;
+    flex-shrink: 0;
+}
+
+.clickup-multi-select-option-text {
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.clickup-multi-select-empty {
+    padding: 10px;
+    color: #64748b;
+    font-size: 12px;
+}
+
 .clickup-spinner {
     position: absolute;
     right: 24px;

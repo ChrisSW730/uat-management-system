@@ -2676,6 +2676,10 @@ export default function App() {
         alert("Project is required.");
         return;
       }
+      if (!newDef.title?.trim()) {
+        alert("Defect Title is required.");
+        return;
+      }
       if (!newDef.source?.trim()) {
         alert("Source is required.");
         return;

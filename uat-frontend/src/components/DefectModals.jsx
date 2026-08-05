@@ -4,6 +4,7 @@ import { PRIORITY_META, DEFECT_ISSUE_TYPES, DEFECT_SOURCES, DEFECT_SEVERITIES, D
 import Modal from "./ui/Modal";
 import { DefBadge } from "./ui/Badge";
 import {
+  fetchDefectClickUpLinks,
   fetchClickUpCustomItems,
   fetchClickUpLists,
   fetchClickUpListTasks,
@@ -12,6 +13,7 @@ import {
   getClickUpIntegrationConfig,
   syncDefectToClickUp,
   unlinkDefectFromClickUp,
+  unlinkDefectTaskLink,
 } from "../services/clickupService";
 import "../styles/Defects.css";
 import LinkedTestCasesPanel from "./defect/LinkedTestCasesPanel";
@@ -83,14 +85,18 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
   const [selectedListId, setSelectedListId] = useState("");
   const [availableCustomItems, setAvailableCustomItems] = useState([]);
   const [selectedCustomItemId, setSelectedCustomItemId] = useState("");
+  const [selectedLinkedTaskIds, setSelectedLinkedTaskIds] = useState([]);
+  const [linkedTaskDropdownOpen, setLinkedTaskDropdownOpen] = useState(false);
   const [integrationConfig, setIntegrationConfig] = useState(() => settingsConfig || null);
   const [loading, setLoading] = useState({
-    config: false, lists: false, customItems: false, tasks: false, syncing: false,
+    config: false, lists: false, customItems: false, tasks: false, syncing: false, linkedTasks: false,
   });
   const [errorMsg,   setErrorMsg]   = useState("");
   const [syncResult, setSyncResult] = useState(() => buildSyncResultFromDefect(defect, integrationConfig));
   const [linkedExpanded, setLinkedExpanded] = useState(false);
   const lastAutoSyncKeyRef = useRef("");
+  const lastLoadedTaskListIdRef = useRef("");
+  const linkedTaskDropdownRef = useRef(null);
 
   useEffect(() => {
     if (!settingsConfig) {
@@ -130,6 +136,8 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
     setPhase("idle");
     setSyncResult(null);
     setLinkedExpanded(false);
+    setSelectedLinkedTaskIds([]);
+    setLinkedTaskDropdownOpen(false);
   }, [
     defect?.id,
     defect?.clickUpTaskId,
@@ -146,6 +154,59 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
     integrationConfig?.space?.name,
     integrationConfig?.space?.id,
   ]);
+
+  useEffect(() => {
+    setSelectedLinkedTaskIds([]);
+    setLinkedTaskDropdownOpen(false);
+  }, [defect?.id]);
+
+  useEffect(() => {
+    if (!linkedTaskDropdownOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (!linkedTaskDropdownRef.current?.contains(event.target)) {
+        setLinkedTaskDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [linkedTaskDropdownOpen]);
+
+  useEffect(() => {
+    if (!enabled || !defectId || !defect?.clickUpTaskId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadLinkedTasks = async () => {
+      setLoad("linkedTasks", true);
+      try {
+        const response = await fetchDefectClickUpLinks(defectId);
+        if (!cancelled) {
+          const linkedTaskIds = Array.isArray(response?.linkedTaskIds) ? response.linkedTaskIds.filter(Boolean) : [];
+          setSelectedLinkedTaskIds(linkedTaskIds);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setErrorMsg(err?.message || "Unable to load linked ClickUp tasks.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoad("linkedTasks", false);
+        }
+      }
+    };
+
+    loadLinkedTasks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, defectId, defect?.clickUpTaskId, defect?.clickUpLinkedAt]);
 
   useEffect(() => {
     if (!defect?.clickUpTaskId || (integrationConfig?.workspace?.id && integrationConfig?.space?.id) || loading.config) {
@@ -222,6 +283,142 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
 
   const setLoad = (key, val) => setLoading(l => ({ ...l, [key]: val }));
 
+  const syncAvailableTasks = async (listId) => {
+    if (!listId) {
+      setTasks([]);
+      lastLoadedTaskListIdRef.current = "";
+      return;
+    }
+
+    setLoad("tasks", true);
+    try {
+      const listTasks = await fetchClickUpListTasks(listId);
+      setTasks(Array.isArray(listTasks) ? listTasks : []);
+      lastLoadedTaskListIdRef.current = listId;
+    } catch (err) {
+      setErrorMsg(err?.message || "Unable to load ClickUp parent tasks.");
+    } finally {
+      setLoad("tasks", false);
+    }
+  };
+
+  const toggleLinkedTaskSelection = (taskId) => {
+    if (!taskId) {
+      return;
+    }
+
+    const currentlySelected = selectedLinkedTaskIds.includes(taskId);
+    if (currentlySelected && defect?.clickUpTaskId) {
+      const previousSelection = [...selectedLinkedTaskIds];
+      setSelectedLinkedTaskIds((current) => current.filter((item) => item !== taskId));
+      setLoad("linkedTasks", true);
+      setErrorMsg("");
+
+      void (async () => {
+        try {
+          await unlinkDefectTaskLink(defectId, taskId);
+        } catch (err) {
+          setSelectedLinkedTaskIds(previousSelection);
+          setErrorMsg(err?.message || "Unable to unlink the selected ClickUp task.");
+        } finally {
+          setLoad("linkedTasks", false);
+        }
+      })();
+      return;
+    }
+
+    setSelectedLinkedTaskIds((current) => [...current, taskId]);
+  };
+
+  const selectedLinkedTaskNames = tasks
+    .filter((task) => selectedLinkedTaskIds.includes(task.id))
+    .map((task) => task.name)
+    .filter(Boolean);
+
+  const linkedTaskTriggerLabel = (() => {
+    if (!selectedListId) {
+      return "Select a list first";
+    }
+
+    if (loading.tasks) {
+      return "Loading tasks...";
+    }
+
+    if (loading.linkedTasks) {
+      return "Loading linked tasks...";
+    }
+
+    if (selectedLinkedTaskNames.length === 0) {
+      if (selectedLinkedTaskIds.length > 0) {
+        return `${selectedLinkedTaskIds.length} tasks selected`;
+      }
+
+      return tasks.length > 0 ? "Choose tasks to link" : "No tasks available";
+    }
+
+    if (selectedLinkedTaskNames.length === 1) {
+      return selectedLinkedTaskNames[0];
+    }
+
+    return `${selectedLinkedTaskNames.length} tasks selected`;
+  })();
+
+  const renderLinkedTaskDropdown = () => (
+    <div className="clickup-field-group">
+      <label className="clickup-field-label">Link To Existing Task <span className="clickup-optional">(Optional)</span></label>
+      <div className="clickup-multi-select" ref={linkedTaskDropdownRef}>
+        <button
+          type="button"
+          className="clickup-multi-select-trigger"
+          onClick={() => {
+            if (!selectedListId || loading.tasks || loading.syncing) {
+              return;
+            }
+
+            if (loading.linkedTasks) {
+              return;
+            }
+
+            setLinkedTaskDropdownOpen((current) => !current);
+          }}
+          disabled={!selectedListId || loading.tasks || loading.syncing || loading.linkedTasks}
+          aria-haspopup="listbox"
+          aria-expanded={linkedTaskDropdownOpen}
+        >
+          <span className={`clickup-multi-select-label${selectedLinkedTaskNames.length === 0 ? " clickup-multi-select-label--placeholder" : ""}`}>
+            {linkedTaskTriggerLabel}
+          </span>
+          <span className="clickup-multi-select-icon" aria-hidden="true">
+            <ChevronDown size={14} />
+          </span>
+        </button>
+        {linkedTaskDropdownOpen && (
+          <div className="clickup-multi-select-menu" role="listbox" aria-multiselectable="true">
+            {tasks.length === 0 ? (
+              <div className="clickup-multi-select-empty">No tasks available in this list.</div>
+            ) : (
+              tasks.map((task) => {
+                const checked = selectedLinkedTaskIds.includes(task.id);
+                return (
+                  <label key={task.id} className="clickup-multi-select-option">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleLinkedTaskSelection(task.id)}
+                      disabled={loading.linkedTasks}
+                    />
+                    <span className="clickup-multi-select-option-text">{task.name}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+      <div className="clickup-field-hint">Choose one or more tasks from the selected list.</div>
+    </div>
+  );
+
   const handleOpenSetup = async () => {
     setErrorMsg("");
     setPhase("setup");
@@ -232,6 +429,9 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
     setAvailableCustomItems([]);
     setSelectedListId("");
     setSelectedCustomItemId("");
+    setSelectedLinkedTaskIds([]);
+    setLinkedTaskDropdownOpen(false);
+    lastLoadedTaskListIdRef.current = "";
 
     try {
       const serverCfg = await getClickUpIntegrationConfig();
@@ -271,9 +471,7 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
       setSelectedCustomItemId(defaultCustomItemId);
 
       if (defaultListId) {
-        setLoad("tasks", true);
-        const listTasks = await fetchClickUpListTasks(defaultListId);
-        setTasks(Array.isArray(listTasks) ? listTasks : []);
+        await syncAvailableTasks(defaultListId);
       }
     } catch (err) {
       setErrorMsg(err?.message || "Unable to load ClickUp configuration.");
@@ -289,18 +487,13 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
   const handleListChange = async (listId) => {
     setSelectedListId(listId || "");
     setSelectedTask("");
+    setSelectedLinkedTaskIds([]);
+    setLinkedTaskDropdownOpen(false);
     setTasks([]);
+    lastLoadedTaskListIdRef.current = "";
     if (!listId) return;
 
-    setLoad("tasks", true);
-    try {
-      const listTasks = await fetchClickUpListTasks(listId);
-      setTasks(Array.isArray(listTasks) ? listTasks : []);
-    } catch (err) {
-      setErrorMsg(err?.message || "Unable to load ClickUp parent tasks.");
-    } finally {
-      setLoad("tasks", false);
-    }
+    await syncAvailableTasks(listId);
   };
 
   const handleSync = async () => {
@@ -311,6 +504,7 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
         listId: selectedListId || null,
         customItemId: selectedCustomItemId || null,
         parentTaskId: selectedTask || null,
+        linkedTaskIds: selectedLinkedTaskIds,
       });
       const taName = tasks.find(t => t.id === selectedTask)?.name || "";
       const nextLink = {
@@ -358,6 +552,7 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
         listId: selectedListId || null,
         customItemId: selectedCustomItemId || null,
         parentTaskId: selectedTask || null,
+        linkedTaskIds: selectedLinkedTaskIds,
       });
       const taName = tasks.find(t => t.id === selectedTask)?.name || defect?.clickUpParentTaskName || "";
       const nextLink = {
@@ -438,6 +633,14 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
     handleSyncNow();
   }, [enabled, defectId, defect?.clickUpTaskId]);
 
+  useEffect(() => {
+    if (!enabled || !selectedListId || loading.tasks || lastLoadedTaskListIdRef.current === selectedListId) {
+      return;
+    }
+
+    void syncAvailableTasks(selectedListId);
+  }, [enabled, selectedListId, loading.tasks]);
+
   const formatSyncTime = (value) => {
     if (!value) return "-";
     const source = value instanceof Date ? value : new Date(value);
@@ -516,6 +719,9 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
               <div className="integration-field-row">
                 <span className="integration-field-label">Task ID</span>
                 <span className="integration-field-value clickup-task-id">{syncResult.taskId}</span>
+              </div>
+              <div style={{ marginTop: 6 }}>
+                {renderLinkedTaskDropdown()}
               </div>
               {syncResult.parentTask && (
                 <div className="integration-field-row">
@@ -662,6 +868,8 @@ function ClickUpCard({ defect, enabled = true, onLinkChange, settingsConfig = nu
         </div>
         <div className="clickup-field-hint">If a task with the same title already exists in the selected list, PeekQA links to it instead of creating a duplicate.</div>
       </div>
+
+      {renderLinkedTaskDropdown()}
 
       {errorMsg && <div className="clickup-error-msg">{errorMsg}</div>}
 
@@ -1644,11 +1852,12 @@ export default function DefectModals({
           </div>
           <div style={{ display: "grid", gap: 14 }}>
             <div>
-              <label style={lbl}>Defect Title</label>
+              <label style={lbl}>Defect Title *</label>
               <input
                 value={newDef.title || ""}
                 onChange={e => setNewDef(p => ({ ...p, title: e.target.value }))}
                 placeholder="Short summary of the defect"
+                required
                 style={inp}
               />
             </div>
@@ -1927,8 +2136,8 @@ export default function DefectModals({
             <button onClick={() => { setShowAddDef(null); setNewDefAttachments([]); }} style={btnS}>Cancel</button>
             <button
               onClick={submitDefect}
-              style={{ ...btnP, opacity: (!showAddDef.projectId || !newDef.source || !newDef.expected?.trim() || !newDef.actual?.trim()) ? 0.5 : 1 }}
-              disabled={!showAddDef.projectId || !newDef.source || !newDef.expected?.trim() || !newDef.actual?.trim()}
+              style={{ ...btnP, opacity: (!showAddDef.projectId || !newDef.title?.trim() || !newDef.source || !newDef.expected?.trim() || !newDef.actual?.trim()) ? 0.5 : 1 }}
+              disabled={!showAddDef.projectId || !newDef.title?.trim() || !newDef.source || !newDef.expected?.trim() || !newDef.actual?.trim()}
             >
               Log Defect
             </button>

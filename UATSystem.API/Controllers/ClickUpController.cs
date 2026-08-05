@@ -383,6 +383,11 @@ public class ClickUpController : ControllerBase
         }
 
         var (syncSucceeded, statusWasUpdatedFromClickUp) = await SyncDefectDetailsFromClickUpAsync(defect, config, token);
+        var requestedLinkedTaskIds = (request.LinkedTaskIds ?? new List<string>())
+            .Select(ExtractTaskIdFromLink)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var targetCustomItemId = NormalizeToken(request.CustomItemId)
             ?? NormalizeToken(config.CustomItem?.Id)
@@ -404,6 +409,31 @@ public class ClickUpController : ControllerBase
             ? (config.CustomItem?.Name ?? defect.ClickUpCustomItemName ?? string.Empty)
             : await ResolveCustomItemNameAsync(user.ClickUpWorkspaceId, effectiveCustomItemId, token, config.CustomItem?.Name ?? defect.ClickUpCustomItemName);
 
+        async Task<IActionResult?> LinkSyncedTaskAsync(string taskId)
+        {
+            if (requestedLinkedTaskIds.Count == 0)
+            {
+                return null;
+            }
+
+            foreach (var requestedLinkedTaskId in requestedLinkedTaskIds)
+            {
+                var normalizedLinkedTaskId = NormalizeToken(requestedLinkedTaskId);
+                if (string.IsNullOrWhiteSpace(normalizedLinkedTaskId) || string.Equals(normalizedLinkedTaskId, taskId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var linkResponse = await CallClickUpAsync($"/task/{taskId}/link/{normalizedLinkedTaskId}", token, HttpMethod.Post);
+                if (!linkResponse.IsSuccessStatusCode)
+                {
+                    return await BuildClickUpErrorResponse(linkResponse, "link-task", "We could not link one or more ClickUp tasks for this defect.");
+                }
+            }
+
+            return null;
+        }
+
         if (!string.IsNullOrWhiteSpace(defect.ClickUpTaskId))
         {
             var (_, statusWasUpdatedFromCurrentTask) = await SyncDefectDetailsFromClickUpAsync(defect, config, token);
@@ -421,6 +451,13 @@ public class ClickUpController : ControllerBase
             var persistedCustomItemId = string.IsNullOrWhiteSpace(defect.ClickUpCustomItemId) ? effectiveCustomItemId : defect.ClickUpCustomItemId;
             var persistedCustomItemName = string.IsNullOrWhiteSpace(defect.ClickUpCustomItemName) ? selectedCustomItemName : defect.ClickUpCustomItemName;
             ApplyClickUpLink(defect, defect.ClickUpTaskId, updatedPersistedTask.Url, defect.ClickUpListId, defect.ClickUpListName, defect.ClickUpParentTaskId, defect.ClickUpParentTaskName, persistedCustomItemId, persistedCustomItemName);
+
+            var linkResponse = await LinkSyncedTaskAsync(defect.ClickUpTaskId);
+            if (linkResponse != null)
+            {
+                return linkResponse;
+            }
+
             await _db.SaveChangesAsync();
             return Ok(new ClickUpDefectSyncResponse(defect.ClickUpTaskId, updatedPersistedTask.Url, defect.ClickUpListId, defect.ClickUpListName, string.IsNullOrWhiteSpace(defect.ClickUpParentTaskId) ? null : defect.ClickUpParentTaskId, true, Status: defect.Status, AssignedTo: defect.AssignedTo));
         }
@@ -442,6 +479,13 @@ public class ClickUpController : ControllerBase
             }
 
             ApplyClickUpLink(defect, existingTask.Id, updatedExistingTask.Url ?? existingTask.Url, targetList.Id, selectedListName, normalizedParentTaskId, existingTask.ParentTaskName, effectiveCustomItemId, selectedCustomItemName);
+
+            var linkResponse = await LinkSyncedTaskAsync(existingTask.Id);
+            if (linkResponse != null)
+            {
+                return linkResponse;
+            }
+
             await _db.SaveChangesAsync();
             return Ok(new ClickUpDefectSyncResponse(existingTask.Id, updatedExistingTask.Url ?? existingTask.Url, targetList.Id, selectedListName, normalizedParentTaskId, true, Status: defect.Status, AssignedTo: defect.AssignedTo));
         }
@@ -459,6 +503,13 @@ public class ClickUpController : ControllerBase
         var listName = !string.IsNullOrWhiteSpace(targetList.Name) ? targetList.Name : GetString(responseJson, "list", "name") ?? targetList.Id;
         var parentTaskName = await ResolveParentTaskNameAsync(targetList.Id, normalizedParentTaskId, token);
         ApplyClickUpLink(defect, taskId, taskUrl, targetList.Id, listName, normalizedParentTaskId, parentTaskName, effectiveCustomItemId, selectedCustomItemName);
+
+        var createdLinkResponse = await LinkSyncedTaskAsync(taskId);
+        if (createdLinkResponse != null)
+        {
+            return createdLinkResponse;
+        }
+
         await _db.SaveChangesAsync();
         return Ok(new ClickUpDefectSyncResponse(taskId, taskUrl, targetList.Id, listName, normalizedParentTaskId, false, Status: defect.Status, AssignedTo: defect.AssignedTo));
     }
@@ -478,6 +529,96 @@ public class ClickUpController : ControllerBase
         ClearClickUpLink(defect);
         await _db.SaveChangesAsync();
         return Ok(defect);
+    }
+
+    [HttpGet("defects/{defectId:int}/links")]
+    public async Task<IActionResult> GetDefectClickUpLinks(int defectId)
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null) return Unauthorized();
+
+        if (!user.ClickUpIntegrationEnabled)
+        {
+            return BadRequest("ClickUp integration is disabled.");
+        }
+
+        var token = GetStoredToken(user);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest("No ClickUp token is configured for this user.");
+        }
+
+        var defect = await _db.Defects.FirstOrDefaultAsync(d => d.Id == defectId);
+        if (defect == null)
+        {
+            return NotFound("Defect not found.");
+        }
+
+        if (string.IsNullOrWhiteSpace(defect.ClickUpTaskId))
+        {
+            return Ok(new ClickUpDefectLinkedTasksResponse(new List<string>()));
+        }
+
+        var response = await CallClickUpAsync($"/task/{defect.ClickUpTaskId}", token);
+        if (!response.IsSuccessStatusCode)
+        {
+            return await BuildClickUpErrorResponse(response, "linked-tasks", "We could not load the linked ClickUp tasks for this defect.");
+        }
+
+        var taskJson = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var linkedTaskIds = GetLinkedTaskIds(taskJson)
+            .Where(id => !string.Equals(id, defect.ClickUpTaskId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return Ok(new ClickUpDefectLinkedTasksResponse(linkedTaskIds));
+    }
+
+    [HttpDelete("defects/{defectId:int}/links/{linkedTaskId}")]
+    public async Task<IActionResult> UnlinkDefectTaskLink(int defectId, string linkedTaskId)
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null) return Unauthorized();
+
+        if (!user.ClickUpIntegrationEnabled)
+        {
+            return BadRequest("ClickUp integration is disabled.");
+        }
+
+        var token = GetStoredToken(user);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest("No ClickUp token is configured for this user.");
+        }
+
+        var defect = await _db.Defects.FirstOrDefaultAsync(d => d.Id == defectId);
+        if (defect == null)
+        {
+            return NotFound("Defect not found.");
+        }
+
+        if (string.IsNullOrWhiteSpace(defect.ClickUpTaskId))
+        {
+            return BadRequest("This defect is not linked to ClickUp.");
+        }
+
+        var normalizedLinkedTaskId = ExtractTaskIdFromLink(linkedTaskId);
+        if (string.IsNullOrWhiteSpace(normalizedLinkedTaskId))
+        {
+            return BadRequest("A valid linked ClickUp task id is required.");
+        }
+
+        if (string.Equals(normalizedLinkedTaskId, defect.ClickUpTaskId, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("A ClickUp task cannot be unlinked from itself.");
+        }
+
+        var response = await CallClickUpAsync($"/task/{defect.ClickUpTaskId}/link/{normalizedLinkedTaskId}", token, HttpMethod.Delete);
+        if (!response.IsSuccessStatusCode)
+        {
+            return await BuildClickUpErrorResponse(response, "unlink-task", "We could not unlink the ClickUp task for this defect.");
+        }
+
+        return NoContent();
     }
 
     [HttpPost("defects/sync-open-linked")]
@@ -702,6 +843,34 @@ public class ClickUpController : ControllerBase
         }
 
         return GetString(parentElement, "name", "title");
+    }
+
+    private static List<string> GetLinkedTaskIds(JsonElement task)
+    {
+        var linkedTaskIds = new List<string>();
+        if (!task.TryGetProperty("linked_tasks", out var linkedTasksElement) || linkedTasksElement.ValueKind != JsonValueKind.Array)
+        {
+            return linkedTaskIds;
+        }
+
+        foreach (var linkedTask in linkedTasksElement.EnumerateArray())
+        {
+            string? linkedTaskId = linkedTask.ValueKind switch
+            {
+                JsonValueKind.String => linkedTask.GetString(),
+                JsonValueKind.Number => linkedTask.ToString(),
+                JsonValueKind.Object => GetString(linkedTask, "task_id", "taskId", "id", "links_to"),
+                _ => null,
+            };
+
+            linkedTaskId = NormalizeToken(linkedTaskId);
+            if (!string.IsNullOrWhiteSpace(linkedTaskId) && !linkedTaskIds.Contains(linkedTaskId, StringComparer.OrdinalIgnoreCase))
+            {
+                linkedTaskIds.Add(linkedTaskId);
+            }
+        }
+
+        return linkedTaskIds;
     }
 
     private async Task<ClickUpTaskUpdateResult?> UpdateExistingClickUpTaskAsync(string taskId, JsonObject createTaskPayload, string token)
@@ -2210,6 +2379,31 @@ public class ClickUpController : ControllerBase
         return string.IsNullOrWhiteSpace(token) ? null : token.Trim();
     }
 
+    private static string? ExtractTaskIdFromLink(string? link)
+    {
+        var normalizedLink = NormalizeToken(link);
+        if (string.IsNullOrWhiteSpace(normalizedLink))
+        {
+            return null;
+        }
+
+        if (Uri.TryCreate(normalizedLink, UriKind.Absolute, out var uri))
+        {
+            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            for (var index = segments.Length - 1; index >= 0; index--)
+            {
+                if (!string.IsNullOrWhiteSpace(segments[index]) && !string.Equals(segments[index], "task", StringComparison.OrdinalIgnoreCase) && !string.Equals(segments[index], "link", StringComparison.OrdinalIgnoreCase))
+                {
+                    return segments[index];
+                }
+            }
+
+            return null;
+        }
+
+        return normalizedLink;
+    }
+
     private static ClickUpWorkspaceDto? ToWorkspaceDto(string? id, string? name)
     {
         if (string.IsNullOrWhiteSpace(id) && string.IsNullOrWhiteSpace(name))
@@ -2478,7 +2672,8 @@ public record ClickUpConfigurationParseResult(
     ClickUpCustomItemDto? CustomItem,
     Dictionary<string, Dictionary<string, string>> CustomFieldValueMappings,
     bool SyncStatus);
-public record ClickUpDefectSyncRequest(string? ParentTaskId, string? ListId = null, string? CustomItemId = null);
+public record ClickUpDefectSyncRequest(string? ParentTaskId, string? ListId = null, string? CustomItemId = null, List<string>? LinkedTaskIds = null);
 public record ClickUpDefectSyncResponse(string TaskId, string? TaskUrl, string ListId, string ListName, string? ParentTaskId, bool LinkedExisting = false, string? Status = null, string? AssignedTo = null);
+public record ClickUpDefectLinkedTasksResponse(List<string> LinkedTaskIds);
 public record ClickUpBulkDefectSyncFailureDto(int DefectId, string DefectNumber, string Message);
 public record ClickUpBulkDefectSyncBatchResponse(int AttemptedCount, int SyncedCount, int FailedCount, List<int> SyncedDefectIds, List<ClickUpBulkDefectSyncFailureDto> Failures);

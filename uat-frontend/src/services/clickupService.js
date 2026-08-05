@@ -466,6 +466,7 @@ export async function syncDefectToClickUp(defectId, options = {}) {
     parentTaskId: options?.parentTaskId || null,
     listId: options?.listId || null,
     customItemId: options?.customItemId || null,
+    linkedTaskIds: Array.isArray(options?.linkedTaskIds) ? options.linkedTaskIds.filter(Boolean) : [],
   };
 
   const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/defects/${encodeURIComponent(defectId)}/sync`), {
@@ -482,6 +483,34 @@ export async function syncDefectToClickUp(defectId, options = {}) {
   }
 
   return response.json();
+}
+
+export async function fetchDefectClickUpLinks(defectId) {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/defects/${encodeURIComponent(defectId)}/links`), {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function unlinkDefectTaskLink(defectId, linkedTaskId) {
+  const response = await fetchWithTimeout(buildClickUpApiUrl(`${BASE}/clickup/defects/${encodeURIComponent(defectId)}/links/${encodeURIComponent(linkedTaskId)}`), {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
 }
 
 export async function unlinkDefectFromClickUp(defectId) {
