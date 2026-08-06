@@ -1,7 +1,8 @@
 import {
   EXEC_STATUS,
   DEFECT_STATUS,
-  PRIORITY_META
+  PRIORITY_META,
+  normalizeDefectPriority
 } from "../../constants";
 
 import "../../styles/Badge.css";
@@ -32,11 +33,12 @@ export function DefBadge({ status }) {
 }
 
 export function PriBadge({ label }) {
-  const priority = (label || "Medium").toLowerCase();
+  const normalizedLabel = normalizeDefectPriority(label) || "Medium";
+  const priority = normalizedLabel.toLowerCase();
 
   return (
     <span className={`badge priority-badge priority-${priority}`}>
-      {label}
+      {normalizedLabel}
     </span>
   );
 }

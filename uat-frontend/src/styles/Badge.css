@@ -19,6 +19,11 @@
     color: #dc2626;
 }
 
+.priority-critical {
+    background: #fecaca;
+    color: #991b1b;
+}
+
 .priority-medium {
     background: #fef3c7;
     color: #d97706;

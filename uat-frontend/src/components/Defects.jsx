@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { Search, X, Download, RotateCcw, CheckCheck, Plus, Trash2 as Bin, ArrowUp, ArrowDown, ArrowUpDown, Funnel } from "lucide-react";
-import { DEFECT_STATUS, PRIORITY_META } from "../constants";
+import { DEFECT_STATUS, PRIORITY_META, normalizeDefectPriority } from "../constants";
 import { PriBadge } from "./ui/Badge";
 import "../styles/Projects.css";
 import FilterDropdown from "./ui/FilterDropdown";
@@ -433,7 +433,7 @@ export default function Defects({
                                       : [...current, priority];
                                   })}
                                 />
-                                <span>{priority}</span>
+                                <span>{normalizeDefectPriority(priority) || priority}</span>
                               </label>
                             );
                           })}

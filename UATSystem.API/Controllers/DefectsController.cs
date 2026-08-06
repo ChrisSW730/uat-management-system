@@ -144,6 +144,19 @@ public class DefectsController : ControllerBase
         });
     }
 
+    private static string NormalizeDefectPriority(string? priority)
+    {
+        var value = (priority ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Equals("Showstopper", StringComparison.OrdinalIgnoreCase)
+            ? "Critical"
+            : value;
+    }
+
     private async Task<Defect?> GetHydratedDefectAsync(int defectId)
     {
         var defect = await _db.Defects
@@ -268,6 +281,7 @@ public class DefectsController : ControllerBase
             : null;
 
         var now = DateTime.UtcNow;
+        var priority = NormalizeDefectPriority(dto.Priority);
         var defect = new Defect
         {
             DefectNumber = $"TMP-{Guid.NewGuid():N}",
@@ -286,7 +300,7 @@ public class DefectsController : ControllerBase
             IssueType = dto.IssueType ?? string.Empty,
             ExpectedResult = dto.ExpectedResult ?? string.Empty,
             ActualResult = dto.ActualResult ?? string.Empty,
-            Priority = dto.Priority ?? "Medium",
+            Priority = string.IsNullOrWhiteSpace(priority) ? "Medium" : priority,
             Status = string.IsNullOrWhiteSpace(dto.Status) ? "New" : dto.Status,
             StatusUpdatedAt = now,
             AssignedToUpdatedAt = now,
@@ -453,7 +467,8 @@ public class DefectsController : ControllerBase
         AddAudit(defect, "IssueType", defect.IssueType, dto.IssueType, changedBy);
         AddAudit(defect, "ExpectedResult", defect.ExpectedResult, dto.ExpectedResult, changedBy);
         AddAudit(defect, "ActualResult", defect.ActualResult, dto.ActualResult, changedBy);
-        AddAudit(defect, "Priority", defect.Priority, dto.Priority, changedBy);
+        var priority = NormalizeDefectPriority(dto.Priority);
+        AddAudit(defect, "Priority", defect.Priority, string.IsNullOrWhiteSpace(priority) ? "Medium" : priority, changedBy);
         AddAudit(defect, "RaisedBy", defect.RaisedBy, dto.RaisedBy, changedBy);
         AddAudit(defect, "AssignedTo", defect.AssignedTo ?? string.Empty, dto.AssignedTo ?? string.Empty, changedBy);
         AddAudit(defect, "DateRaised", AuditDate(defect.DateRaised), AuditDate(dto.DateRaised), changedBy);
@@ -484,7 +499,7 @@ public class DefectsController : ControllerBase
         defect.IssueType = dto.IssueType ?? string.Empty;
         defect.ExpectedResult = dto.ExpectedResult;
         defect.ActualResult = dto.ActualResult;
-        defect.Priority = dto.Priority;
+        defect.Priority = string.IsNullOrWhiteSpace(priority) ? "Medium" : priority;
         defect.RaisedBy = dto.RaisedBy;
         defect.AssignedTo = dto.AssignedTo ?? string.Empty;
         defect.DateRaised = dto.DateRaised;
@@ -568,7 +583,7 @@ public class DefectsController : ControllerBase
         if (defect == null) return NotFound();
 
         var changedBy = GetChangedBy();
-        var newPriority = (dto.Priority ?? string.Empty).Trim();
+        var newPriority = NormalizeDefectPriority(dto.Priority);
         if (string.IsNullOrWhiteSpace(newPriority))
         {
             return BadRequest("Priority is required.");

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { PRIORITY_META, DEFECT_ISSUE_TYPES, DEFECT_SOURCES, DEFECT_SEVERITIES, DEFECT_STATUS } from "../constants";
+import { PRIORITY_META, DEFECT_ISSUE_TYPES, DEFECT_SOURCES, DEFECT_SEVERITIES, DEFECT_STATUS, normalizeDefectPriority } from "../constants";
 import Modal from "./ui/Modal";
 import { DefBadge } from "./ui/Badge";
 import {
@@ -1216,7 +1216,7 @@ export default function DefectModals({
               <div>
                 <label style={lbl}>Priority</label>
                 <input className="defect-textarea"
-                  value={viewDef.priority || ""}
+                  value={normalizeDefectPriority(viewDef.priority) || "Medium"}
                   readOnly
                 />
               </div>
@@ -1604,7 +1604,7 @@ export default function DefectModals({
               <div>
                 <label style={lbl}>Priority</label>
                 <select
-                  value={editDef.priority}
+                  value={normalizeDefectPriority(editDef.priority) || "Medium"}
                   onChange={e => setEditDef(p => ({ ...p, priority: e.target.value }))}
                   style={inp}
                 >
@@ -2050,7 +2050,7 @@ export default function DefectModals({
               <div>
                 <label style={lbl}>Priority</label>
                 <select
-                  value={newDef.priority}
+                  value={normalizeDefectPriority(newDef.priority) || "Medium"}
                   onChange={e => setNewDef(p => ({ ...p, priority: e.target.value }))}
                   style={inp}
                 >

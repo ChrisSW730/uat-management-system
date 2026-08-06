@@ -12,7 +12,7 @@ export const EXEC_STATUS = {
 };
 
 export const PRIORITY_META = {
-  Showstopper: {
+  Critical: {
     bg: "#FEE2E2",
     text: "#B91C1C",
     border: "#FCA5A5",
@@ -42,7 +42,7 @@ export const PRIORITY_META = {
 };
 
 export const DASHBOARD_PRIORITY_META = {
-  Showstopper: {
+  Critical: {
     bg: "#DC2626",
     text: "#FFFFFF",
     shadow: "#DC262633",
@@ -66,6 +66,23 @@ export const DASHBOARD_PRIORITY_META = {
     shadow: "#22C55E33",
   },
 };
+
+export const DEFECT_PRIORITIES = ["Critical", "High", "Medium", "Low"];
+
+export function normalizeDefectPriority(priority) {
+  const value = String(priority ?? "").trim();
+  if (!value) return "";
+
+  const aliases = {
+    showstopper: "Critical",
+    critical: "Critical",
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+  };
+
+  return aliases[value.toLowerCase()] || value;
+}
 
 export const TEST_CASE_PRIORITIES = ["High", "Medium", "Low"];
 

@@ -27,7 +27,9 @@ import {
   PRIORITY_META,
   TEST_CASE_PRIORITIES,
   DEFECT_STATUS,
-  CATEGORIES
+  CATEGORIES,
+  normalizeDefectPriority,
+  DEFECT_PRIORITIES
 } from "./constants";
 import {
   readStoredAuth,
@@ -400,7 +402,7 @@ export default function App() {
   ].join("\n");
 
   const normalizeDefectMarket = (market) => market === "All" ? "Any" : market;
-  const normalizeDefect = (defect) => defect ? { ...defect, market: normalizeDefectMarket(defect.market) } : defect;
+  const normalizeDefect = (defect) => defect ? { ...defect, market: normalizeDefectMarket(defect.market), priority: normalizeDefectPriority(defect.priority) || "Medium" } : defect;
   const normalizeDefects = (defectList) => Array.isArray(defectList) ? defectList.map(normalizeDefect) : [];
 
   const blankDef = {
@@ -1135,8 +1137,11 @@ export default function App() {
     );
     const defByStatus = Object.fromEntries(Object.keys(DEFECT_STATUS).map(s => [s, 0]));
     filteredDefects.forEach(d => { if (d.status in defByStatus) defByStatus[d.status]++; });
-    const defByPriority = Object.fromEntries([...Object.keys(PRIORITY_META), "Other"].map(p => [p, 0]));
-    filteredDefects.forEach(d => { if (d.priority in defByPriority) defByPriority[d.priority]++; else defByPriority["Other"]++; });
+    const defByPriority = Object.fromEntries([...DEFECT_PRIORITIES, "Other"].map(p => [p, 0]));
+    filteredDefects.forEach(d => {
+      const priority = normalizeDefectPriority(d.priority);
+      if (priority in defByPriority) defByPriority[priority]++; else defByPriority["Other"]++;
+    });
     const perPlanStats = allDashPlans.map(tp => {
       const proj = filteredProjects.find(p => (p.testPlans || []).some(t => t.id === tp.id));
       const tcCount = allTestCases.filter(tc => tc.testPlanId === tp.id).length;
@@ -1342,7 +1347,7 @@ export default function App() {
   function openDefectsForPriority(priority) {
     setDefSearch("");
     setDefStatusFilter(getDefaultDefectStatusFilter());
-    setDefPriFilter(priority ? [priority] : []);
+    setDefPriFilter(priority ? [normalizeDefectPriority(priority) || priority] : []);
     setDefProjectFilter(dashProjectId || "All");
     setDefMarketFilter([]);
     setDefPlanFilter(dashPlanId || "All");
