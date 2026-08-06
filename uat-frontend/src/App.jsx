@@ -4894,8 +4894,7 @@ linear-gradient(
                                   {entry.statusChangedBy && <div>by {entry.statusChangedBy}</div>}
                                 </div>
                                 {canWrite &&
-                                  (entry.execStatus === "Fail" || entry.execStatus === "Failed") &&
-                                  entryDefects.length === 0 && (
+                                  (entry.execStatus === "Fail" || entry.execStatus === "Failed") && (
                                     <button
                                       onClick={() => createDefect(viewRun.id, entry.testCaseId)}
                                       style={{
