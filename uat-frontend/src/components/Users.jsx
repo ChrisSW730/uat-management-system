@@ -48,7 +48,7 @@ export default function UsersTab(props) {
 
 				<div className="toolbar-left">
 
-					<div className="search-box">
+					<div className="search-box users-search-box">
 						<Search size={18} />
 
 						<input
@@ -189,7 +189,7 @@ export default function UsersTab(props) {
 				totalPages={totalPages}
 				pageSize={pageSize}
 				totalItems={filteredSortedUsers.length}
-				onPageChange={setCurrentPage}
+				setCurrentPage={setCurrentPage}
 			/>
 		</div>
 	);

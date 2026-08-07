@@ -1889,6 +1889,7 @@ export default function App() {
     }
 
     try {
+      const frontendLoginUrl = `${window.location.origin}/web/`;
       const created = await api.createUser({
         username: newUserName.trim(),
         displayName: newUserDisplayName.trim(),
@@ -1910,7 +1911,7 @@ export default function App() {
         `  Username (Email): ${newUserName.trim()}`,
         `  Password: ${created.initialPassword}`,
         "",
-        "Please log in and update your password immediately when prompted.",
+        `Please log in to ${frontendLoginUrl} and update your password immediately when prompted.`,
         "",
         "Best regards,",
         getCurrentUserName() || "System Administrator",
@@ -2029,6 +2030,7 @@ export default function App() {
     if (!ok) return;
 
     try {
+      const frontendLoginUrl = `${window.location.origin}/web/`;
       const result = await api.resetUserPassword(user.id);
 
       // Start cooldown based on server response or fallback to 60s
@@ -2046,7 +2048,7 @@ export default function App() {
         `  Username (Email): ${user.username}`,
         `  Password: ${result.initialPassword}`,
         "",
-        "Please log in and update your password immediately when prompted.",
+        `Please log in to ${frontendLoginUrl} and update your password immediately when prompted.`,
         "",
         "Best regards,",
         getCurrentUserName() || "System Administrator",

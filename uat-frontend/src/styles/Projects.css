@@ -257,6 +257,7 @@
 
 .search-box input {
     flex: 1;
+    min-width: 0;
 
     border: none;
     outline: none;
@@ -279,6 +280,32 @@
 .search-box:focus-within svg,
 .search-box:focus-within i {
     color: #6366F1;
+}
+
+.clear-search-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    color: #94A3B8;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.clear-search-btn:hover {
+    color: #475569;
+}
+
+.users-search-box {
+    width: 520px;
+    min-width: 520px;
+    max-width: 520px;
+    flex: 0 0 520px;
 }
 
 .view-toggle {
@@ -1088,6 +1115,15 @@ gap:18px;
 .search-box{
 
 width:100%;
+
+}
+
+.users-search-box{
+
+width:100%;
+min-width:0;
+max-width:none;
+flex:1 1 auto;
 
 }
 
