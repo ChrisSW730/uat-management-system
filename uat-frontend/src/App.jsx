@@ -285,6 +285,7 @@ export default function App() {
   const [runDateFilterPanel, setRunDateFilterPanel] = useState(null);
   const [tcSortCol, setTcSortCol] = useState("tcNumber");
   const [tcSortDir, setTcSortDir] = useState("desc");
+  const [runEntryPriorityFilter, setRunEntryPriorityFilter] = useState("All");
   const [defSortCol, setDefSortCol] = useState("");
   const [defSortDir, setDefSortDir] = useState("asc");
   const [userSearch, setUserSearch] = useState("");
@@ -3602,6 +3603,7 @@ export default function App() {
 
     setExecStatusFilter(execStatus);
     setRunEntrySearch("");
+    setRunEntryPriorityFilter("All");
 
     setViewRun(run);
 
@@ -4459,6 +4461,7 @@ linear-gradient(
                 const filteredRunEntries = (viewRun.entries || []).filter(entry => {
                   const normalizedEntryStatus = normalizeExecStatus(entry.execStatus);
                   const normalizedFilter = normalizeExecStatus(execStatusFilter);
+                  const tc = allTestCaseById[entry.testCaseId];
 
                   if (execStatusFilter !== "All") {
                     if (normalizedFilter === "Passed" && normalizedEntryStatus !== "Passed") return false;
@@ -4468,9 +4471,13 @@ linear-gradient(
                     if (!["Passed", "Failed", "Blocked", "In Progress"].includes(normalizedFilter) && normalizedEntryStatus !== normalizedFilter) return false;
                   }
 
+                  if (runEntryPriorityFilter !== "All") {
+                    const tcPriority = TEST_CASE_PRIORITIES.includes(tc?.priority) ? tc.priority : "Medium";
+                    if (tcPriority !== runEntryPriorityFilter) return false;
+                  }
+
                   if (!entrySearchTerm) return true;
 
-                  const tc = allTestCaseById[entry.testCaseId];
                   const tcName = String(tc?.name || "").toLowerCase();
                   const tcNumber = String(tc?.tcNumber || "").toLowerCase();
                   const testCaseId = String(entry.testCaseId || "").toLowerCase();
@@ -4736,6 +4743,8 @@ linear-gradient(
                     <AddTcToRunRow
                       entryStatusFilter={execStatusFilter}
                       setEntryStatusFilter={setExecStatusFilter}
+                      entryPriorityFilter={runEntryPriorityFilter}
+                      setEntryPriorityFilter={setRunEntryPriorityFilter}
                       entrySearch={runEntrySearch}
                       setEntrySearch={setRunEntrySearch}
                     />
@@ -6068,7 +6077,7 @@ function normalizeExecStatus(value) {
   return aliases[normalized] || String(value).trim();
 }
 
-function AddTcToRunRow({ entryStatusFilter, setEntryStatusFilter, entrySearch, setEntrySearch }) {
+function AddTcToRunRow({ entryStatusFilter, setEntryStatusFilter, entryPriorityFilter, setEntryPriorityFilter, entrySearch, setEntrySearch }) {
   return (
     <div style={{ position: "relative", background: "#f8fafc", border: "1.5px dashed #e2e8f0", borderRadius: 10, padding: "10px 14px" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -6095,6 +6104,24 @@ function AddTcToRunRow({ entryStatusFilter, setEntryStatusFilter, entrySearch, s
             }}
           />
         </div>
+        <select
+          value={entryPriorityFilter || "All"}
+          onChange={e => setEntryPriorityFilter(e.target.value)}
+          style={{
+            width: 150,
+            height: 30,
+            padding: "8px 12px",
+            border: "1px solid #cbd5e1",
+            borderRadius: 7,
+            color: "#94a3b8",
+            fontSize: 12,
+            background: "#fff",
+            cursor: "pointer"
+          }}
+        >
+          <option value="All">All Priorities</option>
+          {TEST_CASE_PRIORITIES.map(priority => <option key={priority} value={priority}>{priority}</option>)}
+        </select>
         <select
           value={entryStatusFilter || "All"}
           onChange={e => setEntryStatusFilter(e.target.value)}
