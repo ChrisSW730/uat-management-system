@@ -279,6 +279,7 @@ export default function App() {
   };
   const [defDateFilterPanel, setDefDateFilterPanel] = useState(null);
   const [runSearch, setRunSearch] = useState("");
+  const [runEntrySearch, setRunEntrySearch] = useState("");
   const [runDateRule, setRunDateRule] = useState("Any");
   const [runDateValue, setRunDateValue] = useState("");
   const [runDateFilterPanel, setRunDateFilterPanel] = useState(null);
@@ -1150,10 +1151,12 @@ export default function App() {
       const openDefs = defects.filter(d => d.testPlanId === tp.id && d.status !== "Closed" && d.status !== "Rejected").length;
       const passed = planEntries.filter(e => e.execStatus === "Passed").length;
       const failed = planEntries.filter(e => e.execStatus === "Failed").length;
-      return { tp, projectName: proj?.name || "", tcCount, defCount, openDefs, passed, failed, totalEntries: planEntries.length };
+      const inProgress = planEntries.filter(e => normalizeExecStatus(e.execStatus) === "In Progress").length;
+      return { tp, projectName: proj?.name || "", tcCount, defCount, openDefs, passed, failed, inProgress, totalEntries: planEntries.length };
     });
     const passedTotal = filteredEntries.filter(e => e.execStatus === "Passed").length;
     const failedTotal = filteredEntries.filter(e => e.execStatus === "Failed").length;
+    const inProgressTotal = filteredEntries.filter(e => normalizeExecStatus(e.execStatus) === "In Progress").length;
     const openDefs = filteredDefects.filter(d => d.status !== "Closed" && d.status !== "Rejected").length;
     // Dashboard trend range: custom date range when provided, otherwise last 7 days.
     const msPerDay = 24 * 60 * 60 * 1000;
@@ -1201,7 +1204,7 @@ export default function App() {
           if (!tcIdSet.has(entry.testCaseId)) return false;
 
           const status = entry.execStatus;
-          if (!["Passed", "Failed", "Blocked"].includes(status)) return false;
+          if (!["Passed", "Failed", "Blocked", "In Progress"].includes(normalizeExecStatus(status))) return false;
 
           const changedDate = (entry.statusChangedAt || "").slice(0, 10);
           const fallbackDate = (run.createdAt || "").slice(0, 10);
@@ -1216,6 +1219,7 @@ export default function App() {
         passed: dayEntries.filter(e => e.execStatus === "Passed").length,
         failed: dayEntries.filter(e => e.execStatus === "Failed").length,
         blocked: dayEntries.filter(e => e.execStatus === "Blocked").length,
+        inProgress: dayEntries.filter(e => normalizeExecStatus(e.execStatus) === "In Progress").length,
       };
     });
     const defectTrendDays = last7.map(dateStr => {
@@ -1290,7 +1294,7 @@ export default function App() {
 
         const isClosed = ["Closed", "Rejected"].includes(def.status);
         if (!isClosed) return true; // currently open/reopened — count as remaining
-        const closed = (def.closeDateTime || "").slice(0, 10);
+        const closed = (def.closeDateTime || def.statusUpdatedAt || "").slice(0, 10);
         if (closed && closed <= dateStr) return false; // was closed by this date
         return true; // closed but after this date
       }).length;
@@ -1318,7 +1322,7 @@ export default function App() {
     const activeTcCount = runTcCount > 0 ? runTcCount : filteredTCs.length;
     return {
       allDashPlans, tcCount: activeTcCount, entryCount: filteredEntries.length,
-      passedTotal, failedTotal,
+      passedTotal, failedTotal, inProgressTotal,
       passRate: runTcCount > 0 ? Math.round((new Set(filteredEntries.filter(e => e.execStatus !== "Not Run").map(e => e.testCaseId)).size / runTcCount) * 100) : 0,
       defTotal: filteredDefects.length, openDefs,
       execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays, availableRuns,
@@ -3313,6 +3317,7 @@ export default function App() {
       pass: entries.filter(e => e.execStatus === "Pass" || e.execStatus === "Passed").length,
       fail: entries.filter(e => e.execStatus === "Fail" || e.execStatus === "Failed").length,
       blocked: entries.filter(e => e.execStatus === "Blocked").length,
+      inProgress: entries.filter(e => normalizeExecStatus(e.execStatus) === "In Progress").length,
       notRun: entries.filter(e => e.execStatus === "Not Run").length,
     };
   }
@@ -3596,6 +3601,7 @@ export default function App() {
     }
 
     setExecStatusFilter(execStatus);
+    setRunEntrySearch("");
 
     setViewRun(run);
 
@@ -4449,17 +4455,34 @@ linear-gradient(
           {viewRun && (
             <Modal onClose={() => setViewRun(null)} wide>
               {(() => {
+                const entrySearchTerm = runEntrySearch.trim().toLowerCase();
                 const filteredRunEntries = (viewRun.entries || []).filter(entry => {
                   const normalizedEntryStatus = normalizeExecStatus(entry.execStatus);
                   const normalizedFilter = normalizeExecStatus(execStatusFilter);
 
-                  if (execStatusFilter === "All") return true;
+                  if (execStatusFilter !== "All") {
+                    if (normalizedFilter === "Passed" && normalizedEntryStatus !== "Passed") return false;
+                    if (normalizedFilter === "Failed" && normalizedEntryStatus !== "Failed") return false;
+                    if (normalizedFilter === "Blocked" && normalizedEntryStatus !== "Blocked") return false;
+                    if (normalizedFilter === "In Progress" && normalizedEntryStatus !== "In Progress") return false;
+                    if (!["Passed", "Failed", "Blocked", "In Progress"].includes(normalizedFilter) && normalizedEntryStatus !== normalizedFilter) return false;
+                  }
 
-                  if (normalizedFilter === "Passed") return normalizedEntryStatus === "Passed";
-                  if (normalizedFilter === "Failed") return normalizedEntryStatus === "Failed";
-                  if (normalizedFilter === "Blocked") return normalizedEntryStatus === "Blocked";
+                  if (!entrySearchTerm) return true;
 
-                  return normalizedEntryStatus === normalizedFilter;
+                  const tc = allTestCaseById[entry.testCaseId];
+                  const tcName = String(tc?.name || "").toLowerCase();
+                  const tcNumber = String(tc?.tcNumber || "").toLowerCase();
+                  const testCaseId = String(entry.testCaseId || "").toLowerCase();
+                  const comments = (entry.comments || [])
+                    .map(comment => `${comment?.tester || ""} ${comment?.message || ""}`)
+                    .join(" ")
+                    .toLowerCase();
+
+                  return tcName.includes(entrySearchTerm)
+                    || tcNumber.includes(entrySearchTerm)
+                    || testCaseId.includes(entrySearchTerm)
+                    || comments.includes(entrySearchTerm);
                 });
 
                 const sortedRunEntries = sortRunEntriesByTestCaseId(filteredRunEntries);
@@ -4617,6 +4640,41 @@ linear-gradient(
                             }}>
                             <StatChip label="Blocked" value={st.blocked} color="#f97316" bg="#fff2e9" />
                           </div>
+                          <div onClick={() => setExecStatusFilter("In Progress")} onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            e.currentTarget.style.boxShadow =
+                              "0 15px 35px rgba(59, 130, 246, 0.25)";
+                          }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform =
+                                execStatusFilter === "In Progress"
+                                  ? "translateY(-3px)"
+                                  : "translateY(0)";
+                              e.currentTarget.style.boxShadow =
+                                execStatusFilter === "In Progress"
+                                  ? "0 10px 25px rgba(59, 130, 246, 0.18)"
+                                  : "none";
+                            }}
+                            onMouseDown={(e) => {
+                              e.currentTarget.style.transform = "scale(.97)";
+                            }}
+                            onMouseUp={(e) => {
+                              e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
+                            }} style={{
+                              cursor: "pointer",
+                              transition: "all .2s ease",
+                              borderRadius: 12,
+                              border:
+                                execStatusFilter === "In Progress"
+                                  ? "2px solid #3b82f6"
+                                  : "2px solid transparent",
+                              background:
+                                execStatusFilter === "In Progress"
+                                  ? "#dbeafe"
+                                  : "transparent",
+                            }}>
+                            <StatChip label="In Progress" value={st.inProgress || 0} color="#1d4ed8" bg="#eff6ff" />
+                          </div>
                           <div onClick={() => setExecStatusFilter("Not Run")} onMouseEnter={(e) => {
                             e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
                             e.currentTarget.style.boxShadow =
@@ -4675,17 +4733,15 @@ linear-gradient(
                       );
                     })()}
 
-                    {canWrite && <AddTcToRunRow
-                      testCases={allTestCases}
-                      runs={runs}
-                      run={viewRun}
-                      onAdd={tcId => addTcToRun(viewRun.id, tcId)}
+                    <AddTcToRunRow
                       entryStatusFilter={execStatusFilter}
                       setEntryStatusFilter={setExecStatusFilter}
-                    />}
+                      entrySearch={runEntrySearch}
+                      setEntrySearch={setRunEntrySearch}
+                    />
 
                     <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-                      {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases found with the selected status.</div>}
+                      {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases found with the selected filters.</div>}
                       {sortedRunEntries.map(entry => {
                         const tc = allTestCaseById[entry.testCaseId];
                         const ec = EXEC_STATUS[entry.execStatus] || EXEC_STATUS["Not Run"];
@@ -4917,7 +4973,14 @@ linear-gradient(
                                   <span key={d.id} style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", background: "#fff1f2", border: "1px solid #fecdd3", padding: "3px 10px", borderRadius: 20, cursor: "pointer" }}
                                     onClick={() => {
                                       const hydratedDefect = (defects || []).find(def => def.id === d.id);
-                                      setViewDef(hydratedDefect || d);
+                                      const targetDefect = hydratedDefect || d;
+                                      if (canWrite) {
+                                        setViewDef(null);
+                                        setEditDef(targetDefect);
+                                      } else {
+                                        setEditDef(null);
+                                        setViewDef(targetDefect);
+                                      }
                                     }}>
                                     🔗 {d.defectNumber}
                                   </span>
@@ -5015,6 +5078,10 @@ linear-gradient(
             clickUpEnabled={clickUpEnabled}
             onClickUpLinkChange={updateDefectClickUpLinkState}
             onDefectUpdate={updateDefectState}
+            canAssignDefect={canAssignDefect}
+            canUpdateDefectStatus={canUpdateDefectStatus}
+            updateDefStatus={updateDefStatus}
+            updateDefAssignedTo={updateDefAssignedTo}
           />
 
           {showAddProject && canManageProjects && (
@@ -5987,6 +6054,8 @@ function normalizeExecStatus(value) {
     fail: "Failed",
     failed: "Failed",
     blocked: "Blocked",
+    "in progress": "In Progress",
+    inprogress: "In Progress",
     deferred: "Deferred",
     skip: "Skip",
     invalid: "Invalid",
@@ -5999,57 +6068,21 @@ function normalizeExecStatus(value) {
   return aliases[normalized] || String(value).trim();
 }
 
-function AddTcToRunRow({ testCases, runs, run, onAdd, entryStatusFilter, setEntryStatusFilter }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef(null);
-
-  const existing = (run.entries || []).map(e => e.testCaseId);
-  const available = testCases.filter(tc => !existing.includes(tc.id));
-  const filtered = available.filter(tc => {
-    const matchSearch =
-      !searchTerm.trim() ||
-      tc.tcNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tc.name.toLowerCase().includes(searchTerm.toLowerCase());
-
-    return matchSearch;
-  });
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  function handleSelect(tc) {
-    onAdd(tc.id);
-    setSearchTerm("");
-    setOpen(false);
-  }
-
-  if (available.length === 0) return <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>All test cases added to this run.</div>;
-
+function AddTcToRunRow({ entryStatusFilter, setEntryStatusFilter, entrySearch, setEntrySearch }) {
   return (
-    <div ref={wrapRef} style={{ position: "relative", background: "#f8fafc", border: "1.5px dashed #e2e8f0", borderRadius: 10, padding: "10px 14px" }}>
+    <div style={{ position: "relative", background: "#f8fafc", border: "1.5px dashed #e2e8f0", borderRadius: 10, padding: "10px 14px" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap" }}>+ Add TC:</span>
+        <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap" }}>Filter:</span>
         <div
-          ref={wrapRef}
           style={{
             flex: 1,
             position: "relative"
           }}
         >
           <input
-            value={searchTerm}
-            onChange={e => {
-              setSearchTerm(e.target.value);
-              setOpen(true);
-            }}
-            onFocus={() => setOpen(true)}
-            placeholder="Search and select a test case..."
+            value={entrySearch || ""}
+            onChange={e => setEntrySearch(e.target.value)}
+            placeholder="Search by test name, TC ID/number, or comment..."
             style={{
               width: "100%",
               background: "#fff",
@@ -6061,66 +6094,6 @@ function AddTcToRunRow({ testCases, runs, run, onAdd, entryStatusFilter, setEntr
               fontFamily: "inherit"
             }}
           />
-
-          {open && filtered.length > 0 && (
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                top: "calc(100% + 4px)",
-                background: "#fff",
-                border: "1.5px solid #e2e8f0",
-                borderRadius: 8,
-                boxShadow: "0 4px 16px rgba(0,0,0,.1)",
-                zIndex: 9999,
-                maxHeight: 220,
-                overflowY: "auto"
-              }}
-            >
-              {filtered.map(tc => (
-                <div
-                  key={tc.id}
-                  onMouseDown={() => handleSelect(tc)}
-                  style={{
-                    padding: "8px 12px",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    borderBottom: "1px solid #f1f5f9"
-                  }}
-                >
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      color: "#6366f1",
-                      marginRight: 6
-                    }}
-                  >
-                    {tc.tcNumber}
-                  </span>
-                  {tc.name.slice(0, 70)}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {open && filtered.length === 0 && searchTerm.trim() && (
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                top: "calc(100% + 4px)",
-                background: "#fff",
-                border: "1.5px solid #e2e8f0",
-                borderRadius: 8,
-                padding: "10px 14px",
-                zIndex: 9999
-              }}
-            >
-              No matching test cases.
-            </div>
-          )}
         </div>
         <select
           value={entryStatusFilter || "All"}
@@ -6141,6 +6114,7 @@ function AddTcToRunRow({ testCases, runs, run, onAdd, entryStatusFilter, setEntr
           <option value="Passed">Passed</option>
           <option value="Failed">Failed</option>
           <option value="Blocked">Blocked</option>
+          <option value="In Progress">In Progress</option>
           <option value="Deferred">Deferred</option>
           <option value="Skip">Skip</option>
           <option value="Invalid">Invalid</option>

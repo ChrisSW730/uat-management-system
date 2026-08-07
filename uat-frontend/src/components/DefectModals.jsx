@@ -943,6 +943,10 @@ export default function DefectModals({
   clickUpEnabled = true,
   onClickUpLinkChange,
   onDefectUpdate,
+  canAssignDefect = false,
+  canUpdateDefectStatus = false,
+  updateDefStatus,
+  updateDefAssignedTo,
 }) {
   const marketOptions = ["Any", "SG", "HK", "MY", "KR", "US", "ID", "TW"];
   const normalizeMarketDisplay = (market) => market === "All" ? "Any" : market;
@@ -1131,9 +1135,19 @@ export default function DefectModals({
               </div>
               <div>
                 <label style={lbl}>Status</label>
-                <div style={{ marginTop: 6 }}>
-                  <DefBadge status={viewDef.status} />
-                </div>
+                {canUpdateDefectStatus ? (
+                  <select
+                    value={viewDef.status || "New"}
+                    onChange={e => updateDefStatus?.(viewDef.id, e.target.value)}
+                    style={inp}
+                  >
+                    {Object.keys(DEFECT_STATUS).map(s => <option key={s}>{s}</option>)}
+                  </select>
+                ) : (
+                  <div style={{ marginTop: 6 }}>
+                    <DefBadge status={viewDef.status} />
+                  </div>
+                )}
               </div>
               <div>
                 <label style={lbl}>Market</label>
@@ -1229,10 +1243,21 @@ export default function DefectModals({
               </div>
               <div>
                 <label style={lbl}>Assigned To</label>
-                <input className="defect-textarea"
-                  value={viewDef.assignedTo || "Unassigned"}
-                  readOnly
-                />
+                {canAssignDefect ? (
+                  <select
+                    value={viewDef.assignedTo || ""}
+                    onChange={e => updateDefAssignedTo?.(viewDef, e.target.value)}
+                    style={inp}
+                  >
+                    <option value="">Unassigned</option>
+                    {assignableUserDisplayNames.map(name => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                ) : (
+                  <input className="defect-textarea"
+                    value={viewDef.assignedTo || "Unassigned"}
+                    readOnly
+                  />
+                )}
               </div>
               <div>
                 <label style={lbl}>Target Fix Date</label>

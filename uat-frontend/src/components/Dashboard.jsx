@@ -120,7 +120,7 @@ export default function Dashboard({
         const barW = 22, gapW = 10;
         const totalW = data.length * (barW + gapW) - gapW;
         const chartH = height;
-        const maxVal = Math.max(...data.map(d => d.passed + d.failed + d.blocked), 1);
+        const maxVal = Math.max(...data.map(d => d.passed + d.failed + d.blocked + (d.inProgress || 0)), 1);
         const { maxScale, ticks } = buildNiceAxis(maxVal);
         const yLabels = [...ticks].reverse();
         return (
@@ -142,13 +142,15 @@ export default function Dashboard({
                                 const pH = (d.passed / maxScale) * chartH;
                                 const fH = (d.failed / maxScale) * chartH;
                                 const bH = (d.blocked / maxScale) * chartH;
+                                const ipH = ((d.inProgress || 0) / maxScale) * chartH;
                                 return (
                                     <g key={i}>
-                                        <title>{`${d.label} • Passed: ${d.passed} • Failed: ${d.failed} • Blocked: ${d.blocked}`}</title>
-                                        {pH > 0 && <rect x={x} y={chartH - pH - fH - bH} width={barW} height={pH} fill="#22c55e" rx={2} />}
-                                        {fH > 0 && <rect x={x} y={chartH - fH - bH} width={barW} height={fH} fill="#f43f5e" />}
-                                        {bH > 0 && <rect x={x} y={chartH - bH} width={barW} height={bH} fill="#f97316" />}
-                                        {pH === 0 && fH === 0 && bH === 0 && <rect x={x} y={chartH - 2} width={barW} height={2} fill="#e2e8f0" rx={2} />}
+                                        <title>{`${d.label} • Passed: ${d.passed} • Failed: ${d.failed} • Blocked: ${d.blocked} • In Progress: ${d.inProgress || 0}`}</title>
+                                        {pH > 0 && <rect x={x} y={chartH - pH - fH - bH - ipH} width={barW} height={pH} fill="#22c55e" rx={2} />}
+                                        {fH > 0 && <rect x={x} y={chartH - fH - bH - ipH} width={barW} height={fH} fill="#f43f5e" />}
+                                        {bH > 0 && <rect x={x} y={chartH - bH - ipH} width={barW} height={bH} fill="#f97316" />}
+                                        {ipH > 0 && <rect x={x} y={chartH - ipH} width={barW} height={ipH} fill="#3b82f6" />}
+                                        {pH === 0 && fH === 0 && bH === 0 && ipH === 0 && <rect x={x} y={chartH - 2} width={barW} height={2} fill="#e2e8f0" rx={2} />}
                                         <rect x={x} y={0} width={barW} height={chartH} fill="transparent" />
                                     </g>
                                 );
@@ -298,10 +300,10 @@ export default function Dashboard({
             </div>
         );
     };
-    const { tcCount, entryCount, passedTotal, failedTotal, defTotal, openDefs, passRate, availableRuns,
+    const { tcCount, entryCount, passedTotal, failedTotal, inProgressTotal, defTotal, openDefs, passRate, availableRuns,
         execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays } = dashboardStats;
     const blockedTotal = execByStatus["Blocked"] || 0;
-    const executedTotal = passedTotal + failedTotal + blockedTotal;
+    const executedTotal = passedTotal + failedTotal + blockedTotal + (inProgressTotal || 0);
     const executionProgress =
         tcCount > 0
             ? Math.round((executedTotal / tcCount) * 100)
@@ -310,7 +312,8 @@ export default function Dashboard({
         { value: passedTotal, color: "#22c55e" },
         { value: failedTotal, color: "#f43f5e" },
         { value: blockedTotal, color: "#f97316" },
-        { value: Math.max(0, entryCount - passedTotal - failedTotal - blockedTotal), color: "#e2e8f0" },
+        { value: inProgressTotal || 0, color: "#3b82f6" },
+        { value: Math.max(0, entryCount - passedTotal - failedTotal - blockedTotal - (inProgressTotal || 0)), color: "#e2e8f0" },
     ];
     return (
         <div ref={dashboardRef} style={{ background: "#fff", minHeight: "calc(100vh - 60px)", padding: "24px 28px 40px" }}>
@@ -461,7 +464,7 @@ export default function Dashboard({
                     Export
                 </button>
             </div>
-            {/* Top 5 summary cards */}
+            {/* Top summary cards */}
             <div
                 style={{
                     display: "grid",
@@ -923,7 +926,7 @@ export default function Dashboard({
                     <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>Daily Test Execution Trend</div>
                         <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
-                            {[["Passed", "#22c55e"], ["Failed", "#f43f5e"], ["Blocked", "#f97316"]].map(([l, c]) => (
+                            {[["Passed", "#22c55e"], ["Failed", "#f43f5e"], ["Blocked", "#f97316"], ["In Progress", "#3b82f6"]].map(([l, c]) => (
                                 <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
                                     <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: "inline-block" }} />{l}
                                 </span>

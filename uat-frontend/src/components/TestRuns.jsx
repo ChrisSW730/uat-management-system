@@ -233,7 +233,7 @@ export default function TestRuns(props) {
 				{filteredRuns.map(run => {
 					const st = runStats(run);
 					const byStatusPriority = runStatusPriorityStats(run);
-					const executed = st.pass + st.fail + st.blocked;
+					const executed = st.pass + st.fail + st.blocked + (st.inProgress || 0);
 					const pct = st.total > 0 ? Math.round((executed / st.total) * 100) : 0;
 					const isRunSelected = selectedRunIds.includes(run.id);
 					const showRunCheckbox = hoveredRunId === run.id || isRunSelected;
@@ -349,6 +349,7 @@ export default function TestRuns(props) {
 									<StatChip label="Passed" value={st.pass} color="#15803d" bg="#f0fdf4" />
 									<StatChip label="Failed" value={st.fail} color="#be123c" bg="#fff1f2" />
 									<StatChip label="Blocked" value={st.blocked} color="#f97316" bg="#fff2e9" />
+									<StatChip label="In Progress" value={st.inProgress || 0} color="#1d4ed8" bg="#eff6ff" />
 									<StatChip label="Not Run" value={st.notRun} color="#64748b" bg="#f8fafc" />
 								</div>
 							</div>
