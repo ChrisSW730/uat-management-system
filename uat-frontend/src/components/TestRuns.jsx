@@ -233,7 +233,7 @@ export default function TestRuns(props) {
 				{filteredRuns.map(run => {
 					const st = runStats(run);
 					const byStatusPriority = runStatusPriorityStats(run);
-					const executed = st.pass + st.fail + st.blocked + (st.inProgress || 0);
+					const executed = Math.max(0, st.total - (st.notRun || 0));
 					const pct = st.total > 0 ? Math.round((executed / st.total) * 100) : 0;
 					const isRunSelected = selectedRunIds.includes(run.id);
 					const showRunCheckbox = hoveredRunId === run.id || isRunSelected;

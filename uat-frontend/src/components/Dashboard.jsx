@@ -300,10 +300,10 @@ export default function Dashboard({
             </div>
         );
     };
-    const { tcCount, entryCount, passedTotal, failedTotal, inProgressTotal, defTotal, openDefs, passRate, availableRuns,
+    const { tcCount, entryCount, passedTotal, failedTotal, inProgressTotal, executedTcCount, defTotal, openDefs, availableRuns,
         execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays } = dashboardStats;
     const blockedTotal = execByStatus["Blocked"] || 0;
-    const executedTotal = passedTotal + failedTotal + blockedTotal + (inProgressTotal || 0);
+    const executedTotal = executedTcCount || 0;
     const executionProgress =
         tcCount > 0
             ? Math.round((executedTotal / tcCount) * 100)

@@ -1320,11 +1320,16 @@ export default function App() {
       return acc;
     }, []).map(({ label, remaining, ideal }) => ({ label, remaining, ideal }));
 
+    const executedTcCount = new Set(
+      filteredEntries
+        .filter(e => normalizeExecStatus(e.execStatus) !== "Not Run")
+        .map(e => e.testCaseId)
+    ).size;
     const activeTcCount = runTcCount > 0 ? runTcCount : filteredTCs.length;
     return {
       allDashPlans, tcCount: activeTcCount, entryCount: filteredEntries.length,
-      passedTotal, failedTotal, inProgressTotal,
-      passRate: runTcCount > 0 ? Math.round((new Set(filteredEntries.filter(e => e.execStatus !== "Not Run").map(e => e.testCaseId)).size / runTcCount) * 100) : 0,
+      passedTotal, failedTotal, inProgressTotal, executedTcCount,
+      passRate: runTcCount > 0 ? Math.round((executedTcCount / runTcCount) * 100) : 0,
       defTotal: filteredDefects.length, openDefs,
       execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays, availableRuns,
     };
@@ -4507,7 +4512,7 @@ linear-gradient(
                     </div>
 
                     {(() => {
-                      const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const pct = st.total > 0 ? Math.round((st.pass / st.total) * 100) : 0; return (
+                      const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const executed = Math.max(0, st.total - st.notRun); const pct = st.total > 0 ? Math.round((executed / st.total) * 100) : 0; return (
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
                           <div onClick={() => setExecStatusFilter("All")} onMouseEnter={(e) => {
                             e.currentTarget.style.transform = "translateY(-6px) scale(1.04)";
