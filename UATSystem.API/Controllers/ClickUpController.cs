@@ -400,8 +400,14 @@ public class ClickUpController : ControllerBase
         var targetTaskName = string.IsNullOrWhiteSpace(defect.Title) ? defect.DefectNumber : defect.Title;
         var normalizedParentTaskId = NormalizeToken(request.ParentTaskId);
         var configuredFieldMappings = BuildConfiguredFieldMappings(config);
+        var reconciliationListId = !string.IsNullOrWhiteSpace(defect.ClickUpListId)
+            ? defect.ClickUpListId
+            : targetList.Id;
+        configuredFieldMappings = await ReconcileConfiguredFieldMappingsAsync(configuredFieldMappings, config, user.ClickUpSpaceId, reconciliationListId, token);
+        configuredFieldMappings = await EnsureCriticalLongTextMappingsAsync(configuredFieldMappings, user.ClickUpSpaceId, reconciliationListId, token);
         var assigneeSource = ResolveConfiguredPeekQaFieldValue(defect, configuredFieldMappings, "assignees") ?? defect.AssignedTo;
         var assignees = await ResolveAssigneesAsync(assigneeSource, user.ClickUpWorkspaceId, token);
+        var preserveLocalAssignedTo = !string.IsNullOrWhiteSpace((assigneeSource ?? string.Empty).Trim()) && assignees.Count == 0;
         var effectiveCustomItemId = targetCustomItemId ?? string.Empty;
         var createTaskPayload = BuildCreateTaskPayload(defect, config, configuredFieldMappings, normalizedParentTaskId, assignees, effectiveCustomItemId);
         var selectedListName = !string.IsNullOrWhiteSpace(targetList.Name) ? targetList.Name : targetList.Id;
@@ -443,9 +449,13 @@ public class ClickUpController : ControllerBase
             }
 
             var updatedPersistedTask = await UpdateExistingClickUpTaskAsync(defect.ClickUpTaskId, createTaskPayload, token);
-            if (updatedPersistedTask == null)
+            if (!string.IsNullOrWhiteSpace(updatedPersistedTask.ErrorMessage))
             {
-                return StatusCode(502, new { message = "We could not sync the linked ClickUp task for this defect." });
+                return StatusCode(502, new
+                {
+                    message = updatedPersistedTask.ErrorMessage,
+                    fieldId = updatedPersistedTask.FailedFieldId,
+                });
             }
 
             var persistedCustomItemId = string.IsNullOrWhiteSpace(defect.ClickUpCustomItemId) ? effectiveCustomItemId : defect.ClickUpCustomItemId;
@@ -456,6 +466,11 @@ public class ClickUpController : ControllerBase
             if (linkResponse != null)
             {
                 return linkResponse;
+            }
+
+            if (preserveLocalAssignedTo)
+            {
+                defect.AssignedToUpdatedAt = DateTime.UtcNow;
             }
 
             await _db.SaveChangesAsync();
@@ -473,9 +488,13 @@ public class ClickUpController : ControllerBase
             }
 
             var updatedExistingTask = await UpdateExistingClickUpTaskAsync(existingTask.Id, createTaskPayload, token);
-            if (updatedExistingTask == null)
+            if (!string.IsNullOrWhiteSpace(updatedExistingTask.ErrorMessage))
             {
-                return StatusCode(502, new { message = "We could not sync the linked ClickUp task for this defect." });
+                return StatusCode(502, new
+                {
+                    message = updatedExistingTask.ErrorMessage,
+                    fieldId = updatedExistingTask.FailedFieldId,
+                });
             }
 
             ApplyClickUpLink(defect, existingTask.Id, updatedExistingTask.Url ?? existingTask.Url, targetList.Id, selectedListName, normalizedParentTaskId, existingTask.ParentTaskName, effectiveCustomItemId, selectedCustomItemName);
@@ -484,6 +503,11 @@ public class ClickUpController : ControllerBase
             if (linkResponse != null)
             {
                 return linkResponse;
+            }
+
+            if (preserveLocalAssignedTo)
+            {
+                defect.AssignedToUpdatedAt = DateTime.UtcNow;
             }
 
             await _db.SaveChangesAsync();
@@ -500,6 +524,25 @@ public class ClickUpController : ControllerBase
         var taskId = GetString(responseJson, "id", "task_id") ?? string.Empty;
         var taskUrl = GetString(responseJson, "url", "task_url");
 
+        var createCustomFieldUpdates = ExtractCustomFieldUpdates(createTaskPayload);
+        if (createCustomFieldUpdates.Count > 0)
+        {
+            var customFieldUpsert = await UpsertTaskCustomFieldsAsync(
+                taskId,
+                createCustomFieldUpdates,
+                new Dictionary<string, JsonNode?>(StringComparer.OrdinalIgnoreCase),
+                token);
+
+            if (!customFieldUpsert.Success)
+            {
+                return StatusCode(502, new
+                {
+                    message = customFieldUpsert.ErrorMessage ?? "ClickUp rejected the custom field update.",
+                    fieldId = customFieldUpsert.FailedFieldId,
+                });
+            }
+        }
+
         var listName = !string.IsNullOrWhiteSpace(targetList.Name) ? targetList.Name : GetString(responseJson, "list", "name") ?? targetList.Id;
         var parentTaskName = await ResolveParentTaskNameAsync(targetList.Id, normalizedParentTaskId, token);
         ApplyClickUpLink(defect, taskId, taskUrl, targetList.Id, listName, normalizedParentTaskId, parentTaskName, effectiveCustomItemId, selectedCustomItemName);
@@ -508,6 +551,11 @@ public class ClickUpController : ControllerBase
         if (createdLinkResponse != null)
         {
             return createdLinkResponse;
+        }
+
+        if (preserveLocalAssignedTo)
+        {
+            defect.AssignedToUpdatedAt = DateTime.UtcNow;
         }
 
         await _db.SaveChangesAsync();
@@ -748,9 +796,11 @@ public class ClickUpController : ControllerBase
 
     private sealed record ClickUpTaskLookupDto(string Id, string Name, string? Url, string? ParentTaskId, string? ParentTaskName);
 
-    private sealed record ClickUpTaskUpdateResult(string? Url);
+    private sealed record ClickUpTaskUpdateResult(string? Url, string? ErrorMessage = null, string? FailedFieldId = null);
 
     private sealed record ClickUpCustomFieldUpdate(string FieldId, JsonNode? Value);
+
+    private sealed record ClickUpCustomFieldUpsertResult(bool Success, string? ErrorMessage = null, string? FailedFieldId = null);
 
     private async Task<ClickUpTaskLookupDto?> FindTaskByExactNameAsync(string listId, string? taskName, string? parentTaskId, string token)
     {
@@ -873,19 +923,23 @@ public class ClickUpController : ControllerBase
         return linkedTaskIds;
     }
 
-    private async Task<ClickUpTaskUpdateResult?> UpdateExistingClickUpTaskAsync(string taskId, JsonObject createTaskPayload, string token)
+    private async Task<ClickUpTaskUpdateResult> UpdateExistingClickUpTaskAsync(string taskId, JsonObject createTaskPayload, string token)
     {
         var currentTaskResponse = await CallClickUpAsync($"/task/{taskId}", token);
         if (!currentTaskResponse.IsSuccessStatusCode)
         {
-            return null;
+            var body = await currentTaskResponse.Content.ReadAsStringAsync();
+            var detail = GetFriendlyClickUpErrorMessage(currentTaskResponse.StatusCode, body, "We could not load the linked ClickUp task.");
+            return new ClickUpTaskUpdateResult(null, detail);
         }
 
         using var currentTaskDocument = JsonDocument.Parse(await currentTaskResponse.Content.ReadAsStringAsync());
         var currentTask = currentTaskDocument.RootElement.Clone();
 
         var updatePayload = JsonNode.Parse(createTaskPayload.ToJsonString())?.AsObject() ?? new JsonObject();
-        var desiredAssigneeIds = ExtractAssigneeIds(updatePayload);
+        var shouldUpdateAssignees = updatePayload.TryGetPropertyValue("assignees", out var assigneesNode)
+            && assigneesNode is JsonArray;
+        var desiredAssigneeIds = shouldUpdateAssignees ? ExtractAssigneeIds(updatePayload) : new List<string>();
         var customFieldUpdates = ExtractCustomFieldUpdates(updatePayload);
 
         updatePayload.Remove("assignees");
@@ -902,23 +956,29 @@ public class ClickUpController : ControllerBase
             var updateResponse = await CallClickUpAsync($"/task/{taskId}", token, HttpMethod.Put, changedTaskPayload.ToJsonString());
             if (!updateResponse.IsSuccessStatusCode)
             {
-                return null;
+                var body = await updateResponse.Content.ReadAsStringAsync();
+                var detail = GetFriendlyClickUpErrorMessage(updateResponse.StatusCode, body, "We could not update the linked ClickUp task.");
+                return new ClickUpTaskUpdateResult(null, detail);
             }
 
             var updatedTaskJson = await updateResponse.Content.ReadFromJsonAsync<JsonElement>();
             latestTaskSnapshot = updatedTaskJson;
         }
 
-        var currentAssigneeIds = GetCurrentTaskAssigneeIds(currentTask);
-        if (!await ReplaceTaskAssigneesAsync(taskId, desiredAssigneeIds, currentAssigneeIds, token))
+        if (shouldUpdateAssignees)
         {
-            return null;
+            var currentAssigneeIds = GetCurrentTaskAssigneeIds(currentTask);
+            if (!await ReplaceTaskAssigneesAsync(taskId, desiredAssigneeIds, currentAssigneeIds, token))
+            {
+                return new ClickUpTaskUpdateResult(null, "We could not sync assignees for the linked ClickUp task.");
+            }
         }
 
         var currentCustomFieldValues = GetCurrentTaskCustomFieldValues(currentTask);
-        if (!await UpsertTaskCustomFieldsAsync(taskId, customFieldUpdates, currentCustomFieldValues, token))
+        var customFieldUpsert = await UpsertTaskCustomFieldsAsync(taskId, customFieldUpdates, currentCustomFieldValues, token);
+        if (!customFieldUpsert.Success)
         {
-            return null;
+            return new ClickUpTaskUpdateResult(null, customFieldUpsert.ErrorMessage ?? "We could not sync one or more mapped ClickUp custom fields for this defect.", customFieldUpsert.FailedFieldId);
         }
 
         return new ClickUpTaskUpdateResult(GetString(latestTaskSnapshot, "url", "task_url"));
@@ -1142,11 +1202,22 @@ public class ClickUpController : ControllerBase
         return values;
     }
 
-    private async Task<bool> UpsertTaskCustomFieldsAsync(string taskId, IReadOnlyCollection<ClickUpCustomFieldUpdate> fieldUpdates, IReadOnlyDictionary<string, JsonNode?> currentFieldValues, string token)
+    private async Task<ClickUpCustomFieldUpsertResult> UpsertTaskCustomFieldsAsync(string taskId, IReadOnlyCollection<ClickUpCustomFieldUpdate> fieldUpdates, IReadOnlyDictionary<string, JsonNode?> currentFieldValues, string token)
     {
+        var availableFieldValues = currentFieldValues;
+        if (availableFieldValues.Count == 0)
+        {
+            var taskResponse = await CallClickUpAsync($"/task/{taskId}", token);
+            if (taskResponse.IsSuccessStatusCode)
+            {
+                using var taskDocument = JsonDocument.Parse(await taskResponse.Content.ReadAsStringAsync());
+                availableFieldValues = GetCurrentTaskCustomFieldValues(taskDocument.RootElement);
+            }
+        }
+
         foreach (var field in fieldUpdates)
         {
-            if (currentFieldValues.TryGetValue(field.FieldId, out var currentValue)
+            if (availableFieldValues.TryGetValue(field.FieldId, out var currentValue)
                 && JsonNode.DeepEquals(field.Value, currentValue))
             {
                 continue;
@@ -1160,11 +1231,31 @@ public class ClickUpController : ControllerBase
             var response = await CallClickUpAsync($"/task/{taskId}/field/{field.FieldId}", token, HttpMethod.Post, payload.ToJsonString());
             if (!response.IsSuccessStatusCode)
             {
-                return false;
+                var body = await response.Content.ReadAsStringAsync();
+                var detail = GetFriendlyClickUpErrorMessage(response.StatusCode, body, "ClickUp rejected the custom field update.");
+
+                if (IsTaskLocationHierarchyFieldError(detail))
+                {
+                    continue;
+                }
+
+                return new ClickUpCustomFieldUpsertResult(false, detail, field.FieldId);
             }
         }
 
-        return true;
+        return new ClickUpCustomFieldUpsertResult(true);
+    }
+
+    private static bool IsTaskLocationHierarchyFieldError(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return false;
+        }
+
+        return message.Contains("Custom field does not exist in the task location hierarchy", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("custom field does not exist", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("field does not exist", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<string> ResolveCustomItemNameAsync(string? workspaceId, string customItemId, string token, string? fallbackName)
@@ -1376,6 +1467,11 @@ public class ClickUpController : ControllerBase
                 mappedValue = mappedOption;
             }
 
+            if (string.IsNullOrWhiteSpace(mappedValue))
+            {
+                continue;
+            }
+
             customFields.Add(new JsonObject
             {
                 ["id"] = mapping.Key,
@@ -1414,6 +1510,196 @@ public class ClickUpController : ControllerBase
         }
 
         return mappings;
+    }
+
+    private async Task<Dictionary<string, string>> ReconcileConfiguredFieldMappingsAsync(
+        Dictionary<string, string> configuredFieldMappings,
+        ClickUpConfigurationParseResult config,
+        string? spaceId,
+        string? listId,
+        string token)
+    {
+        if (config.FieldMappings.Count == 0
+            || configuredFieldMappings.Count == 0)
+        {
+            return configuredFieldMappings;
+        }
+
+        var liveFields = new List<ClickUpFieldMetadataDto>();
+        if (!string.IsNullOrWhiteSpace(listId))
+        {
+            liveFields = await LoadCustomFieldsForListAsync(listId, token);
+        }
+
+        if (liveFields.Count == 0 && !string.IsNullOrWhiteSpace(spaceId))
+        {
+            liveFields = await LoadCustomFieldsAsync(spaceId, token);
+        }
+
+        if (liveFields.Count == 0)
+        {
+            return configuredFieldMappings;
+        }
+
+        var liveIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var liveIdByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var liveFieldByName = new Dictionary<string, ClickUpFieldMetadataDto>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var field in liveFields)
+        {
+            var liveId = field.Id?.Trim();
+            var liveName = field.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(liveId) || string.IsNullOrWhiteSpace(liveName))
+            {
+                continue;
+            }
+
+            liveIds.Add(liveId);
+            if (!liveFieldByName.TryGetValue(liveName, out var existingByName)
+                || (!existingByName.HasAppliedObjects && field.HasAppliedObjects))
+            {
+                liveFieldByName[liveName] = field;
+                liveIdByName[liveName] = liveId;
+            }
+        }
+
+        foreach (var mapping in config.FieldMappings)
+        {
+            var configuredId = mapping.ClickUpFieldId?.Trim();
+            var configuredName = mapping.ClickUpFieldName?.Trim();
+            var peekQaField = mapping.PeekQaFieldName?.Trim();
+
+            if (string.IsNullOrWhiteSpace(configuredId)
+                || string.IsNullOrWhiteSpace(configuredName)
+                || string.IsNullOrWhiteSpace(peekQaField)
+                || SystemClickUpFieldIds.Contains(configuredId)
+                || liveIds.Contains(configuredId)
+                || !liveIdByName.TryGetValue(configuredName, out var liveId)
+                || string.IsNullOrWhiteSpace(liveId))
+            {
+                continue;
+            }
+
+            configuredFieldMappings.Remove(configuredId);
+            configuredFieldMappings[liveId] = peekQaField;
+        }
+
+        // Fallback: if persisted metadata is missing/outdated, remap stale IDs by PeekQA field label.
+        // This helps when ClickUp recreated field IDs after a type change (e.g. Text -> Long Text).
+        var staleEntries = configuredFieldMappings
+            .Where(entry => !SystemClickUpFieldIds.Contains(entry.Key) && !liveIds.Contains(entry.Key))
+            .ToList();
+
+        foreach (var staleEntry in staleEntries)
+        {
+            var peekQaField = staleEntry.Value?.Trim();
+            if (string.IsNullOrWhiteSpace(peekQaField))
+            {
+                continue;
+            }
+
+            if (!liveIdByName.TryGetValue(peekQaField, out var liveId) || string.IsNullOrWhiteSpace(liveId))
+            {
+                continue;
+            }
+
+            configuredFieldMappings.Remove(staleEntry.Key);
+            configuredFieldMappings[liveId] = peekQaField;
+        }
+
+        return configuredFieldMappings;
+    }
+
+    private async Task<Dictionary<string, string>> EnsureCriticalLongTextMappingsAsync(
+        Dictionary<string, string> configuredFieldMappings,
+        string? spaceId,
+        string? listId,
+        string token)
+    {
+        var liveFields = new List<ClickUpFieldMetadataDto>();
+        if (!string.IsNullOrWhiteSpace(listId))
+        {
+            liveFields = await LoadCustomFieldsForListAsync(listId, token);
+        }
+
+        if (liveFields.Count == 0 && !string.IsNullOrWhiteSpace(spaceId))
+        {
+            liveFields = await LoadCustomFieldsAsync(spaceId, token);
+        }
+
+        if (liveFields.Count == 0)
+        {
+            return configuredFieldMappings;
+        }
+
+        static string NormalizeLabel(string value)
+        {
+            var chars = value.Where(char.IsLetterOrDigit).ToArray();
+            return new string(chars).ToLowerInvariant();
+        }
+
+        var fieldByNormalizedName = new Dictionary<string, ClickUpFieldMetadataDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var field in liveFields)
+        {
+            var id = field.Id?.Trim();
+            var name = field.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var key = NormalizeLabel(name);
+            if (!fieldByNormalizedName.TryGetValue(key, out var existing)
+                || (!existing.HasAppliedObjects && field.HasAppliedObjects))
+            {
+                fieldByNormalizedName[key] = field;
+            }
+        }
+
+        string? FindPreferredFieldId(params string[] candidateNames)
+        {
+            foreach (var candidate in candidateNames)
+            {
+                var key = NormalizeLabel(candidate);
+                if (!fieldByNormalizedName.TryGetValue(key, out var field) || string.IsNullOrWhiteSpace(field.Id))
+                {
+                    continue;
+                }
+
+                return field.Id;
+            }
+
+            return null;
+        }
+
+        void EnsureMapping(string peekQaField, params string[] candidateNames)
+        {
+            var preferredFieldId = FindPreferredFieldId(candidateNames);
+            if (string.IsNullOrWhiteSpace(preferredFieldId))
+            {
+                return;
+            }
+
+            var currentlyMappedIds = configuredFieldMappings
+                .Where(entry => string.Equals(entry.Value?.Trim(), peekQaField, StringComparison.OrdinalIgnoreCase))
+                .Select(entry => entry.Key)
+                .ToList();
+
+            foreach (var mappedId in currentlyMappedIds)
+            {
+                if (!string.Equals(mappedId, preferredFieldId, StringComparison.OrdinalIgnoreCase))
+                {
+                    configuredFieldMappings.Remove(mappedId);
+                }
+            }
+
+            configuredFieldMappings[preferredFieldId] = peekQaField;
+        }
+
+        EnsureMapping("Expected Result", "Expected Result", "Expected", "ExpectedResult");
+        EnsureMapping("Actual Result", "Actual Result", "Actual", "ActualResult");
+
+        return configuredFieldMappings;
     }
 
     private static string? ResolveConfiguredPeekQaFieldValue(Defect defect, IReadOnlyDictionary<string, string> configuredFieldMappings, string clickUpFieldId)
@@ -1753,7 +2039,6 @@ public class ClickUpController : ControllerBase
             _ => null,
         };
     }
-
     private static string NormalizePeekQaStatus(string? status)
     {
         var value = status?.Trim() ?? string.Empty;
@@ -1843,10 +2128,57 @@ public class ClickUpController : ControllerBase
                 var type = GetString(item, "type", "field_type", "fieldType", "kind");
                 var isRequired = item.TryGetProperty("required", out var requiredElement) && requiredElement.ValueKind == JsonValueKind.True;
                 var options = ParseFieldOptions(item);
+                var hasAppliedObjects = item.TryGetProperty("applied_objects", out var appliedObjectsElement)
+                    && appliedObjectsElement.ValueKind == JsonValueKind.Array
+                    && appliedObjectsElement.GetArrayLength() > 0;
 
                 if (!string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name))
                 {
-                    fields.Add(new ClickUpFieldMetadataDto(id, name, type ?? "custom", isRequired, false, options));
+                    fields.Add(new ClickUpFieldMetadataDto(id, name, type ?? "custom", isRequired, false, options, hasAppliedObjects));
+                }
+            }
+
+            return fields;
+        }
+        catch
+        {
+            return new List<ClickUpFieldMetadataDto>();
+        }
+    }
+
+    private async Task<List<ClickUpFieldMetadataDto>> LoadCustomFieldsForListAsync(string listId, string token)
+    {
+        var response = await CallClickUpAsync($"/list/{listId}/field", token);
+        if (!response.IsSuccessStatusCode)
+        {
+            return new List<ClickUpFieldMetadataDto>();
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var root = document.RootElement;
+            var elementArray = root.ValueKind == JsonValueKind.Array ? root : (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("fields", out var fieldsElement) ? fieldsElement : root);
+            if (elementArray.ValueKind != JsonValueKind.Array)
+            {
+                return new List<ClickUpFieldMetadataDto>();
+            }
+
+            var fields = new List<ClickUpFieldMetadataDto>();
+            foreach (var item in elementArray.EnumerateArray())
+            {
+                var id = GetString(item, "id", "field_id", "fieldId", "key");
+                var name = GetString(item, "name", "label", "field_name", "fieldName");
+                var type = GetString(item, "type", "field_type", "fieldType", "kind");
+                var isRequired = item.TryGetProperty("required", out var requiredElement) && requiredElement.ValueKind == JsonValueKind.True;
+                var options = ParseFieldOptions(item);
+                var hasAppliedObjects = item.TryGetProperty("applied_objects", out var appliedObjectsElement)
+                    && appliedObjectsElement.ValueKind == JsonValueKind.Array
+                    && appliedObjectsElement.GetArrayLength() > 0;
+
+                if (!string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name))
+                {
+                    fields.Add(new ClickUpFieldMetadataDto(id, name, type ?? "custom", isRequired, false, options, hasAppliedObjects));
                 }
             }
 
@@ -2353,8 +2685,54 @@ public class ClickUpController : ControllerBase
             HttpStatusCode.TooManyRequests => "ClickUp is rate limiting requests. Please try again shortly.",
             HttpStatusCode.NotFound => "ClickUp could not find the requested resource. Please verify your workspace and space selection.",
             HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout => "ClickUp is temporarily unavailable. Please try again shortly.",
-            _ => fallbackMessage,
+            _ => TryExtractClickUpErrorDetail(responseBody) ?? fallbackMessage,
         };
+    }
+
+    private static string? TryExtractClickUpErrorDetail(string? responseBody)
+    {
+        if (string.IsNullOrWhiteSpace(responseBody))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            var root = document.RootElement;
+
+            foreach (var key in new[] { "err", "error", "message", "detail", "ECODE", "meta_err" })
+            {
+                if (root.TryGetProperty(key, out var value))
+                {
+                    if (value.ValueKind == JsonValueKind.String)
+                    {
+                        var text = value.GetString();
+                        if (!string.IsNullOrWhiteSpace(text))
+                        {
+                            return text.Trim();
+                        }
+                    }
+                    else
+                    {
+                        var raw = value.GetRawText();
+                        if (!string.IsNullOrWhiteSpace(raw) && raw != "{}" && raw != "[]")
+                        {
+                            return raw;
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            if (!string.IsNullOrWhiteSpace(responseBody))
+            {
+                return responseBody.Trim();
+            }
+        }
+
+        return null;
     }
 
     private string? GetStoredToken(UserAccount user)
@@ -2657,7 +3035,7 @@ public record ClickUpWorkspacesApiResponse(List<ClickUpTeamApiModel>? Teams);
 public record ClickUpTeamApiModel(string Id, string Name);
 public record ClickUpSpacesApiResponse(List<ClickUpWorkspaceApiModel>? Spaces);
 public record ClickUpSpaceMetadataDto(List<ClickUpFieldMetadataDto> Fields, List<ClickUpStatusOptionDto> Statuses, List<ClickUpPriorityOptionDto> Priorities);
-public record ClickUpFieldMetadataDto(string Id, string Name, string Type, bool Required, bool IsSystemField, List<ClickUpSelectOptionDto> Options);
+public record ClickUpFieldMetadataDto(string Id, string Name, string Type, bool Required, bool IsSystemField, List<ClickUpSelectOptionDto> Options, bool HasAppliedObjects = false);
 public record ClickUpSelectOptionDto(string Value, string Label);
 public record ClickUpStatusOptionDto(string Value, string Label);
 public record ClickUpPriorityOptionDto(string Value, string Label);
