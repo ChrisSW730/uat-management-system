@@ -7,6 +7,7 @@ public class TestRun
     public string Name { get; set; } = string.Empty;
     public string Tester { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<TestRunEntry> Entries { get; set; } = new List<TestRunEntry>();
     public ICollection<Defect> Defects { get; set; } = new List<Defect>();

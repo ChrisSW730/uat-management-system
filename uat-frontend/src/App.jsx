@@ -156,6 +156,7 @@ export default function App() {
   const [tcSearch, setTcSearch] = useState("");
   const [tcCatFilter, setTcCatFilter] = useState("All");
   const [tcPriFilter, setTcPriFilter] = useState("All");
+  const [tcScopeFilter, setTcScopeFilter] = useState("All");
   const [defSearch, setDefSearch] = useState("");
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -570,6 +571,7 @@ export default function App() {
   const mentionInputRefs = useRef({});
   const dashboardRef = useRef(null);
   const ctxMenuRef = useRef(null);
+  const dashboardDefaultSelectionAppliedRef = useRef(false);
   const defectLogAutoSyncAttemptedRef = useRef(false);
   const defectLogAutoSyncInFlightRef = useRef(false);
 
@@ -918,6 +920,7 @@ export default function App() {
    }, []);*/
   useEffect(() => {
     if (!authUser) {
+      dashboardDefaultSelectionAppliedRef.current = false;
       setMentionUsers([]);
       setMentionPicker(null);
       setNotifications([]);
@@ -1025,12 +1028,12 @@ export default function App() {
   }, [activeTab, authUser, clickUpEnabled]);
 
   useEffect(() => {
-    if (!authUser) return;
+    if (!authUser || activeTab !== "testcases") return;
 
     api.getTestCases(selectedTestPlanId || undefined)
       .then(setTestCases)
       .catch(err => console.error("TC Error:", err));
-  }, [selectedTestPlanId, authUser]);
+  }, [selectedTestPlanId, authUser, activeTab]);
 
   useEffect(() => {
     function handleClick() {
@@ -1070,8 +1073,9 @@ export default function App() {
     const q = tcSearch.toLowerCase();
     return (tc.name.toLowerCase().includes(q) || tc.tcNumber.toLowerCase().includes(q))
       && (tcCatFilter === "All" || tc.category === tcCatFilter)
-      && (tcPriFilter === "All" || tc.priority === tcPriFilter);
-  }), [testCases, tcSearch, tcCatFilter, tcPriFilter]);
+      && (tcPriFilter === "All" || tc.priority === tcPriFilter)
+      && (tcScopeFilter === "All" || String(tc.testScopeId || "") === tcScopeFilter);
+  }), [testCases, tcSearch, tcCatFilter, tcPriFilter, tcScopeFilter]);
 
   const filteredDefects = useMemo(() => defects.filter(def => {
     const q = defSearch.trim().toLowerCase();
@@ -1345,8 +1349,29 @@ export default function App() {
   }, [runs]);
 
   const sortedFilteredTC = useMemo(
-    () => applySort(filteredTC, tcSortCol, tcSortDir),
-    [filteredTC, tcSortCol, tcSortDir]
+    () => {
+      if (tcSortCol !== "testScopeName") {
+        return applySort(filteredTC, tcSortCol, tcSortDir);
+      }
+
+      const getScopeName = (tc) => {
+        const project = (projects || []).find(p =>
+          (p.testPlans || []).some(tp => tp.id === tc.testPlanId)
+        );
+        const plan = (project?.testPlans || []).find(tp => tp.id === tc.testPlanId);
+        const scope = (plan?.testScopes || []).find(s => s.id === tc.testScopeId);
+        return (scope?.name || "").toLowerCase();
+      };
+
+      return [...filteredTC].sort((a, b) => {
+        const av = getScopeName(a);
+        const bv = getScopeName(b);
+        if (av < bv) return tcSortDir === "asc" ? -1 : 1;
+        if (av > bv) return tcSortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    },
+    [filteredTC, tcSortCol, tcSortDir, projects]
   );
 
   const sortedFilteredDefects = useMemo(
@@ -1585,6 +1610,92 @@ export default function App() {
     });
     return map;
   }, [testScopesByPlanId]);
+
+  useEffect(() => {
+    if (!authUser || loading || activeTab !== "dashboard") {
+      return;
+    }
+
+    if (dashboardDefaultSelectionAppliedRef.current) {
+      return;
+    }
+
+    if (dashProjectId || dashPlanId || dashRunId) {
+      dashboardDefaultSelectionAppliedRef.current = true;
+      return;
+    }
+
+    if (!Array.isArray(runs) || runs.length === 0) {
+      dashboardDefaultSelectionAppliedRef.current = true;
+      return;
+    }
+
+    const getRunPlanIds = (run) => {
+      const counts = new Map();
+
+      (run.entries || []).forEach(entry => {
+        const testPlanId = entry.testCase?.testPlanId ?? allTestCaseById[entry.testCaseId]?.testPlanId;
+        if (testPlanId == null) return;
+        counts.set(testPlanId, (counts.get(testPlanId) || 0) + 1);
+      });
+
+      return Array.from(counts.entries())
+        .sort((a, b) => {
+          if (b[1] !== a[1]) return b[1] - a[1];
+          return b[0] - a[0];
+        })
+        .map(([testPlanId]) => testPlanId);
+    };
+
+    const getRunUpdatedTime = (run) => {
+      const updatedAtMs = new Date(run.updatedAt || 0).getTime();
+      if (!Number.isNaN(updatedAtMs) && updatedAtMs > 0) {
+        return updatedAtMs;
+      }
+
+      const fallbackActivityMs = Math.max(
+        new Date(run.createdAt || 0).getTime() || 0,
+        ...(run.entries || []).flatMap(entry => [
+          new Date(entry.statusChangedAt || 0).getTime() || 0,
+          ...((entry.comments || []).map(comment => new Date(comment.createdAt || 0).getTime() || 0))
+        ])
+      );
+
+      return fallbackActivityMs;
+    };
+
+    const latestRun = [...runs]
+      .sort((a, b) => {
+        const updatedDiff = getRunUpdatedTime(b) - getRunUpdatedTime(a);
+        if (updatedDiff !== 0) return updatedDiff;
+
+        const createdDiff = (new Date(b.createdAt || 0).getTime() || 0) - (new Date(a.createdAt || 0).getTime() || 0);
+        if (createdDiff !== 0) return createdDiff;
+
+        return (b.id || 0) - (a.id || 0);
+      })
+      .find(run => getRunPlanIds(run).length > 0);
+
+    if (!latestRun) {
+      dashboardDefaultSelectionAppliedRef.current = true;
+      return;
+    }
+
+    const primaryPlanId = getRunPlanIds(latestRun)[0];
+    const project = (projects || []).find(p =>
+      (p.testPlans || []).some(tp => tp.id === primaryPlanId)
+    );
+
+    if (!primaryPlanId || !project) {
+      dashboardDefaultSelectionAppliedRef.current = true;
+      return;
+    }
+
+    setDashProjectId(String(project.id));
+    setDashPlanId(String(primaryPlanId));
+    setDashRunId(String(latestRun.id));
+    dashboardDefaultSelectionAppliedRef.current = true;
+  }, [activeTab, authUser, loading, dashProjectId, dashPlanId, dashRunId, runs, projects, allTestCaseById, setDashProjectId, setDashPlanId, setDashRunId]);
 
   const linkedTestCaseCountByScopeKey = useMemo(() => {
     const map = {};
@@ -4263,6 +4374,9 @@ linear-gradient(
 
               tcPriFilter={tcPriFilter}
               setTcPriFilter={setTcPriFilter}
+
+              tcScopeFilter={tcScopeFilter}
+              setTcScopeFilter={setTcScopeFilter}
 
               tcSortCol={tcSortCol}
               setTcSortCol={setTcSortCol}

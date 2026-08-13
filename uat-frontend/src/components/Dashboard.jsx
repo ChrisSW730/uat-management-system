@@ -343,9 +343,10 @@ export default function Dashboard({
                         placeholder="All Test Plans"
                         options={[
                             { value: "", label: "All Test Plans" },
-                            ...(projects.find(
-                                p => String(p.id) === dashProjectId
-                            )?.testPlans || []).map(tp => ({
+                            ...((dashProjectId
+                                ? (projects.find(p => String(p.id) === dashProjectId)?.testPlans || [])
+                                : projects.flatMap(p => p.testPlans || []))
+                            ).map(tp => ({
                                 value: String(tp.id),
                                 label: tp.name
                             }))
@@ -481,7 +482,7 @@ export default function Dashboard({
                         iconColor: "#6366F1",
                         label: "Total Test Cases",
                         value: tcCount,
-                        sub: "Linked to active plans",
+                        sub: "Linked to test plan",
                         color: "#6366F1",
                         execStatus: "All"
                     },

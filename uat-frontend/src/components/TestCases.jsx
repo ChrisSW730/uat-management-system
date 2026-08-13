@@ -24,6 +24,9 @@ export default function TestCases(props) {
     tcPriFilter,
     setTcPriFilter,
 
+    tcScopeFilter,
+    setTcScopeFilter,
+
     tcSortCol,
     setTcSortCol,
     tcSortDir,
@@ -83,6 +86,21 @@ export default function TestCases(props) {
     currentPage * pageSize
   );
 
+  const scopeFilterOptions = (() => {
+    let plans;
+    if (selectedTestPlanId) {
+      plans = selectedProjectPlans.filter(tp => String(tp.id) === String(selectedTestPlanId));
+    } else if (selectedProjectId) {
+      plans = selectedProjectPlans;
+    } else {
+      plans = projects.flatMap(p => p.testPlans || []);
+    }
+    const seen = new Map();
+    plans.flatMap(plan => (plan.testScopes || []).map(scope => ({ value: String(scope.id), label: scope.name })))
+      .forEach(scope => { if (!seen.has(scope.value)) seen.set(scope.value, scope); });
+    return Array.from(seen.values()).sort((a, b) => a.label.localeCompare(b.label));
+  })();
+
   useEffect(() => {
     const handleClickOutside = event => {
       if (headerFilterRef.current && !headerFilterRef.current.contains(event.target)) {
@@ -100,6 +118,7 @@ export default function TestCases(props) {
     tcSearch,
     tcCatFilter,
     tcPriFilter,
+    tcScopeFilter,
     selectedProjectId,
     selectedTestPlanId,
     tcSortCol,
@@ -121,6 +140,7 @@ export default function TestCases(props) {
       priority: 180,
       project: 260,
       plan: 360,
+      scope: 260,
     }[type] || 220;
     const left = Math.max(8, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 8));
     const top = Math.min(rect.bottom + 6, window.innerHeight - 180);
@@ -183,6 +203,7 @@ export default function TestCases(props) {
               setTcSearch("");
               setTcCatFilter("All");
               setTcPriFilter("All");
+              setTcScopeFilter("All");
               setSelectedProjectId("");
               setSelectedTestPlanId("");
             }}
@@ -346,7 +367,7 @@ export default function TestCases(props) {
                   style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
                 />
               </th>
-              {[{ label: "Actions", col: "" }, { label: "ID", col: "tcNumber" }, { label: "Project", col: "" }, { label: "Test Plan", col: "" }, { label: "Test Name", col: "name" }, { label: "Category", col: "category" }, { label: "Coverage", col: "" }, { label: "Priority", col: "priority" }].map(({ label, col }) => (
+              {[{ label: "Actions", col: "" }, { label: "ID", col: "tcNumber" }, { label: "Project", col: "" }, { label: "Test Plan", col: "" }, { label: "Test Name", col: "name" }, { label: "Category", col: "category" }, { label: "Test Scope", col: "testScopeName" }, { label: "Priority", col: "priority" }, { label: "Coverage", col: "" }].map(({ label, col }) => (
                 <th key={label} onClick={col ? () => { if (tcSortCol === col) setTcSortDir(d => d === "asc" ? "desc" : "asc"); else { setTcSortCol(col); setTcSortDir("asc"); } } : undefined}
                   style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && tcSortCol === col ? "#d4dff0" : undefined }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -386,6 +407,25 @@ export default function TestCases(props) {
                         <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 180, fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
                           {[{ value: "All", label: "All Priorities" }, ...TEST_CASE_PRIORITIES.map(p => ({ value: p, label: p }))].map(option => (
                             <div key={option.value} className="dropdown-item" onClick={() => { setTcPriFilter(option.value); setHeaderFilterOpen(null); }}>{option.label}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {label === "Test Scope" && (
+                    <div ref={headerFilterOpen?.type === "scope" ? headerFilterRef : null} onClick={e => e.stopPropagation()} style={{ display: "inline-flex", marginLeft: 8, verticalAlign: "middle" }}>
+                      <button
+                        type="button"
+                        onClick={event => toggleHeaderFilter("scope", event)}
+                        title="Filter test scope"
+                        style={{ border: "1px solid #cbd5e1", background: tcScopeFilter !== "All" ? "#eff6ff" : "#fff", color: tcScopeFilter !== "All" ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <Funnel size={12} />
+                      </button>
+                      {headerFilterOpen?.type === "scope" && (
+                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 260, maxHeight: 300, overflowY: "auto", fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                          {[{ value: "All", label: "All Test Scopes" }, ...scopeFilterOptions].map(option => (
+                            <div key={option.value} className="dropdown-item" onClick={() => { setTcScopeFilter(option.value); setHeaderFilterOpen(null); }}>{option.label}</div>
                           ))}
                         </div>
                       )}
@@ -464,7 +504,7 @@ export default function TestCases(props) {
             </tr>
           </thead>
           <tbody>
-            {sortedFilteredTC.length === 0 && <tr><td colSpan={9} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No test cases found</td></tr>}
+            {sortedFilteredTC.length === 0 && <tr><td colSpan={10} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No test cases found</td></tr>}
             {pagedTestCases.map((tc, i) => {
               const rowIndex = (currentPage - 1) * pageSize + i;
               const isSelected = selectedTcIds.includes(tc.id);
@@ -523,17 +563,14 @@ export default function TestCases(props) {
                   </td>
                   <td style={{ padding: "13px 16px", maxWidth: 340 }} onClick={() => setViewTC(tc)}>
                     <div style={{ fontWeight: 700, color: "#1e293b", lineHeight: 1.4 }}>{tc.name}</div>
-                    {tc.testScopeId && testScopeNameById[tc.testScopeId] && (
-                      <div style={{ marginTop: 5 }}>
-                        <span style={{ fontSize: 12, color: "#4338ca", background: "#eef2ff", border: "1px solid #c7d2fe", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>
-                          Scope: {testScopeNameById[tc.testScopeId]}
-                        </span>
-                      </div>
-                    )}
                   </td>
                   <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
                     <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{tc.category || "-"}</span>
                   </td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}>
+                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{testScopeNameById[tc.testScopeId] || "-"}</span>
+                  </td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}><PriBadge label={tc.priority} /></td>
                   <td
                     style={{ padding: "13px 16px", whiteSpace: "nowrap" }}
                     onClick={() => setViewTC(tc)}
@@ -566,7 +603,6 @@ export default function TestCases(props) {
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewTC(tc)}><PriBadge label={tc.priority} /></td>
                 </tr>
               );
             })}

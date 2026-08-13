@@ -100,12 +100,14 @@ public class TestRunsController : ControllerBase
     public async Task<IActionResult> Create(CreateRunDto dto)
     {
         var count = await _db.TestRuns.CountAsync();
+        var now = DateTime.UtcNow;
         var run = new TestRun
         {
             RunNumber = $"RUN-{(count + 1):D3}",
             Name = dto.Name,
             Tester = dto.Tester,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         foreach (var tcId in dto.TestCaseIds)
         {
@@ -135,6 +137,7 @@ public class TestRunsController : ControllerBase
             ExecStatus = "Not Run",
             Comment = ""
         });
+        run.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(run);
     }
@@ -144,8 +147,10 @@ public class TestRunsController : ControllerBase
     public async Task<IActionResult> RemoveEntry(int id, int testCaseId)
     {
         var entry = await _db.TestRunEntries
+            .Include(e => e.TestRun)
             .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
         if (entry == null) return NotFound();
+        entry.TestRun.UpdatedAt = DateTime.UtcNow;
         _db.TestRunEntries.Remove(entry);
         await _db.SaveChangesAsync();
         return Ok();
@@ -161,6 +166,7 @@ public class TestRunsController : ControllerBase
         }
 
         var entry = await _db.TestRunEntries
+            .Include(e => e.TestRun)
             .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
         if (entry == null) return NotFound();
 
@@ -179,6 +185,7 @@ public class TestRunsController : ControllerBase
         };
 
         _db.TestRunEntryComments.Add(comment);
+        entry.TestRun.UpdatedAt = DateTime.UtcNow;
         await CreateMentionNotificationsAsync(dto.Message.Trim(), actorDisplayName, $"/runs/{id}", testCaseNumber);
         await _db.SaveChangesAsync();
         return Ok(comment);
@@ -190,9 +197,11 @@ public class TestRunsController : ControllerBase
     {
         var comment = await _db.TestRunEntryComments
             .Include(c => c.TestRunEntry)
+                .ThenInclude(e => e.TestRun)
             .FirstOrDefaultAsync(c => c.Id == commentId && c.TestRunEntry.TestRunId == id && c.TestRunEntry.TestCaseId == testCaseId);
         if (comment == null) return NotFound();
 
+        comment.TestRunEntry.TestRun.UpdatedAt = DateTime.UtcNow;
         _db.TestRunEntryComments.Remove(comment);
         await _db.SaveChangesAsync();
         return NoContent();
@@ -214,6 +223,7 @@ public class TestRunsController : ControllerBase
 
         run.Name = dto.Name;
         run.Tester = dto.Tester;
+        run.UpdatedAt = DateTime.UtcNow;
 
         if (dto.TestCaseIds is not null)
         {
@@ -260,6 +270,7 @@ public class TestRunsController : ControllerBase
     public async Task<IActionResult> UpdateEntry(int id, int testCaseId, UpdateEntryDto dto)
     {
         var entry = await _db.TestRunEntries
+            .Include(e => e.TestRun)
             .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
         if (entry == null) return NotFound();
 
@@ -272,6 +283,7 @@ public class TestRunsController : ControllerBase
 
         entry.ExecStatus = dto.ExecStatus;
         entry.Comment = dto.Comment;
+        entry.TestRun.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(entry);
     }
@@ -307,6 +319,7 @@ public class TestRunsController : ControllerBase
             Name = original.Name + " (Copy)",
             Tester = original.Tester,
             CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
         };
 
         foreach (var entry in original.Entries)
