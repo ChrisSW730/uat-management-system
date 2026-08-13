@@ -2948,7 +2948,8 @@ export default function App() {
       setEditDef(d => d?.id === def.id ? normalizedUpdated : d);
 
       const linkedTaskId = normalizedUpdated?.clickUpTaskId || def?.clickUpTaskId || "";
-      if (clickUpEnabled) {
+      const shouldSyncClickUpDefect = Boolean(clickUpEnabled && String(linkedTaskId).trim());
+      if (shouldSyncClickUpDefect) {
         try {
           const syncResult = await syncDefectToClickUp(def.id, {
             listId: normalizedUpdated?.clickUpListId || def?.clickUpListId || null,
