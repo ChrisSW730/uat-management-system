@@ -169,6 +169,7 @@ export default function App() {
   const [authUser, setAuthUser] = useState(() => readStoredAuth()?.user || null);
   const [defStatusFilter, setDefStatusFilter] = useState(() => getDefaultDefectStatusFilter());
   const [defPriFilter, setDefPriFilter] = useState([]);
+  const [defIssueTypeFilter, setDefIssueTypeFilter] = useState([]);
   const [defProjectFilter, setDefProjectFilter] = useState("All");
   const [defMarketFilter, setDefMarketFilter] = useState([]);
   const [defPlanFilter, setDefPlanFilter] = useState("All");
@@ -1111,13 +1112,14 @@ export default function App() {
     return matchesSearch
       && (!Array.isArray(defStatusFilter) || defStatusFilter.length === 0 || defStatusFilter.includes(def.status))
       && (!Array.isArray(defPriFilter) || defPriFilter.length === 0 || defPriFilter.includes(def.priority))
+      && (!Array.isArray(defIssueTypeFilter) || defIssueTypeFilter.length === 0 || defIssueTypeFilter.includes(def.issueType || ""))
       && (!Array.isArray(defMarketFilter) || defMarketFilter.length === 0 || defMarketFilter.includes(def.market))
       && (defProjectFilter === "All" || projects.some(project => String(project.id) === defProjectFilter && (project.testPlans || []).some(plan => plan.id === def.testPlanId)))
       && (defPlanFilter === "All" || String(def.testPlanId) === defPlanFilter)
       && (defRunFilter === "All" || String(def.testRunId || def.testRunEntry?.testRunId) === defRunFilter)
       && matchesOpenRule
       && matchesCloseRule;
-  }), [defects, defSearch, defStatusFilter, defPriFilter, defProjectFilter, defMarketFilter, defPlanFilter, defRunFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate, projects]);
+  }), [defects, defSearch, defStatusFilter, defPriFilter, defIssueTypeFilter, defProjectFilter, defMarketFilter, defPlanFilter, defRunFilter, defOpenRule, defOpenDate, defCloseRule, defCloseDate, projects]);
 
   const dashboardStats = useMemo(() => {
     const filteredProjects = dashProjectId
@@ -1383,6 +1385,7 @@ export default function App() {
     setDefSearch("");
     setDefStatusFilter(getDefaultDefectStatusFilter());
     setDefPriFilter(priority ? [normalizeDefectPriority(priority) || priority] : []);
+    setDefIssueTypeFilter([]);
     setDefProjectFilter(dashProjectId || "All");
     setDefMarketFilter([]);
     setDefPlanFilter(dashPlanId || "All");
@@ -4488,6 +4491,8 @@ linear-gradient(
               setDefStatusFilter={setDefStatusFilter}
               defPriFilter={defPriFilter}
               setDefPriFilter={setDefPriFilter}
+              defIssueTypeFilter={defIssueTypeFilter}
+              setDefIssueTypeFilter={setDefIssueTypeFilter}
               defProjectFilter={defProjectFilter}
               setDefProjectFilter={setDefProjectFilter}
               defMarketFilter={defMarketFilter}

@@ -14,6 +14,8 @@ export default function Defects({
   setDefStatusFilter,
   defPriFilter,
   setDefPriFilter,
+  defIssueTypeFilter,
+  setDefIssueTypeFilter,
   defProjectFilter,
   setDefProjectFilter,
   defMarketFilter,
@@ -65,7 +67,9 @@ export default function Defects({
   const headerFilterRef = useRef(null);
   const selectedStatuses = Array.isArray(defStatusFilter) ? defStatusFilter : [];
   const selectedPriorities = Array.isArray(defPriFilter) ? defPriFilter : [];
+  const selectedIssueTypes = Array.isArray(defIssueTypeFilter) ? defIssueTypeFilter : [];
   const selectedMarkets = Array.isArray(defMarketFilter) ? defMarketFilter : [];
+  const issueTypeOptions = Array.from(new Set(defects.map(defect => defect.issueType).filter(Boolean))).sort();
   const marketOptions = Array.from(new Set(defects.map(defect => defect.market).filter(Boolean))).sort();
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -96,6 +100,7 @@ export default function Defects({
     defSearch,
     defStatusFilter,
     defPriFilter,
+    defIssueTypeFilter,
     defProjectFilter,
     defMarketFilter,
     defPlanFilter,
@@ -129,7 +134,7 @@ export default function Defects({
   const toggleHeaderFilter = (type, event) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    const panelWidth = type === "priority" ? 160 : 180;
+    const panelWidth = type === "priority" ? 160 : type === "issueType" ? 220 : 180;
     const left = Math.max(8, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 8));
     const top = Math.min(rect.bottom + 6, window.innerHeight - 150);
 
@@ -191,6 +196,7 @@ export default function Defects({
                 setDefSearch("");
                 setDefStatusFilter([]);
                 setDefPriFilter([]);
+                setDefIssueTypeFilter([]);
                 setDefProjectFilter("All");
                 setDefMarketFilter([]);
                 setDefPlanFilter("All");
@@ -358,7 +364,7 @@ export default function Defects({
                   style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#6366f1" }}
                 />
               </th>
-              {[{ label: "Actions", col: "" }, { label: "ID", col: "defectNumber" }, { label: "Market", col: "market" }, { label: "Defect Title", col: "title" }, { label: "Priority", col: "priority" }, { label: "Raised By", col: "raisedBy" }, { label: "Assigned To", col: "assignedTo" }, { label: "Status", col: "status" }].map(({ label, col }) => (
+              {[{ label: "Actions", col: "" }, { label: "ID", col: "defectNumber" }, { label: "Market", col: "market" }, { label: "Defect Title", col: "title" }, { label: "Issue Type", col: "issueType" }, { label: "Priority", col: "priority" }, { label: "Raised By", col: "raisedBy" }, { label: "Assigned To", col: "assignedTo" }, { label: "Status", col: "status" }].map(({ label, col }) => (
                 <th key={label} onClick={col ? () => { if (defSortCol === col) setDefSortDir(d => d === "asc" ? "desc" : "asc"); else { setDefSortCol(col); setDefSortDir("asc"); } } : undefined}
                   style={{ padding: "12px 16px", textAlign: "left", color: "#1f252e", fontSize: 14, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", whiteSpace: "nowrap", cursor: col ? "pointer" : "default", userSelect: "none", background: col && defSortCol === col ? "#d4dff0" : undefined }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -434,6 +440,44 @@ export default function Defects({
                                   })}
                                 />
                                 <span>{normalizeDefectPriority(priority) || priority}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {label === "Issue Type" && (
+                    <div ref={headerFilterOpen?.type === "issueType" ? headerFilterRef : null} onClick={e => e.stopPropagation()} style={{ display: "inline-flex", marginLeft: 8, verticalAlign: "middle" }}>
+                      <button
+                        type="button"
+                        onClick={event => toggleHeaderFilter("issueType", event)}
+                        title="Filter issue type"
+                        style={{ border: "1px solid #cbd5e1", background: selectedIssueTypes.length > 0 ? "#eff6ff" : "#fff", color: selectedIssueTypes.length > 0 ? "#1d4ed8" : "#64748b", borderRadius: 6, width: 22, height: 22, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <Funnel size={12} />
+                      </button>
+                      {headerFilterOpen?.type === "issueType" && (
+                        <div className="dropdown-menu" style={{ position: "fixed", top: headerFilterOpen.top, left: headerFilterOpen.left, zIndex: 2500, width: 220, maxHeight: 260, overflowY: "auto", fontSize: 14, fontWeight: 400, letterSpacing: 0, textTransform: "none", color: "#0f172a" }}>
+                          <label className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input type="checkbox" checked={selectedIssueTypes.length === 0} onChange={() => setDefIssueTypeFilter([])} />
+                            <span>All Issue Types</span>
+                          </label>
+                          {issueTypeOptions.map(issueType => {
+                            const checked = selectedIssueTypes.includes(issueType);
+                            return (
+                              <label key={issueType} className="dropdown-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => setDefIssueTypeFilter(prev => {
+                                    const current = Array.isArray(prev) ? prev : [];
+                                    return current.includes(issueType)
+                                      ? current.filter(item => item !== issueType)
+                                      : [...current, issueType];
+                                  })}
+                                />
+                                <span>{issueType}</span>
                               </label>
                             );
                           })}
@@ -529,8 +573,8 @@ export default function Defects({
             </tr>
           </thead>
           <tbody>
-            {defects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects logged</td></tr>}
-            {defects.length > 0 && filteredDefects.length === 0 && <tr><td colSpan={11} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects match current filters</td></tr>}
+            {defects.length === 0 && <tr><td colSpan={12} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects logged</td></tr>}
+            {defects.length > 0 && filteredDefects.length === 0 && <tr><td colSpan={12} style={{ padding: 48, textAlign: "center", color: "#cbd5e1" }}>No defects match current filters</td></tr>}
             {pagedDefects.map((def, i) => {
 
               const rowIndex = (currentPage - 1) * pageSize + i;
@@ -630,6 +674,9 @@ export default function Defects({
                     <div style={{ color: "#1e293b", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                       {def.title}
                     </div>
+                  </td>
+                  <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }} onClick={() => setViewDef(def)}>
+                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 700 }}>{def.issueType || "-"}</span>
                   </td>
                   <td style={{ padding: "13px 16px", whiteSpace: "nowrap" }}>
                     {canUpdateDefectPriority ? (
