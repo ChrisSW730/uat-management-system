@@ -1315,6 +1315,8 @@ export default function DefectModals({
                   <div
                     key={c.id}
                     onClick={() => {
+                      const selectedText = window.getSelection?.()?.toString?.().trim();
+                      if (selectedText) return;
                       if (!canComment) return;
                       const key = `defect-${viewDef.id}`;
                       const current = defectCommentDrafts[viewDef.id] || "";
@@ -1325,7 +1327,7 @@ export default function DefectModals({
                         c.tester
                       );
                     }}
-                    style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", cursor: canComment ? "pointer" : "default", flexShrink: 0 }}
+                    style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", cursor: canComment ? "pointer" : "default", flexShrink: 0, userSelect: "text", WebkitUserSelect: "text" }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <span style={{ fontWeight: 700, color: "#475569", fontSize: 12 }}>{c.tester}</span>
@@ -1746,6 +1748,8 @@ export default function DefectModals({
                     <div
                       key={c.id}
                       onClick={() => {
+                        const selectedText = window.getSelection?.()?.toString?.().trim();
+                        if (selectedText) return;
                         if (!canComment) return;
                         const key = `edit-defect-${editDef.id}`;
                         const current = defectCommentDrafts[editDef.id] || "";
@@ -1756,7 +1760,7 @@ export default function DefectModals({
                           c.tester
                         );
                       }}
-                      style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", cursor: canComment ? "pointer" : "default", flexShrink: 0 }}
+                      style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", cursor: canComment ? "pointer" : "default", flexShrink: 0, userSelect: "text", WebkitUserSelect: "text" }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <span style={{ fontWeight: 700, color: "#475569", fontSize: 12 }}>{c.tester}</span>

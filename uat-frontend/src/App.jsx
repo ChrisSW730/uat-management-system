@@ -4922,6 +4922,8 @@ linear-gradient(
                                       <div
                                         key={c.id}
                                         onClick={() => {
+                                          const selectedText = window.getSelection?.()?.toString?.().trim();
+                                          if (selectedText) return;
                                           if (!canComment) return;
                                           const key = `run-${entry.testCaseId}`;
                                           const current = commentDrafts[entry.testCaseId] || "";
@@ -4938,7 +4940,9 @@ linear-gradient(
                                           borderRadius: 8,
                                           padding: "8px 12px",
                                           marginBottom: 8,
-                                          cursor: canComment ? "pointer" : "default"
+                                          cursor: canComment ? "pointer" : "default",
+                                          userSelect: "text",
+                                          WebkitUserSelect: "text"
                                         }}
                                       >
                                         <div style={{
