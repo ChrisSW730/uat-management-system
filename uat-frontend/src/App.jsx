@@ -1282,19 +1282,11 @@ export default function App() {
       return { label, remaining, ideal };
     });
 
-    const defectOpenDates = filteredDefects
-      .map(def => getDefectCreatedDate(def))
-      .filter(Boolean)
-      .sort();
-    const firstDefectDate = defectOpenDates.length > 0 ? defectOpenDates[0] : null;
+    const currentOpenDefects = filteredDefects.filter(def => !["Closed", "Rejected"].includes(def.status)).length;
     const defectTimelineStart = planStart && planEnd && planEnd >= planStart ? planStart : rangeStart;
     const defectTimelineEnd = planStart && planEnd && planEnd >= planStart ? planEnd : rangeEnd;
-    const defectBurndownDays = last7.reduce((acc, dateStr, index) => {
+    const defectBurndownDays = last7.map((dateStr) => {
       const label = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      const scopeAtDate = filteredDefects.filter(def => {
-        const opened = getDefectCreatedDate(def);
-        return !!opened && opened <= dateStr;
-      }).length;
       const remaining = filteredDefects.filter(def => {
         const opened = getDefectCreatedDate(def);
         if (!opened || opened > dateStr) return false;
@@ -1305,26 +1297,12 @@ export default function App() {
         if (closed && closed <= dateStr) return false; // was closed by this date
         return true; // closed but after this date
       }).length;
-      let ideal;
-      if (!firstDefectDate || dateStr < firstDefectDate || scopeAtDate === 0) {
-        ideal = 0;
-      } else {
-        const current = new Date(dateStr + "T12:00:00");
-        ideal = calculateIdealBurndown(scopeAtDate, defectTimelineStart, defectTimelineEnd, current);
-      }
+      const ideal = currentOpenDefects > 0
+        ? calculateIdealBurndown(currentOpenDefects, defectTimelineStart, defectTimelineEnd, new Date(dateStr + "T12:00:00"))
+        : 0;
 
-      if (index > 0) {
-        const prev = acc[index - 1];
-        const scopeIncrease = Math.max(0, scopeAtDate - prev.scopeAtDate);
-        if (scopeIncrease > 0) {
-          const minIdealAfterIncrease = prev.ideal + Math.max(0, scopeIncrease - 1);
-          ideal = Math.max(ideal, minIdealAfterIncrease);
-        }
-      }
-
-      acc.push({ label, remaining, ideal, scopeAtDate });
-      return acc;
-    }, []).map(({ label, remaining, ideal }) => ({ label, remaining, ideal }));
+      return { label, remaining, ideal };
+    });
 
     const executedTcCount = new Set(
       filteredEntries
