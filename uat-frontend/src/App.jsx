@@ -61,6 +61,7 @@ import UsersTab from "./components/Users";
 import "./styles/Projects.css";
 import FilterDropdown from "./components/ui/FilterDropdown";
 import peekqaLogo from "../public/peekqa-logo.png";
+import SidebarMascot from "./components/SidebarMascot";
 import SettingsTab from "./components/Settings";
 import ManageCategoryModal from "./components/settings/ManageCategoryModal";
 import ClickUpIntegrationModal from "./components/settings/ClickUpIntegrationModal";
@@ -3927,8 +3928,10 @@ linear-gradient(
             transition:
               "width 0.22s cubic-bezier(.4,0,.2,1), all 0.25s ease",
 
-            overflow: "hidden",
+            overflow: "visible",
             flexShrink: 0,
+            position: "relative",
+            zIndex: 2,
 
             // Floating sidebar feel
             margin: 12,
@@ -4144,6 +4147,17 @@ linear-gradient(
               </div>
             ))}
           </div>
+          {!sidebarCollapsed && (
+            <div
+              style={{
+                height: 152,
+                position: "relative",
+                flexShrink: 0,
+              }}
+            >
+              <SidebarMascot size={100} edgeAligned />
+            </div>
+          )}
           {/* Bottom user / logout */}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: sidebarCollapsed ? "12px 0" : "30px 12px", flexShrink: 0, display: "flex", alignItems: "center", gap: 10, justifyContent: sidebarCollapsed ? "center" : "space-between" }}>
             {!sidebarCollapsed ? (
