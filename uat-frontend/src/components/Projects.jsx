@@ -3,7 +3,7 @@ import "../styles/Projects.css";
 import ProjectCard from "./ProjectCard";
 import TestPlanCard from "./TestPlanCard";
 import FilterDropdown from "./ui/FilterDropdown";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import TimelineModal from "./timeline/TimelineModal";
 
 
@@ -77,14 +77,31 @@ export default function Projects(props) {
         })
         .sort((a, b) => b.id - a.id);
 
+    const _didMountAutoSelect = useRef(false);
+
     useEffect(() => {
 
-        if (filteredProjects.length === 0) {
+        // First time (mount or page refresh): always auto-select latest project
+        if (!_didMountAutoSelect.current) {
 
+            if (filteredProjects.length === 0) {
+                setSelectedProjectId("");
+                setSelectedTestPlanId("");
+            } else {
+                setSelectedProjectId(String(filteredProjects[0].id));
+                setSelectedTestPlanId("");
+            }
+
+            _didMountAutoSelect.current = true;
+            return;
+
+        }
+
+        // After mount: if the current selection no longer exists, fall back to latest
+        if (filteredProjects.length === 0) {
             setSelectedProjectId("");
             setSelectedTestPlanId("");
             return;
-
         }
 
         const exists = filteredProjects.some(
@@ -92,13 +109,8 @@ export default function Projects(props) {
         );
 
         if (!exists) {
-
-            setSelectedProjectId(
-                String(filteredProjects[0].id)
-            );
-
+            setSelectedProjectId(String(filteredProjects[0].id));
             setSelectedTestPlanId("");
-
         }
 
     }, [filteredProjects, selectedProjectId]);
