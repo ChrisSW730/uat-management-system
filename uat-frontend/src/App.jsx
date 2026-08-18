@@ -1109,6 +1109,15 @@ export default function App() {
   }, [viewDef?.id]);
 
   useEffect(() => {
+    if (!editDef?.id) return;
+    // Avoid reloading if we already have attachments for this defect
+    if ((defectAttachments[editDef.id] || []).length > 0) return;
+    api.getDefectAttachments(editDef.id)
+      .then(list => setDefectAttachments(p => ({ ...p, [editDef.id]: list })))
+      .catch(err => console.error("Edit attachment load error:", err));
+  }, [editDef?.id]);
+
+  useEffect(() => {
     if (!viewTC?.id) return;
     api.getTestCaseAttachments(viewTC.id)
       .then(list => setTestCaseAttachments(p => ({ ...p, [viewTC.id]: list })))
