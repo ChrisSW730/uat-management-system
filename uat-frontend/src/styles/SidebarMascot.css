@@ -4,8 +4,9 @@
 
     border: none;
     background: transparent;
-    cursor: pointer;
+    cursor: default;
     padding: 0;
+    pointer-events: none;
 
     transition: transform 1.25s ease;
     flex-shrink: 0;
