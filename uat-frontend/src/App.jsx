@@ -152,6 +152,16 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedTestPlanId, setSelectedTestPlanId] = useState("");
+  const selectedProjectIdRef = useRef("");
+  const selectedTestPlanIdRef = useRef("");
+
+  useEffect(() => {
+    selectedProjectIdRef.current = selectedProjectId;
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    selectedTestPlanIdRef.current = selectedTestPlanId;
+  }, [selectedTestPlanId]);
 
   // TC filters
   const [tcSearch, setTcSearch] = useState("");
@@ -574,6 +584,7 @@ export default function App() {
   const dashboardRef = useRef(null);
   const ctxMenuRef = useRef(null);
   const dashboardDefaultSelectionAppliedRef = useRef(false);
+  const defectLogDefaultSelectionAppliedRef = useRef(false);
   const defectLogAutoSyncAttemptedRef = useRef(false);
   const defectLogAutoSyncInFlightRef = useRef(false);
 
@@ -933,12 +944,28 @@ export default function App() {
     setLoading(true);
     Promise.all([
       api.getProjects().then(ps => {
-        setProjects(ps || []);
-        if ((ps || []).length > 0) {
-          const p = ps[0];
-          setSelectedProjectId(String(p.id));
-          const firstPlan = (p.testPlans || [])[0];
-          if (firstPlan) setSelectedTestPlanId(String(firstPlan.id));
+        const list = ps || [];
+        setProjects(list);
+
+        if (list.length === 0) {
+          setSelectedProjectId("");
+          setSelectedTestPlanId("");
+          return;
+        }
+
+        const hasManualSelection = Boolean(selectedProjectIdRef.current || selectedTestPlanIdRef.current);
+        if (hasManualSelection) {
+          return;
+        }
+
+        const latestProject = [...list].sort((a, b) => Number(b.id) - Number(a.id))[0];
+        const latestPlan = [...(latestProject.testPlans || [])].sort((a, b) => Number(b.id) - Number(a.id))[0];
+
+        setSelectedProjectId(String(latestProject.id));
+        if (latestPlan) {
+          setSelectedTestPlanId(String(latestPlan.id));
+        } else {
+          setSelectedTestPlanId("");
         }
       }),
       api.getTestCases().then(tcs => {
@@ -995,6 +1022,31 @@ export default function App() {
     setShowNotifications(false);
     setPendingDefectLinkId(null);
   }, [authUser, loading, pendingDefectLinkId, defects]);
+
+  useEffect(() => {
+    if (activeTab !== "defects") {
+      defectLogDefaultSelectionAppliedRef.current = false;
+      defectLogAutoSyncAttemptedRef.current = false;
+      return;
+    }
+
+    if (!authUser || defectLogDefaultSelectionAppliedRef.current) {
+      return;
+    }
+
+    const latestProject = [...(projects || [])].sort((a, b) => Number(b.id) - Number(a.id))[0];
+    if (!latestProject) {
+      setDefProjectFilter("All");
+      setDefPlanFilter("All");
+      defectLogDefaultSelectionAppliedRef.current = true;
+      return;
+    }
+
+    const latestPlan = [...(latestProject.testPlans || [])].sort((a, b) => Number(b.id) - Number(a.id))[0];
+    setDefProjectFilter(String(latestProject.id));
+    setDefPlanFilter(latestPlan ? String(latestPlan.id) : "All");
+    defectLogDefaultSelectionAppliedRef.current = true;
+  }, [activeTab, authUser, projects]);
 
   useEffect(() => {
     if (activeTab !== "defects") {
@@ -3089,7 +3141,7 @@ export default function App() {
   async function saveDefectEdits() {
     if (!editDef) return;
 
-    const runId = editDef.linkedRunId ? Number(editDef.linkedRunId) : null;
+    const runId = (editDef.linkedRunId ?? editDef.testRunId ?? "") ? Number(editDef.linkedRunId ?? editDef.testRunId) : null;
     const linkedTestCaseIds = (editDef.linkedTestCaseIds || (editDef.linkedTestCaseId ? [editDef.linkedTestCaseId] : []))
       .map(id => Number(id))
       .filter(Boolean);
@@ -5128,12 +5180,24 @@ linear-gradient(
                                     onClick={() => {
                                       const hydratedDefect = (defects || []).find(def => def.id === d.id);
                                       const targetDefect = hydratedDefect || d;
+                                      const normalizedTargetDefect = {
+                                        ...targetDefect,
+                                        linkedRunId: targetDefect.linkedRunId
+                                          ?? targetDefect.testRunId
+                                          ?? (targetDefect.testRunEntry?.testRunId ? String(targetDefect.testRunEntry.testRunId) : "")
+                                          ?? (targetDefect.testRunEntryId
+                                            ? String(runs.find(r => (r.entries || []).some(en => String(en.id) === String(targetDefect.testRunEntryId)))?.id || "")
+                                            : "")
+                                          ?? (targetDefect.runNumber
+                                            ? String(runs.find(r => r.runNumber === targetDefect.runNumber)?.id || "")
+                                            : ""),
+                                      };
                                       if (canWrite) {
                                         setViewDef(null);
-                                        setEditDef(targetDefect);
+                                        setEditDef(normalizedTargetDefect);
                                       } else {
                                         setEditDef(null);
-                                        setViewDef(targetDefect);
+                                        setViewDef(normalizedTargetDefect);
                                       }
                                     }}>
                                     🔗 {d.defectNumber}
