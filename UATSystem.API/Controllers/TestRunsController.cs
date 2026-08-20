@@ -65,6 +65,77 @@ public class TestRunsController : ControllerBase
         }
     }
 
+    private async Task HydrateRunEntryDefectsAsync(List<TestRun> runs)
+    {
+        if (runs.Count == 0)
+        {
+            return;
+        }
+
+        var entryIds = runs
+            .SelectMany(r => r.Entries)
+            .Select(e => e.Id)
+            .Distinct()
+            .ToList();
+
+        if (entryIds.Count == 0)
+        {
+            foreach (var run in runs)
+            {
+                foreach (var entry in run.Entries)
+                {
+                    entry.Defects = new List<Defect>();
+                }
+            }
+            return;
+        }
+
+        var directDefectsByEntryId = await _db.Defects
+            .Where(d => d.TestRunEntryId.HasValue && entryIds.Contains(d.TestRunEntryId.Value))
+            .GroupBy(d => d.TestRunEntryId!.Value)
+            .ToDictionaryAsync(
+                group => group.Key,
+                group => group.ToList());
+
+        var linkedTestCaseIds = runs
+            .SelectMany(r => r.Entries)
+            .Select(e => e.TestCaseId)
+            .Distinct()
+            .ToList();
+
+        var linkedDefectsByTestCaseId = await _db.TestCaseDefects
+            .Include(link => link.Defect)
+            .Where(link => linkedTestCaseIds.Contains(link.TestCaseId))
+            .GroupBy(link => link.TestCaseId)
+            .ToDictionaryAsync(
+                group => group.Key,
+                group => group.Select(link => link.Defect).ToList());
+
+        foreach (var run in runs)
+        {
+            foreach (var entry in run.Entries)
+            {
+                var resolvedDefects = new List<Defect>();
+
+                if (directDefectsByEntryId.TryGetValue(entry.Id, out var directDefects))
+                {
+                    resolvedDefects.AddRange(directDefects);
+                }
+
+                if (linkedDefectsByTestCaseId.TryGetValue(entry.TestCaseId, out var linkedDefects))
+                {
+                    resolvedDefects.AddRange(linkedDefects);
+                }
+
+                entry.Defects = resolvedDefects
+                    .GroupBy(defect => defect.Id)
+                    .Select(group => group.First())
+                    .OrderBy(defect => defect.DefectNumber)
+                    .ToList();
+            }
+        }
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -73,11 +144,11 @@ public class TestRunsController : ControllerBase
             .Include(r => r.Entries)
                 .ThenInclude(e => e.TestCase)
             .Include(r => r.Entries)
-                .ThenInclude(e => e.Defects)
-            .Include(r => r.Entries)
                 .ThenInclude(e => e.Comments)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
+
+        await HydrateRunEntryDefectsAsync(runs);
         return Ok(runs);
     }
 
@@ -88,11 +159,16 @@ public class TestRunsController : ControllerBase
             .Include(r => r.Entries)
                 .ThenInclude(e => e.TestCase)
             .Include(r => r.Entries)
-                .ThenInclude(e => e.Defects)
-            .Include(r => r.Entries)
                 .ThenInclude(e => e.Comments)
             .FirstOrDefaultAsync(r => r.Id == id);
-        return run == null ? NotFound() : Ok(run);
+
+        if (run == null)
+        {
+            return NotFound();
+        }
+
+        await HydrateRunEntryDefectsAsync(new List<TestRun> { run });
+        return Ok(run);
     }
 
     [HttpPost]

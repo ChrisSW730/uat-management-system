@@ -752,24 +752,36 @@ public class ClickUpController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(clickStatus) && clickUpdatedAt.HasValue && (defect.StatusUpdatedAt == null || clickUpdatedAt > defect.StatusUpdatedAt))
         {
-            var mappedPeekQaStatus = config.StatusMappings.FirstOrDefault(kvp => string.Equals(kvp.Value, clickStatus, StringComparison.OrdinalIgnoreCase)).Key;
-            if (!string.IsNullOrWhiteSpace(mappedPeekQaStatus))
-            {
-                _db.DefectAuditLogs.Add(new DefectAuditLog
-                {
-                    DefectId = defect.Id,
-                    FieldName = "Status",
-                    OldValue = defect.Status,
-                    NewValue = mappedPeekQaStatus,
-                    ChangedBy = "ClickUp",
-                    ChangedAt = clickUpdatedAt.Value,
-                });
+            var statusMappings = config.StatusMappings ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var mappedPeekQaStatus = statusMappings
+                .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Value))
+                .FirstOrDefault(kvp => string.Equals(kvp.Value, clickStatus, StringComparison.OrdinalIgnoreCase)).Key;
 
-                defect.Status = mappedPeekQaStatus;
-                defect.StatusUpdatedAt = clickUpdatedAt;
-                await _db.SaveChangesAsync();
-                return (true, true);
+            if (string.IsNullOrWhiteSpace(mappedPeekQaStatus))
+            {
+                // ClickUp status has no configured PeekQA mapping. Leave the current PeekQA status as-is and continue syncing other fields.
+                if (clickUpdatedAt.HasValue)
+                {
+                    await SyncAssignedToFromClickUpTaskAsync(defect, currentTaskJson, clickUpdatedAt.Value);
+                }
+
+                return (true, false);
             }
+
+            _db.DefectAuditLogs.Add(new DefectAuditLog
+            {
+                DefectId = defect.Id,
+                FieldName = "Status",
+                OldValue = defect.Status,
+                NewValue = mappedPeekQaStatus,
+                ChangedBy = "ClickUp",
+                ChangedAt = clickUpdatedAt.Value,
+            });
+
+            defect.Status = mappedPeekQaStatus;
+            defect.StatusUpdatedAt = clickUpdatedAt;
+            await _db.SaveChangesAsync();
+            return (true, true);
         }
 
         if (clickUpdatedAt.HasValue)
