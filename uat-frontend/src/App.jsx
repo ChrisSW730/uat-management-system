@@ -4695,6 +4695,9 @@ linear-gradient(
                 });
 
                 const sortedRunEntries = sortRunEntriesByTestCaseId(filteredRunEntries);
+                const totalEntryCount = (viewRun.entries || []).length;
+                const hasEntryFilter = Boolean(runEntrySearch.trim()) || runEntryPriorityFilter !== "All" || execStatusFilter !== "All";
+                const matchedEntryLabel = `Showing ${sortedRunEntries.length} of ${totalEntryCount} record${totalEntryCount === 1 ? "" : "s"}`;
                 return (
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
@@ -4950,6 +4953,10 @@ linear-gradient(
                       entrySearch={runEntrySearch}
                       setEntrySearch={setRunEntrySearch}
                     />
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 4px 6px", color: "#475569", fontSize: 12, fontWeight: 700 }}>
+                      <span>{hasEntryFilter ? matchedEntryLabel : `Showing ${sortedRunEntries.length} of ${totalEntryCount} record${totalEntryCount === 1 ? "" : "s"}`}</span>
+                    </div>
 
                     <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
                       {sortedRunEntries.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#cbd5e1" }}>No test cases found with the selected filters.</div>}
@@ -6315,12 +6322,37 @@ function AddTcToRunRow({ entryStatusFilter, setEntryStatusFilter, entryPriorityF
               background: "#fff",
               border: "1.5px solid #e2e8f0",
               borderRadius: 7,
-              padding: "6px 10px",
+              padding: "6px 32px 6px 10px",
               fontSize: 12,
               outline: "none",
               fontFamily: "inherit"
             }}
           />
+          {entrySearch && (
+            <button
+              type="button"
+              onClick={() => setEntrySearch("")}
+              title="Clear search"
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#94a3b8",
+                fontSize: 12,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          )}
         </div>
         <select
           value={entryPriorityFilter || "All"}
