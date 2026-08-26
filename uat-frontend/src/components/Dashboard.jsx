@@ -303,10 +303,13 @@ export default function Dashboard({
     const { tcCount, entryCount, passedTotal, failedTotal, inProgressTotal, executedTcCount, defTotal, openDefs, availableRuns,
         execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays } = dashboardStats;
     const blockedTotal = execByStatus["Blocked"] || 0;
-    const executedTotal = executedTcCount || 0;
+    const executedEntriesCount = dashboardStats.executedEntriesCount || 0;
+    // When no specific run is selected (All Test Runs), show execution based on entries across runs
+    const executedTotal = (!dashRunId && executedEntriesCount > 0) ? executedEntriesCount : (executedTcCount || 0);
+    const totalForProgress = (!dashRunId && entryCount > 0) ? entryCount : tcCount;
     const executionProgress =
-        tcCount > 0
-            ? Math.round((executedTotal / tcCount) * 100)
+        totalForProgress > 0
+            ? Math.round((executedTotal / totalForProgress) * 100)
             : 0;
     const execSegs = [
         { value: passedTotal, color: "#22c55e" },
@@ -759,7 +762,7 @@ export default function Dashboard({
                                 }}
                             >
                                 {executedTotal.toLocaleString()} executed /{" "}
-                                {tcCount.toLocaleString()} total
+                                {totalForProgress.toLocaleString()} total
                             </div>
 
                         </div>
@@ -820,7 +823,7 @@ export default function Dashboard({
                         <DonutChart size={100} strokeWidth={16} label={`${executionProgress}%`} segments={execSegs} />
                         <div>
                             <div style={{ fontWeight: 700, fontSize: 13, color: "#334155" }}>Overall Execution Progress</div>
-                            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{executedTotal.toLocaleString()} / {tcCount.toLocaleString()} Test Cases Executed</div>
+                            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{executedTotal.toLocaleString()} / {totalForProgress.toLocaleString()} Test Cases Executed</div>
                         </div>
                     </div>
                 </div>

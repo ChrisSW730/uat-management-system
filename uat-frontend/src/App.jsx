@@ -1393,10 +1393,11 @@ export default function App() {
         .filter(e => normalizeExecStatus(e.execStatus) !== "Not Run")
         .map(e => e.testCaseId)
     ).size;
+    const executedEntriesCount = filteredEntries.filter(e => normalizeExecStatus(e.execStatus) !== "Not Run").length;
     const activeTcCount = runTcCount > 0 ? runTcCount : filteredTCs.length;
     return {
       allDashPlans, tcCount: activeTcCount, entryCount: filteredEntries.length,
-      passedTotal, failedTotal, inProgressTotal, executedTcCount,
+      passedTotal, failedTotal, inProgressTotal, executedTcCount, executedEntriesCount,
       passRate: runTcCount > 0 ? Math.round((executedTcCount / runTcCount) * 100) : 0,
       defTotal: filteredDefects.length, openDefs,
       execByStatus, defByStatus, defByPriority, perPlanStats, trendDays, defectTrendDays, tcBurndownDays, defectBurndownDays, availableRuns,
