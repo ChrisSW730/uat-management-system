@@ -6,7 +6,7 @@ import {
   PRIORITY_META,
 } from "../constants/index.js";
 
-const CLICKUP_REQUEST_TIMEOUT_MS = 8000;
+const DEFAULT_CLICKUP_REQUEST_TIMEOUT_MS = 30000;
 
 const BASE = import.meta.env.DEV
   ? ""
@@ -17,11 +17,15 @@ function buildClickUpApiUrl(path) {
 }
 
 async function fetchWithTimeout(url, options = {}) {
+  const { timeoutMs, ...fetchOptions } = options;
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), CLICKUP_REQUEST_TIMEOUT_MS);
+  const effectiveTimeoutMs = Number.isFinite(timeoutMs)
+    ? timeoutMs
+    : DEFAULT_CLICKUP_REQUEST_TIMEOUT_MS;
+  const timeoutId = window.setTimeout(() => controller.abort(), effectiveTimeoutMs);
 
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, { ...fetchOptions, signal: controller.signal });
   } catch (error) {
     if (error?.name === "AbortError") {
       throw new Error("TIMEOUT");
@@ -476,6 +480,7 @@ export async function syncDefectToClickUp(defectId, options = {}) {
       Accept: "application/json",
     },
     body: JSON.stringify(payload),
+    timeoutMs: 120000,
   });
 
   if (!response.ok) {
