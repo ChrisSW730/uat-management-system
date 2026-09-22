@@ -958,14 +958,19 @@ export default function App() {
           return;
         }
 
-        const latestProject = [...list].sort((a, b) => Number(b.id) - Number(a.id))[0];
-        const latestPlan = [...(latestProject.testPlans || [])].sort((a, b) => Number(b.id) - Number(a.id))[0];
-
-        setSelectedProjectId(String(latestProject.id));
-        if (latestPlan) {
-          setSelectedTestPlanId(String(latestPlan.id));
-        } else {
+        // Choose latest active test plan across ALL projects (not just latest project).
+        const allPlans = list.flatMap(proj => (proj.testPlans || []).map(tp => ({ ...tp, projectId: proj.id })));
+        if (allPlans.length === 0) {
+          // No plans available
+          const latestProject = [...list].sort((a, b) => Number(b.id) - Number(a.id))[0];
+          setSelectedProjectId(latestProject ? String(latestProject.id) : "");
           setSelectedTestPlanId("");
+        } else {
+          const sortedPlans = [...allPlans].sort((a, b) => Number(b.id) - Number(a.id));
+          // Prefer the latest active test plan (not Completed). Fallback to latest plan if none active.
+          const latestPlan = sortedPlans.find(p => getTimelineMeta(p.startDate, p.endDate).status !== "Completed") || sortedPlans[0];
+          setSelectedProjectId(String(latestPlan.projectId));
+          setSelectedTestPlanId(latestPlan ? String(latestPlan.id) : "");
         }
       }),
       api.getTestCases().then(tcs => {
@@ -1034,16 +1039,18 @@ export default function App() {
       return;
     }
 
-    const latestProject = [...(projects || [])].sort((a, b) => Number(b.id) - Number(a.id))[0];
-    if (!latestProject) {
+    // Pick latest active test plan across all projects for defect defaults.
+    const allPlans = (projects || []).flatMap(proj => (proj.testPlans || []).map(tp => ({ ...tp, projectId: proj.id })));
+    if (allPlans.length === 0) {
       setDefProjectFilter("All");
       setDefPlanFilter("All");
       defectLogDefaultSelectionAppliedRef.current = true;
       return;
     }
 
-    const latestPlan = [...(latestProject.testPlans || [])].sort((a, b) => Number(b.id) - Number(a.id))[0];
-    setDefProjectFilter(String(latestProject.id));
+    const sortedPlans = [...allPlans].sort((a, b) => Number(b.id) - Number(a.id));
+    const latestPlan = sortedPlans.find(p => getTimelineMeta(p.startDate, p.endDate).status !== "Completed") || sortedPlans[0];
+    setDefProjectFilter(String(latestPlan.projectId));
     setDefPlanFilter(latestPlan ? String(latestPlan.id) : "All");
     defectLogDefaultSelectionAppliedRef.current = true;
   }, [activeTab, authUser, projects]);
