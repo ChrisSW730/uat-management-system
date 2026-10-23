@@ -1641,10 +1641,45 @@ export default function App() {
     [projects, selectedProjectId]
   );
 
-  const selectedProjectPlans = useMemo(
-    () => selectedProject?.testPlans || [],
-    [selectedProject]
-  );
+  const selectedProjectPlans = useMemo(() => {
+    const plans = [...(selectedProject?.testPlans || [])];
+    const today = new Date();
+    const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+
+    const getPlanBucket = (plan) => {
+      if (!plan?.startDate || !plan?.endDate) return 2;
+
+      const start = new Date(plan.startDate);
+      const end = new Date(plan.endDate);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return 2;
+
+      const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
+
+      if (todayDay < startDay) return 1;
+      if (todayDay > endDay) return 2;
+      return 0;
+    };
+
+    return plans.sort((a, b) => {
+      const bucketDiff = getPlanBucket(a) - getPlanBucket(b);
+      if (bucketDiff !== 0) return bucketDiff;
+
+      if (getPlanBucket(a) === 2 && getPlanBucket(b) === 2) {
+        const aEnd = a?.endDate ? new Date(a.endDate).getTime() : 0;
+        const bEnd = b?.endDate ? new Date(b.endDate).getTime() : 0;
+        if (aEnd !== bEnd) return bEnd - aEnd;
+      }
+
+      const aStart = a?.startDate ? new Date(a.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+      const bStart = b?.startDate ? new Date(b.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+      if (aStart !== bStart) return aStart - bStart;
+
+      const aName = String(a?.name || "").toLowerCase();
+      const bName = String(b?.name || "").toLowerCase();
+      return aName.localeCompare(bName);
+    });
+  }, [selectedProject]);
 
   const allTestCaseById = useMemo(() => {
     const map = {};
@@ -3638,15 +3673,15 @@ export default function App() {
         return {
           ID: tc.tcNumber,
           Project: planMeta?.projectName || "",
-          "Test Plan": planMeta?.testPlanName || "",
-          "Test Scope": tc.testScopeId ? testScopeNameById[tc.testScopeId] || "" : "",
           "Test Name": tc.name || "",
-          Category: tc.category || "",
-          Priority: tc.priority || "",
           Description: tc.description || "",
           Steps: tc.steps || "",
           "Expected Result": tc.expectedResult || "",
+          Priority: tc.priority || "",
+          Category: tc.category || "",
           Remarks: tc.remarks || "",
+          "Test Plan": planMeta?.testPlanName || "",
+          "Test Scope": tc.testScopeId ? testScopeNameById[tc.testScopeId] || "" : "",
           "Coverage Count": linkedRuns.length,
           "Covered Runs": linkedRuns.map(run => run.runNumber).join(", "),
         };
