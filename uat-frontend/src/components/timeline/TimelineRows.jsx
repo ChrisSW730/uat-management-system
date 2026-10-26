@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, FolderKanban, ClipboardList } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, EyeOff, FolderKanban, ClipboardList } from "lucide-react";
 import TimelineGrid from "./TimelineGrid";
 
 export default function TimelineRows({
@@ -7,6 +7,7 @@ export default function TimelineRows({
   columns,
   collapsedProjectIds,
   onToggleProject,
+  onTogglePlanVisibility,
   onRowClick,
   onHoverStart,
   onHoverMove,
@@ -35,7 +36,22 @@ export default function TimelineRows({
                 >
                   {collapsedProjectIds[row.project.id] ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
                 </span>
-              ) : null}
+              ) : (
+                <span
+                  className="timeline-row-visibility-toggle"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onTogglePlanVisibility(row.project.id, row.plan.id);
+                  }}
+                  role="button"
+                  tabIndex={-1}
+                  aria-label={row.isHidden ? `Show plan ${row.name}` : `Hide plan ${row.name}`}
+                  title={row.isHidden ? "Show this plan" : "Hide this plan"}
+                >
+                  {row.isHidden ? <Eye size={13} /> : <EyeOff size={13} />}
+                </span>
+              )}
 
               <span className="timeline-row-icon" aria-hidden="true">
                 {row.type === "project" ? <FolderKanban size={14} /> : <ClipboardList size={14} />}

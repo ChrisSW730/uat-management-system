@@ -218,6 +218,7 @@ export default function TimelineModal({
   const [zoom, setZoom] = useState("month");
   const [anchorDate, setAnchorDate] = useState(() => toStartOfDay(new Date()));
   const [collapsedProjectIds, setCollapsedProjectIds] = useState({});
+  const [hiddenPlanIds, setHiddenPlanIds] = useState({});
   const [tooltip, setTooltip] = useState(null);
   const [viewportWidth, setViewportWidth] = useState(0);
   const scrollAreaRef = useRef(null);
@@ -327,6 +328,11 @@ export default function TimelineModal({
       }
 
       (project.testPlans || []).forEach((plan) => {
+        const planKey = `${project.id}:${plan.id}`;
+        if (hiddenPlanIds[planKey]) {
+          return;
+        }
+
         const planMeta = getTimelineMeta(plan.startDate, plan.endDate);
         const planStatus = resolvePlanStatus(plan, planMeta);
         const colorClassMap = {
@@ -345,6 +351,7 @@ export default function TimelineModal({
           progress: planMeta.progress,
           project,
           plan,
+          isHidden: Boolean(hiddenPlanIds[planKey]),
           bar: {
             ...getBarGeometry(plan.startDate, plan.endDate, layout, columns),
             colorClass: colorClassMap[planStatus] || "not-started",
@@ -354,7 +361,12 @@ export default function TimelineModal({
     });
 
     return rows;
-  }, [projects, getTimelineMeta, layout, columns, collapsedProjectIds]);
+  }, [projects, getTimelineMeta, layout, columns, collapsedProjectIds, hiddenPlanIds]);
+
+  const hiddenPlanCount = useMemo(
+    () => Object.values(hiddenPlanIds).filter(Boolean).length,
+    [hiddenPlanIds],
+  );
 
   const shiftAnchorByZoom = (direction) => {
     if (zoom === "week") {
@@ -389,10 +401,12 @@ export default function TimelineModal({
 
         <TimelineToolbar
           zoom={zoom}
+          hiddenPlanCount={hiddenPlanCount}
           onToday={() => setAnchorDate(today)}
           onPrevious={() => shiftAnchorByZoom(-1)}
           onNext={() => shiftAnchorByZoom(1)}
           onZoomChange={(nextZoom) => setZoom(nextZoom)}
+          onResetHiddenPlans={() => setHiddenPlanIds({})}
         />
 
         <TimelineLegend />
@@ -427,6 +441,13 @@ export default function TimelineModal({
                   setCollapsedProjectIds((prev) => ({
                     ...prev,
                     [projectId]: !prev[projectId],
+                  }));
+                }}
+                onTogglePlanVisibility={(projectId, planId) => {
+                  const key = `${projectId}:${planId}`;
+                  setHiddenPlanIds((prev) => ({
+                    ...prev,
+                    [key]: !prev[key],
                   }));
                 }}
                 onRowClick={(clickedRow) => {

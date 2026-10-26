@@ -420,6 +420,29 @@
   visibility: hidden;
 }
 
+.timeline-row-visibility-toggle {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: rgba(148, 163, 184, 0.14);
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.timeline-row-visibility-toggle:hover {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4338ca;
+}
+
+.timeline-row-visibility-toggle svg {
+  display: block;
+}
+
 .timeline-row-icon {
   width: 18px;
   height: 18px;

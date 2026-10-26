@@ -1,6 +1,14 @@
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function TimelineToolbar({ zoom, onToday, onPrevious, onNext, onZoomChange }) {
+export default function TimelineToolbar({
+  zoom,
+  hiddenPlanCount = 0,
+  onToday,
+  onPrevious,
+  onNext,
+  onZoomChange,
+  onResetHiddenPlans,
+}) {
   return (
     <div className="timeline-modal-header">
       <div className="timeline-modal-title-wrap">
@@ -9,6 +17,12 @@ export default function TimelineToolbar({ zoom, onToday, onPrevious, onNext, onZ
       </div>
 
       <div className="timeline-header-controls">
+        {hiddenPlanCount > 0 && (
+          <button type="button" className="timeline-btn timeline-btn-ghost" onClick={onResetHiddenPlans}>
+            Show hidden plans ({hiddenPlanCount})
+          </button>
+        )}
+
         <button type="button" className="timeline-btn timeline-btn-ghost" onClick={onToday}>Today</button>
         <button type="button" className="timeline-btn" onClick={onPrevious}>
           <ChevronLeft size={14} />
