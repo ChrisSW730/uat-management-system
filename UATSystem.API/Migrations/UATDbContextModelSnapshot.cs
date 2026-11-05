@@ -531,6 +531,46 @@ namespace UATSystem.API.Migrations
                     b.ToTable("TestRuns");
                 });
 
+            modelBuilder.Entity("UATSystem.API.Models.TestRunAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TestRunId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UploadedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TestRunId");
+
+                    b.ToTable("TestRunAttachments");
+                });
+
             modelBuilder.Entity("UATSystem.API.Models.TestRunEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -567,6 +607,46 @@ namespace UATSystem.API.Migrations
                     b.HasIndex("TestRunId");
 
                     b.ToTable("TestRunEntries");
+                });
+
+            modelBuilder.Entity("UATSystem.API.Models.TestRunEntryAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TestRunEntryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UploadedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TestRunEntryId");
+
+                    b.ToTable("TestRunEntryAttachments");
                 });
 
             modelBuilder.Entity("UATSystem.API.Models.TestRunEntryComment", b =>
@@ -854,6 +934,17 @@ namespace UATSystem.API.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("UATSystem.API.Models.TestRunAttachment", b =>
+                {
+                    b.HasOne("UATSystem.API.Models.TestRun", "TestRun")
+                        .WithMany("Attachments")
+                        .HasForeignKey("TestRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TestRun");
+                });
+
             modelBuilder.Entity("UATSystem.API.Models.TestRunEntry", b =>
                 {
                     b.HasOne("UATSystem.API.Models.TestCase", "TestCase")
@@ -871,6 +962,17 @@ namespace UATSystem.API.Migrations
                     b.Navigation("TestCase");
 
                     b.Navigation("TestRun");
+                });
+
+            modelBuilder.Entity("UATSystem.API.Models.TestRunEntryAttachment", b =>
+                {
+                    b.HasOne("UATSystem.API.Models.TestRunEntry", "TestRunEntry")
+                        .WithMany("Attachments")
+                        .HasForeignKey("TestRunEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TestRunEntry");
                 });
 
             modelBuilder.Entity("UATSystem.API.Models.TestRunEntryComment", b =>
@@ -946,6 +1048,8 @@ namespace UATSystem.API.Migrations
 
             modelBuilder.Entity("UATSystem.API.Models.TestRun", b =>
                 {
+                    b.Navigation("Attachments");
+
                     b.Navigation("Defects");
 
                     b.Navigation("Entries");
@@ -953,6 +1057,8 @@ namespace UATSystem.API.Migrations
 
             modelBuilder.Entity("UATSystem.API.Models.TestRunEntry", b =>
                 {
+                    b.Navigation("Attachments");
+
                     b.Navigation("Comments");
 
                     b.Navigation("Defects");

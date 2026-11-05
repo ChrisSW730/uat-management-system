@@ -309,6 +309,46 @@ export const api = {
 
   // Test Runs
   getTestRuns: () => fetch(`${BASE}/testruns`).then(r => r.json()),
+  getTestRunAttachments: (id) => fetch(`${BASE}/testruns/${id}/attachments`).then(r => r.ok ? r.json() : []),
+  getTestRunEntryAttachments: (runId, testCaseId) => fetch(`${BASE}/testruns/${runId}/entries/${testCaseId}/attachments`).then(r => r.ok ? r.json() : []),
+  uploadTestRunAttachments: (id, files, uploadedBy) => {
+    const form = new FormData();
+    files.forEach(f => form.append("files", f));
+    return fetch(`${BASE}/testruns/${id}/attachments`, {
+      method: "POST",
+      headers: {
+        "X-User-Name": uploadedBy || "Unknown"
+      },
+      body: form,
+    }).then(r => r.json());
+  },
+  uploadTestRunEntryAttachments: async (runId, testCaseId, files, uploadedBy) => {
+    const form = new FormData();
+    files.forEach(f => form.append("files", f));
+
+    const response = await fetch(`${BASE}/testruns/${runId}/entries/${testCaseId}/attachments`, {
+      method: "POST",
+      headers: {
+        "X-User-Name": uploadedBy || "Unknown"
+      },
+      body: form,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to upload test case attachment(s)");
+    }
+
+    return await response.json();
+  },
+  deleteTestRunAttachment: (id, attachmentId) => fetch(`${BASE}/testruns/${id}/attachments/${attachmentId}`, {
+    method: "DELETE"
+  }),
+  deleteTestRunEntryAttachment: (runId, testCaseId, attachmentId) => fetch(`${BASE}/testruns/${runId}/entries/${testCaseId}/attachments/${attachmentId}`, {
+    method: "DELETE"
+  }).then(async r => {
+    if (!r.ok) throw new Error(await r.text());
+  }),
   createTestRun: (data) => fetch(`${BASE}/testruns`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)

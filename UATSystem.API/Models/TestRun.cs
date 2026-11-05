@@ -11,4 +11,5 @@ public class TestRun
 
     public ICollection<TestRunEntry> Entries { get; set; } = new List<TestRunEntry>();
     public ICollection<Defect> Defects { get; set; } = new List<Defect>();
+    public ICollection<TestRunAttachment> Attachments { get; set; } = new List<TestRunAttachment>();
 }

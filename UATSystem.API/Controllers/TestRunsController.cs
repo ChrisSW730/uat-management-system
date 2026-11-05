@@ -13,7 +13,56 @@ namespace UATSystem.API.Controllers;
 public class TestRunsController : ControllerBase
 {
     private readonly UATDbContext _db;
-    public TestRunsController(UATDbContext db) => _db = db;
+    private readonly IWebHostEnvironment _env;
+    public TestRunsController(UATDbContext db, IWebHostEnvironment env)
+    {
+        _db = db;
+        _env = env;
+    }
+
+    private string UploadRoot
+    {
+        get
+        {
+            var root = _env.WebRootPath;
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                root = Path.Combine(_env.ContentRootPath, "wwwroot");
+            }
+
+            var dir = Path.Combine(root, "uploads", "testruns");
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+    }
+
+    private string EntryUploadRoot
+    {
+        get
+        {
+            var root = _env.WebRootPath;
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                root = Path.Combine(_env.ContentRootPath, "wwwroot");
+            }
+
+            var dir = Path.Combine(root, "uploads", "testruns", "entries");
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+    }
+
+    private TestRunAttachmentDto ToAttachmentDto(TestRunAttachment a)
+    {
+        var fileUrl = Url.Action(nameof(GetAttachmentFile), null, new { id = a.TestRunId, attachmentId = a.Id }, Request.Scheme, Request.Host.Value);
+        return new TestRunAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl ?? string.Empty);
+    }
+
+    private TestRunEntryAttachmentDto ToEntryAttachmentDto(TestRunEntryAttachment a, int runId, int testCaseId)
+    {
+        var fileUrl = Url.Action(nameof(GetEntryAttachmentFile), null, new { id = runId, testCaseId, attachmentId = a.Id }, Request.Scheme, Request.Host.Value);
+        return new TestRunEntryAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl ?? string.Empty);
+    }
 
     private async Task<string> GetCommentTesterAsync()
     {
@@ -145,6 +194,7 @@ public class TestRunsController : ControllerBase
                 .ThenInclude(e => e.TestCase)
             .Include(r => r.Entries)
                 .ThenInclude(e => e.Comments)
+            .Include(r => r.Attachments)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
@@ -160,6 +210,7 @@ public class TestRunsController : ControllerBase
                 .ThenInclude(e => e.TestCase)
             .Include(r => r.Entries)
                 .ThenInclude(e => e.Comments)
+            .Include(r => r.Attachments)
             .FirstOrDefaultAsync(r => r.Id == id);
 
         if (run == null)
@@ -364,6 +415,196 @@ public class TestRunsController : ControllerBase
         return Ok(entry);
     }
 
+    [HttpGet("{id}/entries/{testCaseId}/attachments")]
+    public async Task<IActionResult> GetEntryAttachments(int id, int testCaseId)
+    {
+        var entry = await _db.TestRunEntries
+            .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
+        if (entry == null) return NotFound();
+
+        var attachments = await _db.TestRunEntryAttachments
+            .Where(a => a.TestRunEntryId == entry.Id)
+            .OrderByDescending(a => a.UploadedAt)
+            .ToListAsync();
+
+        return Ok(attachments.Select(a => ToEntryAttachmentDto(a, id, testCaseId)));
+    }
+
+    [HttpPost("{id}/entries/{testCaseId}/attachments")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> UploadEntryAttachments(int id, int testCaseId, [FromForm] List<IFormFile> files)
+    {
+        var entry = await _db.TestRunEntries
+            .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
+        if (entry == null) return NotFound();
+        if (files == null || files.Count == 0) return BadRequest("No files uploaded.");
+
+        var uploadedBy = Request.Headers.TryGetValue("X-User-Name", out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.ToString()
+            : "Unknown";
+
+        var created = new List<TestRunEntryAttachment>();
+        foreach (var file in files.Where(f => f.Length > 0))
+        {
+            var ext = Path.GetExtension(file.FileName);
+            var storedFileName = $"{Guid.NewGuid():N}{ext}";
+            var fullPath = Path.Combine(EntryUploadRoot, storedFileName);
+
+            await using (var stream = System.IO.File.Create(fullPath))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var attachment = new TestRunEntryAttachment
+            {
+                TestRunEntryId = entry.Id,
+                FileName = file.FileName,
+                StoredFileName = storedFileName,
+                ContentType = file.ContentType ?? "application/octet-stream",
+                Size = file.Length,
+                UploadedBy = uploadedBy,
+                UploadedAt = DateTime.UtcNow,
+            };
+
+            created.Add(attachment);
+            _db.TestRunEntryAttachments.Add(attachment);
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(created.Select(a => ToEntryAttachmentDto(a, id, testCaseId)));
+    }
+
+    [HttpDelete("{id}/entries/{testCaseId}/attachments/{attachmentId}")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
+    public async Task<IActionResult> DeleteEntryAttachment(int id, int testCaseId, int attachmentId)
+    {
+        var entry = await _db.TestRunEntries
+            .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
+        if (entry == null) return NotFound();
+
+        var attachment = await _db.TestRunEntryAttachments
+            .FirstOrDefaultAsync(a => a.TestRunEntryId == entry.Id && a.Id == attachmentId);
+        if (attachment == null) return NotFound();
+
+        var fullPath = Path.Combine(EntryUploadRoot, attachment.StoredFileName);
+        if (System.IO.File.Exists(fullPath))
+        {
+            System.IO.File.Delete(fullPath);
+        }
+
+        _db.TestRunEntryAttachments.Remove(attachment);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpGet("{id}/entries/{testCaseId}/attachments/{attachmentId}/file")]
+    public async Task<IActionResult> GetEntryAttachmentFile(int id, int testCaseId, int attachmentId)
+    {
+        var entry = await _db.TestRunEntries
+            .FirstOrDefaultAsync(e => e.TestRunId == id && e.TestCaseId == testCaseId);
+        if (entry == null) return NotFound();
+
+        var attachment = await _db.TestRunEntryAttachments
+            .FirstOrDefaultAsync(a => a.TestRunEntryId == entry.Id && a.Id == attachmentId);
+        if (attachment == null) return NotFound();
+
+        var fullPath = Path.Combine(EntryUploadRoot, attachment.StoredFileName);
+        if (!System.IO.File.Exists(fullPath)) return NotFound();
+
+        return PhysicalFile(fullPath, attachment.ContentType, attachment.FileName);
+    }
+
+    [HttpGet("{id}/attachments")]
+    public async Task<IActionResult> GetAttachments(int id)
+    {
+        var exists = await _db.TestRuns.AnyAsync(r => r.Id == id);
+        if (!exists) return NotFound();
+
+        var attachments = await _db.TestRunAttachments
+            .Where(a => a.TestRunId == id)
+            .OrderByDescending(a => a.UploadedAt)
+            .ToListAsync();
+
+        return Ok(attachments.Select(ToAttachmentDto));
+    }
+
+    [HttpPost("{id}/attachments")]
+    [Authorize(Roles = "Admin,Test Lead,Tester")]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> UploadAttachments(int id, [FromForm] List<IFormFile> files)
+    {
+        var run = await _db.TestRuns.FindAsync(id);
+        if (run == null) return NotFound();
+        if (files == null || files.Count == 0) return BadRequest("No files uploaded.");
+
+        var uploadedBy = Request.Headers.TryGetValue("X-User-Name", out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.ToString()
+            : "Unknown";
+
+        var created = new List<TestRunAttachment>();
+        foreach (var file in files.Where(f => f.Length > 0))
+        {
+            var ext = Path.GetExtension(file.FileName);
+            var storedFileName = $"{Guid.NewGuid():N}{ext}";
+            var fullPath = Path.Combine(UploadRoot, storedFileName);
+
+            await using (var stream = System.IO.File.Create(fullPath))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var attachment = new TestRunAttachment
+            {
+                TestRunId = id,
+                FileName = file.FileName,
+                StoredFileName = storedFileName,
+                ContentType = file.ContentType ?? "application/octet-stream",
+                Size = file.Length,
+                UploadedBy = uploadedBy,
+                UploadedAt = DateTime.UtcNow,
+            };
+
+            created.Add(attachment);
+            _db.TestRunAttachments.Add(attachment);
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(created.Select(ToAttachmentDto));
+    }
+
+    [HttpDelete("{id}/attachments/{attachmentId}")]
+    [Authorize(Roles = "Admin,Test Lead")]
+    public async Task<IActionResult> DeleteAttachment(int id, int attachmentId)
+    {
+        var attachment = await _db.TestRunAttachments
+            .FirstOrDefaultAsync(a => a.TestRunId == id && a.Id == attachmentId);
+        if (attachment == null) return NotFound();
+
+        var fullPath = Path.Combine(UploadRoot, attachment.StoredFileName);
+        if (System.IO.File.Exists(fullPath))
+        {
+            System.IO.File.Delete(fullPath);
+        }
+
+        _db.TestRunAttachments.Remove(attachment);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpGet("{id}/attachments/{attachmentId}/file")]
+    public async Task<IActionResult> GetAttachmentFile(int id, int attachmentId)
+    {
+        var attachment = await _db.TestRunAttachments
+            .FirstOrDefaultAsync(a => a.TestRunId == id && a.Id == attachmentId);
+        if (attachment == null) return NotFound();
+
+        var fullPath = Path.Combine(UploadRoot, attachment.StoredFileName);
+        if (!System.IO.File.Exists(fullPath)) return NotFound();
+
+        return PhysicalFile(fullPath, attachment.ContentType, attachment.FileName);
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Test Lead")]
     public async Task<IActionResult> Delete(int id)
@@ -422,3 +663,19 @@ public record AddEntryDto(int TestCaseId);
 public record UpdateRunDto(string Name, string Tester, List<int>? TestCaseIds = null);
 public record UpdateEntryDto(string ExecStatus, string Comment);
 public record AddEntryCommentDto(string Message);
+public record TestRunAttachmentDto(
+    int Id,
+    string FileName,
+    string ContentType,
+    long Size,
+    string UploadedBy,
+    DateTime UploadedAt,
+    string Url);
+public record TestRunEntryAttachmentDto(
+    int Id,
+    string FileName,
+    string ContentType,
+    long Size,
+    string UploadedBy,
+    DateTime UploadedAt,
+    string Url);

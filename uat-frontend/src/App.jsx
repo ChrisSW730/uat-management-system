@@ -326,6 +326,11 @@ export default function App() {
   const [testCaseAttachments, setTestCaseAttachments] = useState({});
   const [uploadingTestCaseId, setUploadingTestCaseId] = useState(null);
   const [newTCAttachments, setNewTCAttachments] = useState([]);
+  const [runAttachments, setRunAttachments] = useState({});
+  const [runEntryAttachments, setRunEntryAttachments] = useState({});
+  const [uploadingRunId, setUploadingRunId] = useState(null);
+  const [newRunAttachments, setNewRunAttachments] = useState([]);
+  const [editRunAttachments, setEditRunAttachments] = useState([]);
   const [showAddProject, setShowAddProject] = useState(false);
   const [showAddPlan, setShowAddPlan] = useState(false);
   const [showManageScopes, setShowManageScopes] = useState(false);
@@ -1137,6 +1142,34 @@ export default function App() {
       .then(list => setTestCaseAttachments(p => ({ ...p, [editTC.id]: list })))
       .catch(err => console.error("Edit test case attachment load error:", err));
   }, [editTC?.id]);
+
+  useEffect(() => {
+    if (!viewRun?.id) return;
+
+    api.getTestRunAttachments(viewRun.id)
+      .then(list => setRunAttachments(p => ({ ...p, [viewRun.id]: list })))
+      .catch(err => console.error("Run attachment load error:", err));
+
+    const entryKeys = (viewRun.entries || []).map(entry => `${viewRun.id}:${entry.testCaseId}`);
+    entryKeys.forEach(key => {
+      const [runId, testCaseId] = key.split(":");
+      if (!runId || !testCaseId || runEntryAttachments[key]) return;
+      api.getTestRunEntryAttachments(Number(runId), Number(testCaseId))
+        .then(list => setRunEntryAttachments(p => ({ ...p, [key]: list })))
+        .catch(err => console.error("Run entry attachment load error:", err));
+    });
+  }, [viewRun?.id, viewRun?.entries]);
+
+  useEffect(() => {
+    if (!editRun?.id) return;
+    if ((runAttachments[editRun.id] || []).length > 0) return;
+    api.getTestRunAttachments(editRun.id)
+      .then(list => {
+        setRunAttachments(p => ({ ...p, [editRun.id]: list }));
+        setEditRunAttachments([]);
+      })
+      .catch(err => console.error("Edit run attachment load error:", err));
+  }, [editRun?.id]);
 
   /* ── Filters ── */
   const filteredTC = useMemo(() => testCases.filter(tc => {
@@ -2008,8 +2041,16 @@ export default function App() {
         tester: selectedTesters.join(", "),
         testCaseIds: newRun.selectedTcIds,
       });
+
+      if (newRunAttachments.length > 0) {
+        const renamedNew = renameImageFiles(newRunAttachments, run.id, 1);
+        const uploaded = await api.uploadTestRunAttachments(run.id, renamedNew, getCurrentUserName());
+        setRunAttachments(p => ({ ...p, [run.id]: uploaded }));
+      }
+
       setRuns(p => [...p, run]);
       setNewRun(blankRun);
+      setNewRunAttachments([]);
       setTesterSearch("");
       setShowAddRun(false);
     } catch (e) { alert("Failed to create run: " + e.message); }
@@ -2017,6 +2058,7 @@ export default function App() {
 
   function resetNewRunForm() {
     setNewRun(blankRun);
+    setNewRunAttachments([]);
     setTesterSearch("");
   }
 
@@ -2025,6 +2067,7 @@ export default function App() {
       ...blankRun,
       testPlanId: runPlanId || "",
     });
+    setNewRunAttachments([]);
     setTesterSearch("");
     setShowAddRun(true);
   }
@@ -2043,6 +2086,15 @@ export default function App() {
         tester: selectedTesters.join(", "),
         testCaseIds: editRun.selectedTcIds,
       });
+
+      if (editRunAttachments.length > 0) {
+        const existingCount = (runAttachments[updated.id] || []).length;
+        const renamed = renameImageFiles(editRunAttachments, updated.id, existingCount + 1);
+        const uploaded = await api.uploadTestRunAttachments(updated.id, renamed, getCurrentUserName());
+        setRunAttachments(p => ({ ...p, [updated.id]: [...(p[updated.id] || []), ...uploaded] }));
+        setEditRunAttachments([]);
+      }
+
       setRuns(p => p.map(r => r.id === updated.id ? updated : r));
       setViewRun(r => r?.id === updated.id ? updated : r);
       setEditRun(null);
@@ -3417,6 +3469,27 @@ export default function App() {
     }
   }
 
+  async function uploadRunFiles(runId, files) {
+    const selected = Array.from(files || []).filter(f => f && f.size > 0);
+    if (selected.length === 0) return;
+
+    try {
+      setUploadingRunId(runId);
+      const existingCount = (runAttachments[runId] || []).length;
+      const renamed = renameImageFiles(selected, runId, existingCount + 1);
+      const uploaded = await api.uploadTestRunAttachments(runId, renamed, getCurrentUserName());
+      if (!Array.isArray(uploaded)) throw new Error("Unexpected server response");
+      setRunAttachments(p => ({
+        ...p,
+        [runId]: [...(p[runId] || []), ...uploaded],
+      }));
+    } catch (e) {
+      alert("Failed to upload run attachment(s): " + e.message);
+    } finally {
+      setUploadingRunId(null);
+    }
+  }
+
   async function deleteDefectAttachment(defectId, attachmentId) {
     try {
       await api.deleteDefectAttachment(defectId, attachmentId);
@@ -3474,6 +3547,50 @@ export default function App() {
     }
   }
 
+  async function deleteRunAttachment(runId, attachmentId) {
+    try {
+      await api.deleteTestRunAttachment(runId, attachmentId);
+      setRunAttachments(p => ({
+        ...p,
+        [runId]: (p[runId] || []).filter(a => a.id !== attachmentId),
+      }));
+    } catch (e) {
+      alert("Failed to delete run attachment: " + e.message);
+    }
+  }
+
+  async function uploadRunEntryFiles(runId, testCaseId, files) {
+    const selected = Array.from(files || []).filter(f => f && f.size > 0);
+    if (selected.length === 0) return;
+
+    try {
+      const key = `${runId}:${testCaseId}`;
+      const existingCount = (runEntryAttachments[key] || []).length;
+      const renamed = renameImageFiles(selected, `${runId}-${testCaseId}`, existingCount + 1);
+      const uploaded = await api.uploadTestRunEntryAttachments(runId, testCaseId, renamed, getCurrentUserName());
+      if (!Array.isArray(uploaded)) throw new Error("Unexpected server response");
+      setRunEntryAttachments(p => ({
+        ...p,
+        [key]: [...(p[key] || []), ...uploaded],
+      }));
+    } catch (e) {
+      alert("Failed to upload test case attachment(s): " + e.message);
+    }
+  }
+
+  async function deleteRunEntryAttachment(runId, testCaseId, attachmentId) {
+    try {
+      await api.deleteTestRunEntryAttachment(runId, testCaseId, attachmentId);
+      const key = `${runId}:${testCaseId}`;
+      setRunEntryAttachments(p => ({
+        ...p,
+        [key]: (p[key] || []).filter(a => a.id !== attachmentId),
+      }));
+    } catch (e) {
+      alert("Failed to delete test case attachment: " + e.message);
+    }
+  }
+
   async function openAttachment(url, fileName) {
     try {
       const response = await fetch(url);
@@ -3516,6 +3633,17 @@ export default function App() {
     uploadTestCaseFiles(testCaseId, imageFiles);
   }
 
+  function onRunEntryPasteUpload(e, runId, testCaseId) {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(f => f.type?.startsWith("image/") || f.type?.startsWith("application/") || f.type?.startsWith("text/") || f.name);
+    if (imageFiles.length === 0) return;
+
+    e.preventDefault();
+    uploadRunEntryFiles(runId, testCaseId, imageFiles);
+  }
+
   function queueNewTestCaseFiles(files) {
     const selected = Array.from(files || []).filter(f => f && f.size > 0);
     if (selected.length === 0) return;
@@ -3524,6 +3652,26 @@ export default function App() {
 
   function removeQueuedNewTestCaseFile(indexToRemove) {
     setNewTCAttachments(p => p.filter((_, i) => i !== indexToRemove));
+  }
+
+  function queueNewRunFiles(files) {
+    const selected = Array.from(files || []).filter(f => f && f.size > 0);
+    if (selected.length === 0) return;
+    setNewRunAttachments(p => [...p, ...selected]);
+  }
+
+  function removeQueuedNewRunFile(indexToRemove) {
+    setNewRunAttachments(p => p.filter((_, i) => i !== indexToRemove));
+  }
+
+  function queueEditRunFiles(files) {
+    const selected = Array.from(files || []).filter(f => f && f.size > 0);
+    if (selected.length === 0) return;
+    setEditRunAttachments(p => [...p, ...selected]);
+  }
+
+  function removeQueuedEditRunFile(indexToRemove) {
+    setEditRunAttachments(p => p.filter((_, i) => i !== indexToRemove));
   }
 
   function onNewTestCasePasteUpload(e) {
@@ -4752,6 +4900,26 @@ linear-gradient(
                       <button onClick={() => setViewRun(null)} style={xBtn}>✕</button>
                     </div>
 
+                    {(runAttachments[viewRun.id] || []).length > 0 && (
+                      <div style={{ marginBottom: 18, display: "grid", gap: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: 0.4, textTransform: "uppercase" }}>Run Attachments</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                          {(runAttachments[viewRun.id] || []).map(attachment => (
+                            <div key={attachment.id} style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "6px 10px" }}>
+                              <button type="button" onClick={() => openAttachment(attachment.url, attachment.fileName)} style={{ background: "none", border: "none", color: "#4f46e5", cursor: "pointer", fontWeight: 700, textAlign: "left", padding: 0 }}>
+                                {attachment.fileName}
+                              </button>
+                              {canDelete && (
+                                <button type="button" onClick={() => deleteRunAttachment(viewRun.id, attachment.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 13, padding: 0 }}>
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {(() => {
                       const st = runStats(viewRun); const byStatusPriority = runStatusPriorityStats(viewRun); const executed = Math.max(0, st.total - st.notRun); const pct = st.total > 0 ? Math.round((executed / st.total) * 100) : 0; return (
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
@@ -5007,8 +5175,14 @@ linear-gradient(
                         const tc = allTestCaseById[entry.testCaseId];
                         const ec = EXEC_STATUS[entry.execStatus] || EXEC_STATUS["Not Run"];
                         const entryDefects = entry.defects || [];
+                        const entryAttachmentKey = `${viewRun.id}:${entry.testCaseId}`;
+                        const entryAttachments = runEntryAttachments[entryAttachmentKey] || [];
                         return (
-                          <div key={entry.id} style={{ border: `1.5px solid ${ec.border}`, borderRadius: 12, padding: "14px 16px", background: ec.bg, cursor: "pointer" }}>
+                          <div
+                            key={entry.id}
+                            onPaste={e => onRunEntryPasteUpload(e, viewRun.id, entry.testCaseId)}
+                            style={{ border: `1.5px solid ${ec.border}`, borderRadius: 12, padding: "14px 16px", background: ec.bg, cursor: "pointer" }}
+                          >
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -5199,6 +5373,62 @@ linear-gradient(
                                         >
                                           {u.displayName}
                                         </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div style={{ marginTop: 12 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                    <input
+                                      id={`run-entry-attachment-${entry.id}`}
+                                      type="file"
+                                      multiple
+                                      hidden
+                                      onChange={e => {
+                                        const selected = Array.from(e.target.files || []);
+                                        if (selected.length === 0) return;
+                                        uploadRunEntryFiles(viewRun.id, entry.testCaseId, selected);
+                                        e.target.value = "";
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => document.getElementById(`run-entry-attachment-${entry.id}`)?.click()}
+                                      style={{
+                                        ...btnS,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        padding: "7px 10px",
+                                        fontSize: 11,
+                                      }}
+                                    >
+                                      📎 Attach image/file
+                                    </button>
+                                    {entryAttachments.length > 0 && (
+                                      <span style={{ fontSize: 11, color: "#475569", fontWeight: 700 }}>{entryAttachments.length} file{entryAttachments.length === 1 ? "" : "s"}</span>
+                                    )}
+                                  </div>
+                                  {entryAttachments.length > 0 && (
+                                    <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                                      {entryAttachments.map(a => (
+                                        <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px" }}>
+                                          <button
+                                            type="button"
+                                            onClick={() => openAttachment(a.url, a.fileName)}
+                                            style={{ background: "none", border: "none", color: "#2563eb", cursor: "pointer", textAlign: "left", fontSize: 12, fontWeight: 600, overflowWrap: "anywhere", padding: 0 }}
+                                          >
+                                            {a.fileName}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => deleteRunEntryAttachment(viewRun.id, entry.testCaseId, a.id)}
+                                            style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
+                                          >
+                                            ✕
+                                          </button>
+                                        </div>
                                       ))}
                                     </div>
                                   )}
@@ -5685,6 +5915,42 @@ linear-gradient(
                 <div>
                   <label style={lbl}>Run Name *</label>
                   <input value={editRun.name} onChange={e => setEditRun(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="e.g. UAT 6.1 - SG Regression - Round 1" />
+                </div>
+                <div>
+                  <label style={lbl}>Run Attachments</label>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={e => {
+                      const selected = Array.from(e.target.files || []).filter(f => f && f.size > 0);
+                      if (selected.length === 0) return;
+                      queueEditRunFiles(selected);
+                      e.target.value = "";
+                    }}
+                    style={{ ...inp, padding: "10px 12px" }}
+                  />
+                  {(editRunAttachments.length > 0 || (runAttachments[editRun.id] || []).length > 0) && (
+                    <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                      {[...editRunAttachments.map((file, index) => ({ type: "pending", file, index })), ...((runAttachments[editRun.id] || []).map(a => ({ type: "existing", attachment: a })))]
+                        .map((item, idx) => (
+                          <div key={item.type === "pending" ? `pending-${item.index}` : `existing-${item.attachment.id}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px" }}>
+                            <span style={{ fontSize: 12, color: "#334155", overflowWrap: "anywhere" }}>
+                              {item.type === "pending" ? item.file.name : item.attachment.fileName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (item.type === "pending") removeQueuedEditRunFile(item.index);
+                                else deleteRunAttachment(editRun.id, item.attachment.id);
+                              }}
+                              style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={lbl}>Testers</label>
