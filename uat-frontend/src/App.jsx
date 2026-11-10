@@ -5917,42 +5917,6 @@ linear-gradient(
                   <input value={editRun.name} onChange={e => setEditRun(p => ({ ...p, name: e.target.value }))} style={inp} placeholder="e.g. UAT 6.1 - SG Regression - Round 1" />
                 </div>
                 <div>
-                  <label style={lbl}>Run Attachments</label>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={e => {
-                      const selected = Array.from(e.target.files || []).filter(f => f && f.size > 0);
-                      if (selected.length === 0) return;
-                      queueEditRunFiles(selected);
-                      e.target.value = "";
-                    }}
-                    style={{ ...inp, padding: "10px 12px" }}
-                  />
-                  {(editRunAttachments.length > 0 || (runAttachments[editRun.id] || []).length > 0) && (
-                    <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                      {[...editRunAttachments.map((file, index) => ({ type: "pending", file, index })), ...((runAttachments[editRun.id] || []).map(a => ({ type: "existing", attachment: a })))]
-                        .map((item, idx) => (
-                          <div key={item.type === "pending" ? `pending-${item.index}` : `existing-${item.attachment.id}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px" }}>
-                            <span style={{ fontSize: 12, color: "#334155", overflowWrap: "anywhere" }}>
-                              {item.type === "pending" ? item.file.name : item.attachment.fileName}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (item.type === "pending") removeQueuedEditRunFile(item.index);
-                                else deleteRunAttachment(editRun.id, item.attachment.id);
-                              }}
-                              style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-                <div>
                   <label style={lbl}>Testers</label>
                   <input
                     value={editRunTesterSearch}
