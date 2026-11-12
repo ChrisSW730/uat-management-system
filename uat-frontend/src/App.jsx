@@ -1019,6 +1019,7 @@ export default function App() {
     }
 
     let cancelled = false;
+    let timerId = null;
 
     const loadHeavyLists = async () => {
       try {
@@ -1039,8 +1040,16 @@ export default function App() {
       }
     };
 
-    loadHeavyLists();
-    return () => { cancelled = true; };
+    timerId = window.setTimeout(() => {
+      void loadHeavyLists();
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      if (timerId) {
+        window.clearTimeout(timerId);
+      }
+    };
   }, [authUser]);
 
   useEffect(() => {
