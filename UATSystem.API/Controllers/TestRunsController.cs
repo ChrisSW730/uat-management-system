@@ -190,6 +190,7 @@ public class TestRunsController : ControllerBase
     {
         var runs = await _db.TestRuns
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Entries)
                 .ThenInclude(e => e.TestCase)
             .Include(r => r.Entries)
@@ -206,6 +207,8 @@ public class TestRunsController : ControllerBase
     public async Task<IActionResult> Get(int id)
     {
         var run = await _db.TestRuns
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Entries)
                 .ThenInclude(e => e.TestCase)
             .Include(r => r.Entries)

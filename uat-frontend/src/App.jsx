@@ -978,12 +978,6 @@ export default function App() {
           setSelectedTestPlanId(latestPlan ? String(latestPlan.id) : "");
         }
       }),
-      api.getTestCases().then(tcs => {
-        setTestCases(tcs);
-        setAllTestCases(tcs || []);
-      }),
-      api.getTestRuns().then(setRuns),
-      api.getDefects().then(defs => setDefects(normalizeDefects(defs))),
       api.getMentionUsers().then(setMentionUsers).catch(err => console.error("Mention users error:", err)),
       isAdmin ? api.getUsers().then(setUsers).catch(err => console.error("Users Error:", err)) : Promise.resolve([]),
       api.getNotifications(false).then(setNotifications).catch(err => console.error("Notifications Error:", err)),
@@ -1010,10 +1004,44 @@ export default function App() {
         }
       }).catch(err => console.error("Categories Error:", err)),
     ])
-      .catch(err => console.error("Failed to load data:", err))
+      .catch(err => console.error("Failed to load initial data:", err))
       .finally(() => setLoading(false));
 
   }, [authUser, isAdmin]);
+
+  useEffect(() => {
+    if (!authUser) {
+      setTestCases([]);
+      setAllTestCases([]);
+      setRuns([]);
+      setDefects([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadHeavyLists = async () => {
+      try {
+        const [tcs, rs, defs] = await Promise.all([
+          api.getTestCases(),
+          api.getTestRuns(),
+          api.getDefects(),
+        ]);
+
+        if (cancelled) return;
+
+        setTestCases(tcs || []);
+        setAllTestCases(tcs || []);
+        setRuns(rs || []);
+        setDefects(normalizeDefects(defs || []));
+      } catch (err) {
+        console.error("Failed to load heavy list data:", err);
+      }
+    };
+
+    loadHeavyLists();
+    return () => { cancelled = true; };
+  }, [authUser]);
 
   useEffect(() => {
     if (!authUser || loading || !pendingDefectLinkId) return;
@@ -1753,7 +1781,7 @@ export default function App() {
   }, [testScopesByPlanId]);
 
   useEffect(() => {
-    if (!authUser || loading || activeTab !== "dashboard") {
+    if (!authUser || activeTab !== "dashboard") {
       return;
     }
 
@@ -1766,8 +1794,11 @@ export default function App() {
       return;
     }
 
-    if (!Array.isArray(runs) || runs.length === 0) {
-      dashboardDefaultSelectionAppliedRef.current = true;
+    if (loading) {
+      return;
+    }
+
+    if (!Array.isArray(runs) || runs.length === 0 || !Array.isArray(allTestCases) || allTestCases.length === 0) {
       return;
     }
 
@@ -1818,7 +1849,6 @@ export default function App() {
       .find(run => getRunPlanIds(run).length > 0);
 
     if (!latestRun) {
-      dashboardDefaultSelectionAppliedRef.current = true;
       return;
     }
 
@@ -1828,7 +1858,6 @@ export default function App() {
     );
 
     if (!primaryPlanId || !project) {
-      dashboardDefaultSelectionAppliedRef.current = true;
       return;
     }
 

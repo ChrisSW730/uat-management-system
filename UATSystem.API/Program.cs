@@ -18,7 +18,9 @@ var jwtAudience = jwtSection["Audience"] ?? "UATSystem";
 var pathBase = builder.Configuration["PathBase"] ?? builder.Configuration["ASPNETCORE_PATH_BASE"] ?? "/web";
 
 builder.Services.AddDbContext<UATDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlServerOptions => sqlServerOptions.CommandTimeout(120)));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
