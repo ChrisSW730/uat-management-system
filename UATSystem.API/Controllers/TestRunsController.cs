@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using UATSystem.API.Data;
+using UATSystem.API.Helpers;
 using UATSystem.API.Models;
 
 namespace UATSystem.API.Controllers;
@@ -54,14 +55,18 @@ public class TestRunsController : ControllerBase
 
     private TestRunAttachmentDto ToAttachmentDto(TestRunAttachment a)
     {
-        var fileUrl = Url.Action(nameof(GetAttachmentFile), null, new { id = a.TestRunId, attachmentId = a.Id }, Request.Scheme, Request.Host.Value);
-        return new TestRunAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl ?? string.Empty);
+        var fileUrl = UrlBuilder.BuildAbsoluteUrl(
+            Request,
+            Url.Action(nameof(GetAttachmentFile), null, new { id = a.TestRunId, attachmentId = a.Id }));
+        return new TestRunAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl);
     }
 
     private TestRunEntryAttachmentDto ToEntryAttachmentDto(TestRunEntryAttachment a, int runId, int testCaseId)
     {
-        var fileUrl = Url.Action(nameof(GetEntryAttachmentFile), null, new { id = runId, testCaseId, attachmentId = a.Id }, Request.Scheme, Request.Host.Value);
-        return new TestRunEntryAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl ?? string.Empty);
+        var fileUrl = UrlBuilder.BuildAbsoluteUrl(
+            Request,
+            Url.Action(nameof(GetEntryAttachmentFile), null, new { id = runId, testCaseId, attachmentId = a.Id }));
+        return new TestRunEntryAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl);
     }
 
     private async Task<string> GetCommentTesterAsync()

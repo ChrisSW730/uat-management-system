@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using UATSystem.API.Data;
+using UATSystem.API.Helpers;
 using UATSystem.API.Models;
 
 namespace UATSystem.API.Controllers;
@@ -37,8 +38,10 @@ public class TestCasesController : ControllerBase
 
     private TestCaseAttachmentDto ToAttachmentDto(TestCaseAttachment a)
     {
-        var fileUrl = Url.Action(nameof(GetAttachmentFile), null, new { id = a.TestCaseId, attachmentId = a.Id }, Request.Scheme, Request.Host.Value);
-        return new TestCaseAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl ?? string.Empty);
+        var fileUrl = UrlBuilder.BuildAbsoluteUrl(
+            Request,
+            Url.Action(nameof(GetAttachmentFile), null, new { id = a.TestCaseId, attachmentId = a.Id }));
+        return new TestCaseAttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.UploadedBy, a.UploadedAt, fileUrl);
     }
 
     [HttpGet]
