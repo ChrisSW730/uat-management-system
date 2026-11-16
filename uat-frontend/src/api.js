@@ -52,8 +52,10 @@ export function resolveAttachmentUrl(url) {
   if (!url) return url;
   try {
     const parsed = new URL(url, window.location.origin);
-    const match = parsed.pathname.match(/\/(defects|testcases|testruns)\/.+$/i);
-    if (match) return `${BASE}${match[0]}${parsed.search}`;
+    // Lowercase the route prefix: the API emits "/Defects/..." (controller name casing),
+    // but the Vite dev proxy only matches lowercase "/defects".
+    const match = parsed.pathname.match(/\/(defects|testcases|testruns)(\/.+)$/i);
+    if (match) return `${BASE}/${match[1].toLowerCase()}${match[2]}${parsed.search}`;
   } catch {
     // fall through to the original URL
   }
