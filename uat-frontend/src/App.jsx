@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
-import { api } from "./api";
+import { api, resolveAttachmentUrl } from "./api";
 import {
   LayoutDashboard,
   Briefcase,
@@ -3631,7 +3631,7 @@ export default function App() {
 
   async function openAttachment(url, fileName) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(resolveAttachmentUrl(url));
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           throw new Error("Session expired or access denied. Please login again.");

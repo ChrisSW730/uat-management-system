@@ -45,6 +45,21 @@ async function authFetch(resource, options = {}) {
 
 window.fetch = authFetch;
 
+// The API returns absolute attachment URLs built from its own scheme/host, which behind
+// the reverse proxy can be http:// or an internal host (blocked by the browser -> "Failed to fetch").
+// Always route the download through the same-origin API base used by every other call.
+export function resolveAttachmentUrl(url) {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    const match = parsed.pathname.match(/\/(defects|testcases|testruns)\/.+$/i);
+    if (match) return `${BASE}${match[0]}${parsed.search}`;
+  } catch {
+    // fall through to the original URL
+  }
+  return url;
+}
+
 export const api = {
   login: async (username, password, rememberMe = false) => {
     const response = await rawFetch(`${BASE}/auth/login`, {
