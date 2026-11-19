@@ -2024,7 +2024,7 @@ public class ClickUpController : ControllerBase
     }
 
     private static string? ResolvePeekQaFieldValue(Defect defect, string peekQaField)
-    {
+{
         return peekQaField.Trim() switch
         {
             "Defect Title" => defect.Title,
@@ -2400,6 +2400,7 @@ public class ClickUpController : ControllerBase
         {
             new("to_do", "To Do"),
             new("in_progress", "In Progress"),
+            new("blocked", "Blocked"),
             new("ready_for_test", "Ready for Test"),
             new("in_review", "In Review"),
             new("pending_deployment", "Pending Deployment"),

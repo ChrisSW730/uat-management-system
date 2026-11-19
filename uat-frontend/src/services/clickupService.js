@@ -93,6 +93,7 @@ export const CLICKUP_SYSTEM_FIELDS = [
 export const DEFAULT_CLICKUP_STATUS_MAPPINGS = {
   New: "to_do",
   "In Progress": "in_progress",
+  Blocked: "in_progress",
   Fixed: "ready_for_test",
   Reopened: "in_review",
   Rejected: "done",

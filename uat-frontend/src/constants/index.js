@@ -102,6 +102,13 @@ export const DEFECT_STATUS = {
     dot: "#f97316",
   },
 
+  Blocked: {
+    bg: "#fdf2f8",
+    text: "#be185d",
+    border: "#fbcfe8",
+    dot: "#db2777",
+  },
+
   Fixed: {
     bg: "#ecfdf5",
     text: "#047857",
